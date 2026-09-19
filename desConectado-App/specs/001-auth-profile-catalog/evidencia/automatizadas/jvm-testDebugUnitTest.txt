@@ -6,13 +6,13 @@
 > Task :app:packageDebugResources
 > Task :app:processDebugNavigationResources
 > Task :app:javaPreCompileDebug
-> Task :app:mapDebugSourceSetPaths
 > Task :app:parseDebugLocalResources
+> Task :app:mapDebugSourceSetPaths
 > Task :app:compileDebugNavigationResources
 > Task :app:checkDebugAarMetadata
+> Task :app:generateDebugRFile
 > Task :app:createDebugCompatibleScreenManifests
 > Task :app:extractDeepLinksDebug
-> Task :app:generateDebugRFile
 > Task :app:processDebugMainManifest
 > Task :app:processDebugManifest
 > Task :app:preDebugUnitTestBuild UP-TO-DATE

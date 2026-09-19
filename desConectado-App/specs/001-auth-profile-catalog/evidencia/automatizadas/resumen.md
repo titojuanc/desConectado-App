@@ -1,6 +1,6 @@
 # Resumen de pruebas automatizadas (T110)
 
-Fecha: 2026-09-19.
+Fecha: 2026-09-19 (repetidas tras quitar los permisos biométricos del manifiesto).
 
 ## JVM (`./gradlew testDebugUnitTest`): 92/92 pasan
 
