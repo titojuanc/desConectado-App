@@ -2,8 +2,9 @@
 
 **Fecha**: 2026-09-19 | **Spec**: [spec.md](spec.md) | **Plan**: [plan.md](plan.md)
 
-Resuelve el `TODO(STACK)` de la constitución y todo lo que el Technical Context dejaba abierto.
-Ninguna decisión se verificó contra documentación en línea en esta sesión; las que dependen del
+Resuelve el `TODO(STACK)` de la constitución y todo lo que el Technical Context dejaba abierto. El
+stack quedó registrado en la constitución v2.0.0 y el estado se alineó con la v2.1.0. Ninguna
+decisión se verificó contra documentación en línea en esta sesión; las que dependen del
 comportamiento de un servicio externo están marcadas con **[Verificar]** y tienen una tarea de
 comprobación en `quickstart.md`.
 
@@ -53,16 +54,16 @@ con Google Play) y Firebase CLI. Es el mayor riesgo de calendario de esta entreg
 ## D-3. Backend: Firebase, plan gratuito (Spark)
 
 - **Decisión**: Firebase Authentication (correo y contraseña, y Google) + Cloud Firestore. Sin Cloud
-  Functions en esta entrega.
+  Functions ni plan de pago, en esta entrega y en el MVP (constitución, "Stack tecnológico").
 - **Razón**: lo definió el equipo; cubre autenticación, persistencia de sesión y base de datos sin
-  servidor propio; el plan gratuito alcanza para esta entrega.
+  servidor propio; el plan gratuito alcanza para el MVP.
 - **Alternativas**: backend propio (más trabajo sin beneficio); Supabase (equivalente, pero el
   equipo ya eligió Firebase).
-- **Advertencia para la entrega del 01/10 (R-2)**: el Principio VI exige que acreditar y canjear
-  puntos sea autoritativo en el backend. Eso normalmente se resuelve con Cloud Functions, que exigen
-  el plan de pago (Blaze, con tarjeta). La alternativa sin costo es imponer las reglas con
-  transacciones y reglas de seguridad de Firestore, con garantías más débiles. Hay que decidirlo
-  antes de planificar la entrega 2.
+- **Puntos en entregas posteriores**: la acreditación, el canje y el vencimiento se originan en la
+  app y los puntos se guardan en Firestore, protegidos por reglas de seguridad (Principio VI). Las
+  reglas no pueden impedir que un cliente modificado falsee el resultado de la medición de uso; el
+  riesgo se acepta porque las recompensas no tienen valor fuera de la app. Este tema no afecta a
+  esta entrega y se diseña en el plan de la entrega del 01/10 (`TODO(PUNTOS_SEGURIDAD)`).
 
 ## D-4. Ingreso con Google: gestor de credenciales de Android
 
@@ -70,8 +71,9 @@ con Google Play) y Firebase CLI. Es el mayor riesgo de calendario de esta entreg
   (`GetGoogleIdOption` / `GetSignInWithGoogleOption`) y canjearlo en Firebase Auth con
   `GoogleAuthProvider.getCredential`.
 - **Razón**: es el flujo vigente; las bibliotecas anteriores de Google Sign-In están en desuso.
-  Requiere el ID de cliente web que Firebase crea al habilitar Google como proveedor, y registrar la
-  huella SHA-1 de cada keystore de depuración en el proyecto de Firebase.
+  Requiere el ID de cliente web que Firebase crea al habilitar Google como proveedor, y registrar en
+  el proyecto de Firebase la huella SHA-1 de cada keystore de depuración y de la keystore con la que
+  se firme el APK que se distribuya.
 - **Alternativa**: `GoogleSignInClient` clásico: en desuso.
 - **Prueba**: el flujo con la pantalla real de Google solo se puede probar a mano en un dispositivo
   o emulador con Google Play. La capa que recibe el token se prueba automatizada con el emulador de
@@ -109,21 +111,24 @@ con Google Play) y Firebase CLI. Es el mayor riesgo de calendario de esta entreg
 
 ## D-7. Política sin conexión (FR-011)
 
-- **Decisión**: Firestore con caché solo en memoria; los catálogos se leen forzando el servidor; un
-  observador de conectividad publica el estado de red y la UI bloquea registro, ingreso y carga
-  cuando no hay conexión.
+- **Decisión**: Firestore con caché solo en memoria; los catálogos y el perfil se leen forzando el
+  servidor; un observador de conectividad publica el estado de red y la UI bloquea registro,
+  ingreso, restablecimiento de contraseña y carga de datos cuando no hay conexión.
 - **Razón**: por defecto Firestore en Android guarda una caché en disco y serviría catálogos sin
-  conexión, lo que contradice FR-011 y la constitución. Firebase Auth conserva la sesión sin red, así
-  que con la app abierta sin conexión el usuario ve la pantalla principal con un aviso y las
-  secciones bloqueadas, en vez de una pantalla rota.
+  conexión, lo que contradice FR-011 y la constitución. Firebase Auth conserva la sesión sin red.
+- **Arranque con sesión y sin conexión** (spec, Clarifications): la app entra a la pantalla
+  principal con el aviso de conexión requerida; Desafíos, Recompensas y Perfil no cargan datos y
+  ofrecen reintentar; la sesión no se cierra. Al volver la conexión, reintentar carga con
+  normalidad.
 - **Alternativa**: permitir catálogos en caché: más amable, pero incumple el requisito.
 
 ## D-8. Sesión persistente y cuenta eliminada (FR-005)
 
 - **Decisión**: Firebase Auth persiste la sesión entre reinicios. Al iniciar con conexión se ejecuta
   una recarga del usuario; si Firebase responde que la cuenta ya no existe o fue deshabilitada, se
-  cierra la sesión y se vuelve al ingreso.
-- **Razón**: cubre el caso límite "cuenta inexistente con sesión guardada" del spec.
+  cierra la sesión y se vuelve al ingreso. Un fallo de red durante esa recarga NO cierra la sesión.
+- **Razón**: cubre el caso límite "cuenta inexistente con sesión guardada" del spec sin perder la
+  sesión por falta de conexión (FR-011).
 
 ## D-9. Arquitectura de la app
 
@@ -161,8 +166,8 @@ y capturas) referenciada desde ese documento.
 ## D-12. Emuladores de Firebase en depuración
 
 - **Decisión**: las compilaciones de depuración pueden apuntar a los emuladores locales de Auth y
-  Firestore (host `10.0.2.2` desde el emulador de Android) mediante un campo de compilación; las de
-  publicación siempre usan el proyecto real.
+  Firestore (host `10.0.2.2` desde el emulador de Android) mediante un campo de compilación; las
+  de distribución (APK firmado) siempre usan el proyecto real.
 - **Razón**: pruebas repetibles, sin ensuciar el proyecto real con cuentas de prueba y sin depender
   de Internet.
 - **Requisito**: el emulador de Firestore necesita Java; las versiones recientes de la Firebase CLI
@@ -175,13 +180,14 @@ y capturas) referenciada desde ese documento.
   la consola de Firebase. Se versiona `firebase.json`, `firestore.rules` y el script de siembra.
 - **Razón**: la clave no es un secreto fuerte, pero acoplar el repositorio a un proyecto concreto
   dificulta cambiarlo y mezcla datos de prueba con reales.
-- **Riesgo**: cada integrante debe registrar la huella SHA-1 de su keystore de depuración para que
-  funcione Google (R-3).
+- **Riesgo**: cada integrante debe registrar la huella SHA-1 de su keystore de depuración, y el
+  equipo la de la keystore de firma del APK distribuido, para que funcione Google (R-3).
 
 ## D-14. Interfaz
 
 - **Decisión**: Material 3 con paleta propia de verdes y azules con neutros, modo claro y oscuro
-  siguiendo el sistema; textos solo en español (`res/values/strings.xml`); barra de navegación
+  siguiendo el sistema; textos solo en español rioplatense con "vos" (FR-023), en archivos
+  `res/values/strings*.xml` por sección; barra de navegación
   inferior con tres destinos (Desafíos, Recompensas, Perfil), lo que cumple SC-005 con un toque.
 - **Razón**: identidad visual de la constitución; sin patrones de uso compulsivo.
 
@@ -191,12 +197,60 @@ y capturas) referenciada desde ese documento.
 - **Razón**: mínimos indispensables (constitución); ningún permiso de accesibilidad, superposición,
   cámara ni uso de apps en esta entrega.
 
+## D-16. Distribución
+
+- **Decisión**: el APK se distribuye directamente; el proyecto no se publica en Google Play
+  (constitución, Principio II). Se descarta Firebase App Check, cuyo proveedor de integridad en
+  Android está pensado para apps distribuidas por Google Play.
+- **Razón**: decisión del equipo.
+- **Consecuencia**: quien instale el APK debe permitir la instalación desde orígenes desconocidos,
+  y el APK debe estar firmado con una keystore cuya huella SHA-1 esté registrada en Firebase (R-3).
+  Los dispositivos y emuladores siguen necesitando Google Play Services para el ingreso con Google;
+  eso no implica publicar en la tienda.
+
+## D-17. Restablecimiento de contraseña (FR-025, FR-026) [Verificar]
+
+- **Decisión**: la app pide a Firebase Authentication que envíe el correo de restablecimiento
+  (`sendPasswordResetEmail`) y muestra siempre el mismo mensaje de confirmación. El código de idioma
+  de Auth se fija en español antes de enviar. La página donde se elige la contraseña nueva la aloja
+  Firebase; la app no la implementa.
+- **Razón**: es la vía estándar, no exige servidor propio y cumple el spec. Mostrar siempre el mismo
+  mensaje evita revelar qué correos están registrados (FR-026, coherente con FR-004): si el proyecto
+  tiene activada la protección contra enumeración de correos, Firebase no informa error para un
+  correo inexistente; si no, devuelve un error de usuario inexistente que el repositorio convierte
+  igualmente en éxito. La conexión sigue siendo obligatoria (FR-011).
+- **Idioma y tono**: el código de idioma cubre el idioma del correo, pero el texto por defecto de la
+  plantilla es genérico. Tarea manual: personalizar la plantilla en la consola de Firebase
+  (Authentication, Plantillas) con voseo, para cumplir FR-023.
+- **Regla de longitud**: la página de Firebase aplica su propia longitud mínima de contraseña, que
+  puede ser menor que los 8 caracteres de FR-002. Se acepta (spec, Assumptions).
+- **Cuenta creada solo con Google**: el comportamiento exacto de Firebase al pedir el
+  restablecimiento para una cuenta sin contraseña **[Verificar]** en el proyecto real (prueba M-11).
+  Cualquiera sea, la app muestra el mismo mensaje y el ingreso con Google sigue funcionando.
+- **Pruebas**: el emulador de Auth no envía correos, pero expone los códigos de restablecimiento por
+  su API REST; una prueba instrumentada los lee, completa el restablecimiento y comprueba que solo
+  sirve la contraseña nueva. El correo real, su idioma y su llegada en menos de 2 minutos (SC-009)
+  se comprueban a mano.
+- **Alternativa**: página propia de restablecimiento con manejo del enlace dentro de la app: más
+  control del idioma y de la regla de longitud, pero exige configurar enlaces dinámicos y más
+  código; descartada por Principio V.
+
+## D-18. Sin confirmación de correo
+
+- **Decisión**: no se envía ni se exige correo de confirmación al registrarse (spec, Clarifications).
+- **Razón**: menos pasos de registro y menos riesgo de calendario. Consecuencia: el ingreso con
+  Google, cuyo correo llega verificado, puede coincidir con una cuenta de contraseña con el mismo
+  correo sin verificar; el manejo se comprueba en T-VERIF-1 (D-5).
+
 ## Riesgos abiertos
 
 | ID  | Riesgo                                                            | Mitigación                                       |
 |-----|-------------------------------------------------------------------|--------------------------------------------------|
 | R-1 | Falta Android Studio/SDK/Firebase CLI; quedan 5 días              | Instalarlos primero (día 1); el resto se paraleliza |
-| R-2 | Puntos autoritativos en el backend pueden exigir plan Blaze       | Decidir antes de planificar la entrega del 01/10 |
-| R-3 | Cada integrante necesita registrar su SHA-1 para Google           | Documentado en `quickstart.md`                   |
+| R-3 | Cada integrante necesita registrar su SHA-1 para Google; también la keystore de firma del APK | Documentado en `quickstart.md` |
 | R-4 | Comportamiento de unificación de cuentas por correo sin verificar | Tarea T-VERIF-1 contra el proyecto real          |
 | R-5 | El equipo podría no dominar Kotlin                                | Revisar D-1 de inmediato si es el caso           |
+| R-6 | El correo de restablecimiento puede tardar o caer en spam durante la demo | Probarlo con el proyecto real antes de la entrega (M-11); avisar de revisar spam |
+
+El antiguo R-2 (puntos autoritativos en el backend y plan de pago) se cerró al redefinir el
+Principio VI en la constitución v2.0.0; su seguimiento pasó a `TODO(PUNTOS_SEGURIDAD)`.

@@ -29,6 +29,7 @@ registrar(username, email, password)    -> Resultado<Unit>
 ingresar(email, password)               -> Resultado<Unit>
 ingresarConGoogle(idToken)              -> Resultado<Unit>
 vincularGoogle(idToken)                 -> Resultado<Unit>   // solo tras CuentaExistenteConOtroProveedor
+restablecerPassword(email)              -> Resultado<Unit>   // envía el correo de restablecimiento
 cerrarSesion()                          -> Unit
 verificarCuenta()                       -> Unit              // recarga; cierra sesión si la cuenta no existe
 ```
@@ -41,6 +42,15 @@ Comportamiento exigido:
   existía (esc. 2).
 - El `idToken` lo obtiene la capa de UI con el gestor de credenciales de Android; el repositorio no
   depende de `Activity`.
+- `restablecerPassword` aplica la misma normalización de correo, fija el idioma del correo en
+  español y devuelve éxito **tanto si existe una cuenta con ese correo como si no** (FR-026): un
+  error de "usuario inexistente" del servicio se convierte en éxito. Solo devuelve `SinConexion`
+  ante fallo de red (FR-011) o `Desconocido` ante cualquier otro fallo. La UI valida el formato del
+  correo antes de llamarla (FR-025).
+- `verificarCuenta` cierra la sesión únicamente cuando el servicio responde que la cuenta no existe o
+  fue deshabilitada; un fallo de red NO cierra la sesión (spec, Clarifications, arranque sin
+  conexión).
+- `cerrarSesion` es una operación local y no requiere conexión.
 
 ## ProfileRepository
 

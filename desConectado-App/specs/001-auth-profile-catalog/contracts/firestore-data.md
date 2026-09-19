@@ -41,6 +41,8 @@ no pasan por las reglas.
 
 ## Evolución prevista (no implementada en esta entrega)
 
-Las entregas siguientes agregarán al perfil el saldo de puntos y colecciones de historial. Esos
-campos **no** podrán ser escritos por la app; su escritura será autoritativa del backend
-(Principio VI). Ver riesgo R-2 en `research.md`.
+Las entregas siguientes agregarán al perfil el saldo de puntos y colecciones de historial. La app
+originará esas escrituras y Firestore las validará con reglas de seguridad (Principio VI, v2.1.0).
+Cuando se agreguen, este contrato MUST actualizar la tabla de permisos: hoy `users/{uid}` no admite
+modificaciones desde la app. El modelo y las reglas se definen en el plan de la entrega del 01/10
+(`TODO(PUNTOS_SEGURIDAD)`).

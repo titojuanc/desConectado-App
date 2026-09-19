@@ -1,23 +1,20 @@
 <!--
 SYNC IMPACT REPORT (temporal; eliminar antes de commitear)
-Version change: 1.2.0 → 2.0.0
-Bump: MAJOR. El Principio VI se redefine de forma incompatible: antes exigía que acreditar,
-  canjear y vencer puntos fueran autoritativos en el backend; ahora se originan en la app y el
-  backend los protege con reglas de seguridad. Además se agrega la subsección "Stack tecnológico"
-  (por sí sola sería MINOR).
+Version change: 2.0.0 → 2.1.0
+Bump: MINOR. Se resuelve una decisión abierta (Firebase App Check queda descartado porque el
+  proyecto no se publicará en Google Play), se agrega un elemento a "Fuera de alcance" y se
+  posterga una regla de seguridad hasta comprobarla en la práctica. Ninguna redefinición
+  incompatible de un principio.
 Principios modificados:
-  VI. Integridad de la Economía de Puntos (redefinido: origen local + reglas de seguridad + límite
-      de riesgo aceptado)
-  II. Android Nativo (la elección de framework pasa a referirse a "Stack tecnológico")
-Secciones agregadas: Stack tecnológico (dentro de "Alcance del MVP y Restricciones")
-Secciones modificadas: Arquitectura de datos, Seguridad y datos, Decisiones resueltas, Decisiones
-  abiertas, Governance (enmiendas: cambios de stack)
+  II. Android Nativo (distribución solo por APK directo, sin Google Play)
+  VI. Integridad de la Economía de Puntos (la condición "no antes de que transcurra la duración"
+      deja de ser exigible hasta comprobar su viabilidad)
+Secciones agregadas: ninguna
+Secciones modificadas: Fuera de alcance, Decisiones resueltas, Decisiones abiertas
 Secciones eliminadas: ninguna
-Decisión resuelta: TODO(STACK)
-Nuevo TODO: TODO(PUNTOS_SEGURIDAD)
-Plantillas y artefactos dependientes (no se modifican aquí): en
-  specs/001-auth-profile-catalog, plan.md (Constitution Check, fila VI y nota sobre TODO(STACK)) y
-  research.md (D-3 y riesgo R-2) quedan desactualizados respecto de esta versión.
+Decisión resuelta: evaluación de App Check (descartado)
+Plantillas y artefactos dependientes (no se modifican aquí): sin pendientes; los de
+  specs/001-auth-profile-catalog se alinearon con esta versión en el mismo cambio.
 TODOs diferidos (a resolver con el usuario):
   - TODO(MEDICION_USO)  - TODO(OFFLINE_TOLERANCIA)  - TODO(NOTIFICACIONES_FRECUENCIA)
   - TODO(CATALOGO_RECOMPENSAS)  - TODO(CATALOGO_DESAFIOS)  - TODO(PUNTOS_SEGURIDAD)
@@ -53,10 +50,11 @@ desafío genuino y deja la decisión al usuario. Reglas:
 punitivos. El bloqueo fue descartado explícitamente para el MVP.
 
 ### II. Android Nativo
-El MVP es una aplicación Android nativa, instalable en un dispositivo real (APK/AAB). iOS queda
-fuera de alcance: el proyecto MUST NOT incluir código, dependencias ni trabajo de diseño
-específicos de iOS. La app MUST NOT ser una Web App/PWA. El framework y las herramientas se fijan
-en "Stack tecnológico".
+El MVP es una aplicación Android nativa, instalable en un dispositivo real mediante un APK
+distribuido directamente. La app MUST NOT publicarse en Google Play ni depender de que esté
+publicada allí. iOS queda fuera de alcance: el proyecto MUST NOT incluir código, dependencias ni
+trabajo de diseño específicos de iOS. La app MUST NOT ser una Web App/PWA. El framework y las
+herramientas se fijan en "Stack tecnológico".
 
 *Rationale*: reducir alcance a una plataforma para llegar con calidad a cada entrega.
 
@@ -102,15 +100,19 @@ reglas de seguridad. Reglas:
   escritura que incumpla estas invariantes verificables:
   1. Solo se escribe en los datos de la propia cuenta.
   2. El registro de movimientos es solo de agregado: no se edita ni se borra.
-  3. El monto de una acreditación es igual a los puntos que el catálogo asigna al desafío; ocurre
-     una sola vez por desafío y no antes de que transcurra su duración según la hora del servidor.
+  3. El monto de una acreditación es igual a los puntos que el catálogo asigna al desafío, y ocurre
+     una sola vez por desafío.
   4. Un canje tiene el costo que el catálogo asigna a la recompensa y solo procede con saldo
      suficiente.
   5. El saldo cambia únicamente junto con un movimiento y exactamente por el monto de este.
 - Las reglas MUST versionarse en el repositorio y tener pruebas automatizadas contra el emulador
-  que intenten manipular los puntos: acreditar dos veces, con un monto distinto o antes de tiempo,
-  dejar el saldo negativo, editar o borrar historial, canjear sin saldo o con otro costo, y
-  escribir en la cuenta de otra persona.
+  que intenten manipular los puntos: acreditar dos veces o con un monto distinto, dejar el saldo
+  negativo, editar o borrar historial, canjear sin saldo o con otro costo, y escribir en la cuenta
+  de otra persona.
+- Queda pendiente, sin ser exigible todavía, una condición adicional: que una acreditación no ocurra
+  antes de que transcurra la duración del desafío según la hora del servidor. Solo se incorporará
+  a la lista anterior si una prueba práctica confirma que las reglas pueden imponerla (ver
+  TODO(PUNTOS_SEGURIDAD)).
 - El vencimiento (30 días desde la acreditación) y el consumo de los puntos más antiguos primero
   (FIFO) MUST aplicarse en la app de forma determinista y ser probables mediante un reloj
   simulable. Las reglas de seguridad no pueden verificarlos; son reglas de equidad, no de
@@ -134,7 +136,8 @@ tiempo total de pantalla, historial de logros y canjes); cancelar/interrumpir de
 desafío; vencimiento de puntos; notificaciones.
 
 ### Fuera de alcance (MVP)
-iOS y Apple ID; login o recuperación por teléfono/SMS; cámara y fotos de inicio/fin de desafío;
+iOS y Apple ID; publicación en Google Play; login o recuperación por teléfono/SMS; cámara y fotos
+de inicio/fin de desafío;
 IA real o simulada como paso de verificación; bloqueo de aplicaciones; misiones personalizadas;
 beneficios fuera de la app; rankings, amistades y funciones sociales; mapas y geolocalización;
 sincronización con relojes inteligentes; avatares.
@@ -204,6 +207,9 @@ Definido en `specs/001-auth-profile-catalog/research.md`. Cambiarlo MUST tratars
 - 2026-09-19: la acreditación de puntos se origina en la app y se guarda en Firestore, protegida
   por reglas de seguridad; sin Cloud Functions ni plan de pago (reemplaza la exigencia previa de
   operaciones autoritativas en el backend).
+- 2026-09-19: el proyecto no se publica en Google Play; se distribuye por APK directo. Firebase App
+  Check queda descartado, porque su proveedor de integridad en Android está pensado para apps
+  distribuidas por Google Play.
 
 ### Decisiones abiertas (contradicciones del documento del cliente)
 Se resuelven de a una con el usuario; cada resolución enmienda esta constitución.
@@ -217,8 +223,9 @@ Se resuelven de a una con el usuario; cada resolución enmienda esta constituci�
   propuestos en `specs/001-auth-profile-catalog/spec.md` (Assumptions).
 - TODO(PUNTOS_SEGURIDAD): definir en el plan de la entrega del 2026-10-01 el modelo de datos de los
   puntos (registro de movimientos y saldo), sus reglas de seguridad y la cobertura de pruebas de
-  manipulación; evaluar Firebase App Check como capa adicional y comprobar que la regla de
-  "no antes de que transcurra la duración" es viable con la hora del servidor.
+  manipulación; y comprobar en la práctica, contra el emulador, si las reglas pueden imponer que
+  una acreditación no ocurra antes de que transcurra la duración del desafío según la hora del
+  servidor. Si es viable, se agrega a las invariantes del Principio VI; si no, se descarta.
 
 ## Flujo de Trabajo y Entregas
 
@@ -252,4 +259,4 @@ cliente donde haya contradicción.
 - **Cumplimiento**: toda spec, plan y entrega MUST verificarse contra esta constitución; las
   desviaciones MUST justificarse por escrito o corregirse antes de entregar.
 
-**Version**: 2.0.0 | **Ratified**: 2026-09-19 | **Last Amended**: 2026-09-19
+**Version**: 2.1.0 | **Ratified**: 2026-09-19 | **Last Amended**: 2026-09-19

@@ -8,6 +8,22 @@
 
 **Input**: User description: "Vamos a empezar por la entrega del 24/09. Pide un registro básico con mail y contraseña, y nosotros le vamos a agregar el google sign-in, ya que vamos a usar firebase así aprovechamos las cualidades de ese backend. El catálogo de recompensas será genérico y el perfil mostrará todos los datos que se pidan en el registro. Los desafíos serán algunos estilo "no uses Redes por x tiempo" en fácil, normal o difícil."
 
+## Clarifications
+
+### Session 2026-09-19
+
+- Q: Si la persona abre la app sin Internet y ya tenía la sesión iniciada, ¿qué debe ver? → A: Entra
+  a la pantalla principal con un aviso claro de "se requiere conexión"; Desafíos, Recompensas y
+  Perfil no cargan datos y ofrecen reintentar; la sesión no se pierde.
+- Q: ¿La persona debe confirmar su correo con un enlace antes de poder usar la app? → A: No; la
+  cuenta funciona apenas se crea y no se envía ningún correo de confirmación.
+- Q: ¿Qué datos debe pedir el formulario de registro con correo, además de la contraseña? → A:
+  Correo y nombre de usuario (3 a 30 caracteres, no único); el perfil muestra ambos.
+- Q: ¿La recuperación de contraseña ("Olvidé mi contraseña") entra en la entrega del 24/09? → A: Sí;
+  Ingreso ofrece un enlace que envía un correo para restablecer la contraseña (Historia 6).
+- Q: ¿En qué variante de español deben estar los textos de la app? → A: Rioplatense con "vos"
+  ("Ingresá", "Creá tu cuenta", "Ya tenés una cuenta").
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Registrarse e ingresar con correo y contraseña (Priority: P1)
@@ -142,10 +158,43 @@ menos cinco recompensas con nombre, descripción y costo.
 
 ---
 
+### User Story 6 - Recuperar mi contraseña (Priority: P3)
+
+Una persona que olvidó su contraseña la restablece desde la pantalla de Ingreso: indica su correo,
+recibe un mensaje con un enlace, elige una contraseña nueva y vuelve a ingresar con ella.
+
+**Why this priority**: sin esto, quien olvida su contraseña queda fuera de su cuenta. Se incorpora a
+esta entrega por decisión del equipo (ver Clarifications) y no bloquea a las Historias 1 a 5.
+
+**Independent Test**: con una cuenta de correo existente, solicitar el restablecimiento, abrir el
+enlace recibido, elegir una contraseña nueva e ingresar con ella; la anterior deja de funcionar.
+
+**Acceptance Scenarios**:
+
+1. **Given** la pantalla de Ingreso, **When** la persona elige "Olvidé mi contraseña", **Then** ve un
+   campo para escribir su correo.
+2. **Given** un correo con formato inválido, **When** la persona lo envía, **Then** se rechaza
+   indicando que debe corregirlo y no se envía ningún mensaje.
+3. **Given** el correo de una cuenta existente, **When** la persona solicita el restablecimiento,
+   **Then** recibe en ese correo un mensaje en español con un enlace para elegir una contraseña
+   nueva, y la app muestra un mensaje de confirmación.
+4. **Given** un correo sin cuenta, **When** la persona solicita el restablecimiento, **Then** la app
+   muestra el mismo mensaje de confirmación y no se envía ningún correo, sin revelar si ese correo
+   está registrado.
+5. **Given** una contraseña nueva elegida mediante el enlace, **When** la persona ingresa con ella,
+   **Then** accede a la app; con la contraseña anterior el ingreso se rechaza.
+6. **Given** un dispositivo sin conexión, **When** la persona intenta solicitar el restablecimiento,
+   **Then** se informa que se requiere conexión y no se envía nada.
+
+---
+
 ### Edge Cases
 
 - **Sin conexión**: si el dispositivo no tiene Internet, el registro, el ingreso y la carga de los
-  catálogos no proceden, y se informa con claridad que se requiere conexión.
+  catálogos y del perfil no proceden, y se informa con claridad que se requiere conexión.
+- **Sesión iniciada y app abierta sin conexión**: la persona ve la pantalla principal con el aviso
+  de conexión requerida; las secciones no cargan datos y ofrecen reintentar; al volver la conexión
+  y reintentar, cargan con normalidad sin necesidad de ingresar de nuevo.
 - **Correo con mayúsculas o espacios**: "Ana@Mail.com " y "ana@mail.com" se consideran el mismo
   correo.
 - **Doble toque**: pulsar dos veces el botón de registro o ingreso no crea dos cuentas ni dos
@@ -159,6 +208,12 @@ menos cinco recompensas con nombre, descripción y costo.
 - **Fallo al cargar un catálogo**: si la carga falla, se muestra un mensaje con opción de reintentar
   y no una pantalla en blanco.
 - **Contraseña con espacios o caracteres especiales**: se aceptan y se respetan tal cual se escriben.
+- **Restablecimiento de una cuenta creada solo con Google**: la app muestra el mismo mensaje de
+  confirmación que en cualquier otro caso, y la persona puede seguir ingresando con Google.
+- **Enlace de restablecimiento ya usado o vencido**: el enlace no permite cambiar la contraseña y la
+  persona puede solicitar uno nuevo desde la pantalla de Ingreso.
+- **Solicitudes repetidas de restablecimiento**: pulsar dos veces el botón de envío no genera dos
+  solicitudes.
 
 ## Requirements *(mandatory)*
 
@@ -167,7 +222,8 @@ menos cinco recompensas con nombre, descripción y costo.
 **Cuenta y acceso**
 
 - **FR-001**: El sistema MUST permitir crear una cuenta indicando nombre de usuario, correo y
-  contraseña.
+  contraseña. La cuenta MUST quedar operativa de inmediato, sin exigir confirmar el correo y sin
+  enviar ningún correo de confirmación.
 - **FR-002**: El sistema MUST validar el registro antes de crear la cuenta: correo con formato
   válido, contraseña de al menos 8 caracteres y nombre de usuario de entre 3 y 30 caracteres; ante
   un dato inválido MUST indicar cuál corregir.
@@ -186,9 +242,22 @@ menos cinco recompensas con nombre, descripción y costo.
 - **FR-010**: El sistema MUST ocultar la contraseña mientras se escribe y MUST NOT mostrarla en
   ninguna pantalla después de ingresada.
 - **FR-011**: El sistema MUST informar con claridad cuando no hay conexión a Internet y MUST NOT
-  permitir registro, ingreso ni carga de catálogos en ese estado.
+  permitir registro, ingreso, solicitud de restablecimiento de contraseña ni carga de catálogos ni
+  de perfil en ese estado. Si la persona abre la
+  app sin conexión con la sesión iniciada, MUST mostrar la pantalla principal con el aviso de
+  conexión requerida, sin cargar datos en Desafíos, Recompensas ni Perfil (cada sección ofrece
+  reintentar) y sin cerrar la sesión.
 - **FR-012**: El sistema MUST mostrar solo las pantallas de registro e ingreso a quien no tenga
   sesión iniciada, y tras autenticarse MUST dar acceso a Desafíos, Recompensas y Perfil.
+
+- **FR-025**: La pantalla de Ingreso MUST ofrecer la opción "Olvidé mi contraseña". Dado un correo
+  con formato válido de una cuenta existente, el sistema MUST enviar a ese correo un mensaje en
+  español con un enlace para elegir una contraseña nueva; tras usarlo, la contraseña anterior MUST
+  dejar de servir para ingresar. Ante un correo con formato inválido MUST indicar que se corrija y
+  no enviar nada.
+- **FR-026**: Tras solicitar el restablecimiento, el sistema MUST mostrar siempre el mismo mensaje de
+  confirmación, exista o no una cuenta con ese correo, sin revelar si está registrado, y MUST
+  ignorar una segunda solicitud mientras la primera está en curso.
 
 **Catálogo de desafíos**
 
@@ -219,8 +288,9 @@ menos cinco recompensas con nombre, descripción y costo.
 
 **Experiencia y evidencia**
 
-- **FR-023**: La app MUST estar en español y MUST mostrar el nombre "(des)Conectado" con
-  paréntesis en las pantallas de registro e ingreso.
+- **FR-023**: La app MUST estar en español rioplatense, tratando a la persona de "vos" en todos los
+  textos ("Ingresá", "Creá tu cuenta", "Ya tenés una cuenta"), y MUST mostrar el nombre
+  "(des)Conectado" con paréntesis en las pantallas de registro e ingreso.
 - **FR-024**: Cada requisito de esta especificación MUST contar con al menos una prueba
   documentada (automatizada o procedimiento manual con resultado) incluida en la entrega.
 
@@ -259,19 +329,26 @@ menos cinco recompensas con nombre, descripción y costo.
   contraseña.
 - **SC-008**: El 100% de los requisitos funcionales tiene evidencia de prueba referenciada en la
   entrega del 24/09.
+- **SC-009**: Una persona que olvidó su contraseña recibe el correo de restablecimiento en menos de
+  2 minutos desde que lo solicita y puede ingresar con la contraseña nueva en menos de 5 minutos
+  desde la solicitud.
 
 ## Assumptions
 
 - **Alcance de esta entrega**: cubre "app base con login y registro, perfil con datos personales,
-  desafíos disponibles y catálogo". Participar en desafíos, medición de uso, canje de puntos,
-  vencimiento, calificación, historial y notificaciones quedan para entregas posteriores.
-- **Datos del registro**: el registro pide nombre de usuario, correo y contraseña. El nombre de
-  usuario se agrega porque el documento del cliente lo prevé como dato de perfil. La fecha de alta
-  se registra pero no se pide ni se muestra en el perfil de esta entrega.
+  desafíos disponibles y catálogo", más la recuperación de contraseña por correo. Participar en
+  desafíos, medición de uso, canje de puntos, vencimiento, calificación, historial y notificaciones
+  quedan para entregas posteriores.
+- **Datos del registro**: el registro pide nombre de usuario, correo y contraseña (confirmado en
+  Clarifications; el documento del cliente prevé el nombre de usuario como dato de perfil). La
+  fecha de alta se registra pero no se pide ni se muestra en el perfil de esta entrega.
 - **Reglas de datos**: contraseña de mínimo 8 caracteres; nombre de usuario de 3 a 30 caracteres y
   no necesita ser único, porque la app no tiene funciones sociales.
-- **Sin verificación de correo ni recuperación de contraseña** en esta entrega. La recuperación por
-  correo está en el alcance del MVP y se hará en una entrega posterior.
+- **Recuperación de contraseña por correo**: entra en esta entrega (ver Clarifications). La página
+  donde se elige la contraseña nueva la provee el servicio de autenticación, no la app, y aplica su
+  propia regla de longitud mínima, que puede ser menor que la de FR-002; se acepta esa diferencia.
+  La recuperación por teléfono o SMS queda fuera de alcance. La confirmación del correo no se exige
+  (ver Clarifications).
 - **Unificación de cuentas**: una cuenta de Google y una de correo con el mismo correo se consideran
   la misma persona.
 - **Perfil de solo lectura**: no se pueden editar los datos en esta entrega.

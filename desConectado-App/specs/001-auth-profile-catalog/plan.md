@@ -9,13 +9,15 @@
 ## Summary
 
 App Android nativa en Kotlin con Jetpack Compose que permite registrarse e ingresar con correo y
-contraseña o con Google, mantener la sesión, ver el perfil y consultar dos catálogos de solo
-lectura (desafíos "No uses redes sociales por X tiempo" en tres dificultades, y recompensas
-genéricas). El backend es Firebase en plan gratuito: Authentication para las cuentas y Firestore
+contraseña o con Google, restablecer la contraseña por correo, mantener la sesión (también al abrir
+la app sin conexión, con aviso), ver el perfil y consultar dos catálogos de solo lectura (desafíos
+"No uses redes sociales por X tiempo" en tres dificultades, y recompensas genéricas). Todos los
+textos van en español rioplatense con "vos". El backend es Firebase en plan gratuito: Authentication para las cuentas y Firestore
 para el perfil y los catálogos, protegidos con reglas de seguridad y sembrados con un script.
 La lógica de validación es pura y se desarrolla test-first; las pruebas cubren JVM, reglas de
 seguridad, datos sembrados y UI contra los emuladores de Firebase, más un guion manual para el
-ingreso real con Google. Decisiones y alternativas en [research.md](research.md).
+ingreso real con Google y otro para el correo real de restablecimiento. Decisiones y alternativas en
+[research.md](research.md).
 
 ## Technical Context
 
@@ -29,7 +31,7 @@ contraseña la custodia Firebase Authentication. Caché de Firestore solo en mem
 
 **Testing**: JUnit 4, kotlinx-coroutines-test y Turbine (JVM); Compose UI Test + emuladores de
 Firebase (instrumentadas); `@firebase/rules-unit-testing` y `node --test` (reglas y siembra);
-guion manual para Google real
+guion manual para Google real y para el correo de restablecimiento real
 
 **Target Platform**: Android 8.0 (API 26) o superior, con Google Play Services
 
@@ -40,28 +42,30 @@ registro e ingreso completados en menos de 3 s tras enviar el formulario (los ob
 extremo a extremo son SC-001 a SC-003)
 
 **Constraints**: conexión a Internet obligatoria (sin caché en disco de catálogos); permisos solo
-`INTERNET` y `ACCESS_NETWORK_STATE`; interfaz solo en español; sin plan de pago de Firebase ni
-Cloud Functions en esta entrega
+`INTERNET` y `ACCESS_NETWORK_STATE`; interfaz solo en español rioplatense (voseo); sin plan de
+pago de Firebase ni Cloud Functions; distribución por APK directo, sin Google Play; sin
+confirmación de correo
 
-**Scale/Scope**: decenas de usuarios de demostración; 5 pantallas de contenido + 2 de acceso;
+**Scale/Scope**: decenas de usuarios de demostración; 3 secciones de contenido (Desafíos,
+Recompensas, Perfil) + 4 pantallas de acceso (Espera, Ingreso, Registro, Restablecer contraseña);
 6 desafíos y 5 recompensas
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-Evaluación contra `.specify/memory/constitution.md` v1.2.0.
+Evaluación contra `.specify/memory/constitution.md` v2.1.0.
 
 | Principio / restricción                     | Resultado | Verificación                                                                                   |
 |---------------------------------------------|-----------|------------------------------------------------------------------------------------------------|
 | I. Desafío, no Bloqueo                      | PASA      | No hay medición ni bloqueo en esta entrega; ningún permiso de accesibilidad, superposición ni administración de dispositivo |
-| II. Android Nativo                          | PASA      | Kotlin + Compose, APK/AAB instalable; sin código de iOS ni PWA                                  |
+| II. Android Nativo                          | PASA      | Kotlin + Compose, APK distribuido directamente, sin publicar en Google Play; sin código de iOS ni PWA |
 | III. Sin IA ni Cámara                       | PASA      | Sin permiso de cámara, fotos ni servicios de IA                                                 |
 | IV. Evidencia Verificable por Entrega       | PASA      | Matriz FR → prueba en `quickstart.md`; validaciones puras test-first; guion manual documentado |
-| V. Alcance Mínimo, Entrega Incremental      | PASA      | Un módulo, DI manual, sin Hilt ni Cloud Functions; sin recuperación de contraseña ni canje       |
-| VI. Integridad de la Economía de Puntos     | N/A       | No hay puntos ni saldo; las reglas impiden a la app escribir en catálogos y perfil tras crearlo |
-| Seguridad y privacidad                      | PASA      | Contraseña delegada a Firebase Auth; permisos mínimos; sin datos de uso                          |
-| Identidad visual y experiencia              | PASA      | Español, marca "(des)Conectado", paleta verde/azul, modo claro y oscuro, sin patrones compulsivos |
+| V. Alcance Mínimo, Entrega Incremental      | PASA      | Un módulo, DI manual, sin Hilt ni Cloud Functions; sin canje ni inicio de desafíos; la recuperación de contraseña por correo entra por decisión del equipo (spec, Clarifications) y está dentro del alcance del MVP de la constitución |
+| VI. Integridad de la Economía de Puntos     | N/A       | No hay puntos ni saldo en esta entrega; las reglas de Firestore ya impiden escribir en los catálogos y modificar el perfil tras crearlo, con denegación por defecto |
+| Seguridad y privacidad                      | PASA      | Contraseña delegada a Firebase Auth; permisos mínimos; sin datos de uso; reglas con denegación por defecto y probadas |
+| Identidad visual y experiencia              | PASA      | Español (voseo), marca "(des)Conectado", paleta verde/azul, modo claro y oscuro, sin patrones compulsivos |
 | Arquitectura de datos (backend fuente de verdad, conexión obligatoria) | PASA | Firebase como fuente de verdad; lectura forzada del servidor; bloqueo sin conexión |
 
 Sin violaciones; **Complexity Tracking** queda vacío.
@@ -69,10 +73,11 @@ Sin violaciones; **Complexity Tracking** queda vacío.
 ### Re-evaluación tras el diseño (Fase 1)
 
 Sin cambios: el modelo de datos, los contratos y el quickstart no agregan permisos, componentes ni
-alcance. Un punto queda **abierto a nivel de constitución, no de esta entrega**: la constitución
-sigue listando `TODO(STACK)`; este plan lo resuelve, por lo que corresponde una enmienda (ver el
-informe de finalización). El riesgo R-2 (puntos autoritativos en el backend) no afecta a esta
-entrega pero debe resolverse antes de planificar la del 01/10.
+alcance. El stack de este plan quedó registrado en la constitución (sección "Stack tecnológico",
+v2.0.0), por lo que no queda ninguna decisión de esta entrega pendiente de enmienda. Los puntos
+autoritativos en el backend dejaron de ser un requisito (Principio VI redefinido); su diseño con
+reglas de seguridad se aborda en el plan de la entrega del 01/10 (`TODO(PUNTOS_SEGURIDAD)`) y no
+afecta a esta.
 
 ## Project Structure
 
@@ -114,7 +119,7 @@ app/
     │   │   └── ui/
     │   │       ├── theme/              # paleta, tipografía, claro/oscuro
     │   │       ├── navigation/         # grafo y barra inferior
-    │   │       ├── auth/               # Ingreso, Registro, Espera
+    │   │       ├── auth/               # Ingreso, Registro, Restablecer contraseña, Espera
     │   │       ├── challenges/
     │   │       ├── rewards/
     │   │       └── profile/
