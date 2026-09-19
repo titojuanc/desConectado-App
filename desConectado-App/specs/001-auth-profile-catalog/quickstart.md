@@ -5,16 +5,16 @@
 Guía para preparar el entorno y validar la entrega de punta a punta. No contiene código de la
 solución; el detalle de implementación va en `tasks.md`.
 
-## 1. Prerrequisitos (estado al 2026-09-19: faltan los dos primeros)
+## 1. Prerrequisitos (estado al 2026-09-19: todos cumplidos)
 
-| Requisito                                   | Estado hoy      | Notas                                             |
+| Requisito                                   | Estado          | Notas                                             |
 |---------------------------------------------|-----------------|---------------------------------------------------|
-| Android Studio con SDK de Android           | No instalado    | Incluir una imagen de emulador **con Google Play** |
-| Firebase CLI                                | No instalado    | `npm install -g firebase-tools`                   |
+| SDK de Android y emulador con Google Play   | Instalado       | Plataforma 37; AVD `desconectado` (imagen Google Play, API 36) |
+| Firebase CLI                                | Disponible      | Como dependencia local de `firebase/` (`npx firebase`); no hace falta instalarla global |
 | JDK 17 (para Gradle)                        | Instalado       | Es el primero en PATH                             |
 | JDK 21 (para los emuladores de Firebase)    | Instalado       | Apuntar `JAVA_HOME` al 21 al correr emuladores    |
 | Node.js                                     | Instalado (24)  | Scripts de siembra y pruebas de reglas            |
-| Cuenta de Google con acceso a Firebase      | A confirmar     | Plan gratuito (Spark) alcanza                     |
+| Proyecto de Firebase                        | Creado          | `des-conectado`; plan gratuito (Spark)            |
 
 ## 2. Proyecto de Firebase (una sola vez, por el equipo)
 
@@ -74,22 +74,40 @@ paso en la carpeta de evidencia de la entrega.
 
 ## 5. Matriz de evidencia (Principio IV, FR-024)
 
-| Requisito                  | Prueba automatizada                          | Prueba manual |
-|----------------------------|----------------------------------------------|---------------|
-| FR-001, FR-002, FR-009     | Unitarias de validación; UI de registro; integración (cuenta operativa sin confirmar correo) | M-1 |
-| FR-003                     | Integración con emulador de Auth             | M-2           |
-| FR-004                     | Integración con emulador de Auth; UI de ingreso | M-4        |
-| FR-005, FR-006             | Unitaria de `AuthRepository`; UI             | M-3, M-4      |
-| FR-007, FR-008             | Integración con token falso en emulador de Auth | M-6, M-7, T-VERIF-1 |
-| FR-010, FR-021, FR-022     | UI del perfil (sin contraseña); reglas       | M-10          |
-| FR-011                     | Unitarias del bloqueo sin conexión y de sesión que no se cierra sin red; UI | M-5, M-12 |
-| FR-012                     | UI de navegación (sin sesión / con sesión)   | M-1, M-4      |
-| FR-013 a FR-016            | Prueba de siembra; UI de Desafíos            | M-9           |
-| FR-017, FR-020             | UI (ausencia de acciones de inicio y canje)  | M-9           |
-| FR-018, FR-019             | Prueba de siembra; UI de Recompensas         | M-9           |
-| FR-023                     | UI (marca "(des)Conectado" y revisión de textos en voseo) | M-1, M-11 (correo) |
-| FR-024                     | Este documento completado con resultados     | —             |
-| FR-025, FR-026             | Unitarias de `RestablecerPasswordViewModel`; UI; integración con emulador de Auth (códigos por REST) | M-11 |
+Resultados al 2026-09-19. Detalle y salidas: [`evidencia/automatizadas/resumen.md`](evidencia/automatizadas/resumen.md)
+(JVM 92/92, instrumentadas 59/59 en AVD API 36 contra los emuladores de Firebase, reglas 30/30, siembra 22/22),
+[`evidencia/dispositivo/resultados-manuales.md`](evidencia/dispositivo/resultados-manuales.md) (teléfono real, proyecto
+real, APK de depuración y de entrega) y [`evidencia/us4/resultados-manuales.md`](evidencia/us4/resultados-manuales.md).
+Los resultados manuales son **informados por la persona que probó** (sin capturas).
 
-Los criterios de éxito SC-001 a SC-003 se miden manualmente (M-1, M-4, M-6); SC-004 a SC-007 con las
-pruebas de la matriz; SC-008 con esta matriz completa; SC-009 manualmente con M-11.
+| Requisito | Prueba automatizada (todas en verde) | Prueba manual | Estado |
+|-----------|--------------------------------------|---------------|--------|
+| FR-001, FR-002, FR-009 | `ValidacionesTest`, `RegistroViewModelTest`, `AuthScreensTest`, `AuthRepositoryEmulatorTest` (registro y correo sin distinguir mayúsculas) | M-1 aprobado | Cumple |
+| FR-003 | `AuthRepositoryEmulatorTest` (correo repetido), `RegistroViewModelTest` | M-2 aprobado | Cumple |
+| FR-004 | `IngresoViewModelTest`, `AuthRepositoryEmulatorTest`, `AuthScreensTest` | M-4 aprobado | Cumple |
+| FR-005, FR-006 | `SesionViewModelTest`, `AuthRepositoryEmulatorTest` (`cerrarSesion`, `verificarCuenta`), `PerfilFlowEmulatorTest` | M-3, M-4 aprobados | Cumple |
+| FR-007, FR-008 | `AuthGoogleEmulatorTest` (token falso), `GoogleFlowTest`, `GoogleScreensTest` | M-6, M-7, M-8, T-VERIF-1 aprobados; Google real en teléfono, con la firma de depuración y con la de release | Cumple (Firebase no unifica solo: se usa la vinculación, que funciona) |
+| FR-010, FR-021, FR-022 | `PerfilScreenTest`, `PerfilViewModelTest`, `AuthScreensTest` (contraseña oculta), reglas de `users` | M-10 aprobado (correo y Google) | Cumple |
+| FR-011 | `SesionViewModelTest`, `DesafiosViewModelTest`, `PerfilViewModelTest`, `RecompensasViewModelTest`, `ErroresRedTest`, `AuthScreensTest` | M-5, M-12 aprobados | Cumple |
+| FR-012 | `AuthScreensTest` (sin sesión / con sesión / sin conexión) | M-1, M-4 aprobados | Cumple |
+| FR-013 a FR-016 | `challenges.test.mjs` (siembra y reglas), `FormatoTest`, `DesafiosScreenTest`, `CatalogDesafiosEmulatorTest` | M-9 aprobado | Cumple |
+| FR-017, FR-020 | `DesafiosScreenTest` y `RecompensasScreenTest` (ninguna acción accionable) | M-9 aprobado | Cumple |
+| FR-018, FR-019 | `rewards.test.mjs` (siembra y reglas), `RecompensasScreenTest`, `CatalogDesafiosEmulatorTest` | M-9 aprobado | Cumple |
+| FR-023 | `AuthScreensTest` (marca "(des)Conectado"), revisión de textos en voseo (T104) | M-1 aprobado | **Parcial**: la app está en voseo; el correo de restablecimiento sale en español con la traducción de fábrica de Firebase, en tuteo (ver `evidencia/revision-constitucion.md`) |
+| FR-024 | Este documento | — | Cumple |
+| FR-025, FR-026 | `RestablecerPasswordViewModelTest`, `RestablecerPasswordScreenTest`, `PasswordResetEmulatorTest` (códigos por REST) | M-11 aprobado (correo recibido en español) | Cumple; el texto del correo no está en voseo (misma excepción que FR-023) |
+
+## Criterios de éxito
+
+| Criterio | Cómo se cubre | Estado |
+|----------|---------------|--------|
+| SC-001, SC-002, SC-003 (tiempos de registro, ingreso y Google) | M-1, M-4 y M-6 aprobados en teléfono real | Cumplidos funcionalmente; **tiempos no cronometrados** |
+| SC-004 | `ValidacionesTest`, `RegistroViewModelTest`, `AuthScreensTest` | Cumple |
+| SC-005 | Estructura de navegación con tres destinos (`AuthScreensTest`, `PerfilFlowEmulatorTest`) | Cumple |
+| SC-006 | Prueba de siembra (6 desafíos, 5 recompensas) y M-9; datos reales verificados en `des-conectado` | Cumple |
+| SC-007 | `PerfilScreenTest` (ninguna contraseña visible) | Cumple |
+| SC-008 | Esta matriz | Cumple |
+| SC-009 | M-11 aprobado | Cumplido funcionalmente; **tiempos no cronometrados** |
+
+Los tiempos de SC-001, SC-002, SC-003 y SC-009 no se midieron con cronómetro; los guiones se ejecutaron y se
+informaron como aprobados. Quedan como "no medidos" a propósito, sin inventar cifras.

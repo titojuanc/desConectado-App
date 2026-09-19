@@ -248,7 +248,7 @@ y capturas) referenciada desde ese documento.
 |-----|-------------------------------------------------------------------|--------------------------------------------------|
 | R-1 | Falta Android Studio/SDK/Firebase CLI; quedan 5 días              | Instalarlos primero (día 1); el resto se paraleliza |
 | R-3 | Cada integrante necesita registrar su SHA-1 para Google; también la keystore de firma del APK | Documentado en `quickstart.md` |
-| R-4 | Comportamiento de unificación de cuentas por correo sin verificar | Tarea T-VERIF-1 contra el proyecto real          |
+| R-4 | Comportamiento de unificación de cuentas por correo sin verificar | **Comprobado (T-VERIF-1, 2026-09-19)**: Firebase no unifica solo; se activa el diálogo de vinculación y funciona |
 | R-5 | El equipo podría no dominar Kotlin                                | Revisar D-1 de inmediato si es el caso           |
 | R-6 | El correo de restablecimiento puede tardar o caer en spam durante la demo | Probarlo con el proyecto real antes de la entrega (M-11); avisar de revisar spam |
 
