@@ -1,0 +1,44 @@
+
+> desconectado-firebase@1.0.0 test:seed
+> node --test tests/seed/*.test.mjs
+
+▶ catálogo de desafíos sembrado (catalog.json)
+  ✔ cumple todas las invariantes del validador (0.993ms)
+  ✔ tiene al menos 2 desafíos por cada dificultad (0.1308ms)
+  ✔ un desafío de mayor dificultad dura más y otorga más puntos que cualquiera de menor dificultad (0.1472ms)
+  ✔ todos los títulos empiezan con "No uses redes sociales por" y coinciden con la duración (0.2048ms)
+  ✔ cada desafío tiene descripción no vacía, duración y puntos enteros mayores que 0 (0.1134ms)
+  ✔ contiene los 6 valores iniciales del spec (0.1774ms)
+✔ catálogo de desafíos sembrado (catalog.json) (2.4456ms)
+▶ formatearDuracion
+  ✔ formatea minutos y horas como en la app (0.1149ms)
+✔ formatearDuracion (0.2015ms)
+▶ validarDesafios detecta datos inválidos
+  ✔ rechaza un catálogo con menos de 2 desafíos por dificultad (0.161ms)
+  ✔ rechaza una dificultad mayor que no dura más o no da más puntos (0.1375ms)
+  ✔ rechaza campos inválidos (0.1489ms)
+✔ validarDesafios detecta datos inválidos (0.5899ms)
+▶ catálogo de recompensas sembrado (catalog.json)
+  ✔ cumple todas las invariantes del validador (1.1611ms)
+  ✔ tiene al menos 5 recompensas (0.1158ms)
+  ✔ cada recompensa tiene nombre y descripción no vacíos, costo entero mayor que 0 y tipo válido (0.1294ms)
+  ✔ las recompensas van ordenadas por costo ascendente (0.1839ms)
+  ✔ ninguna recompensa de tipo coupon menciona comercios, locales ni descuentos reales (0.1466ms)
+  ✔ las recompensas aclaran que son digitales y de la app (0.1428ms)
+  ✔ contiene las 5 recompensas iniciales del spec (0.1128ms)
+✔ catálogo de recompensas sembrado (catalog.json) (2.6757ms)
+▶ validarRecompensas detecta datos inválidos
+  ✔ acepta cinco recompensas válidas (0.2419ms)
+  ✔ rechaza menos de 5 recompensas (0.128ms)
+  ✔ rechaza campos inválidos (0.1434ms)
+  ✔ rechaza un cupón que menciona comercios o descuentos reales (0.0993ms)
+  ✔ rechaza recompensas que no van por costo ascendente (0.0902ms)
+✔ validarRecompensas detecta datos inválidos (0.8894ms)
+ℹ tests 22
+ℹ suites 5
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 69.7077

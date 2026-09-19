@@ -1,0 +1,111 @@
+[36m[1mi  emulators:[22m[39m Starting emulators: firestore
+[36m[1mi  emulators:[22m[39m Detected demo project ID "demo-desconectado", emulated services will use a demo configuration and attempts to access non-emulated services for this project will fail.
+[33m[1m!  emulators:[22m[39m It seems that you are running multiple instances of the emulator suite for project demo-desconectado. This may result in unexpected behavior.
+[36m[1mi  firestore:[22m[39m Firestore Emulator logging to [1mfirestore-debug.log[22m
+[32m[1m+  firestore:[22m[39m Firestore Emulator was started in standard edition.
+[32m[1m+  firestore:[22m[39m Firestore Emulator UI websocket is running on 9151.
+[36m[1mi [22m[39m Running script: [1mnode --test tests/rules/*.test.mjs[22m
+▶ reglas de challenges/{id}
+  ✔ una persona autenticada lee un documento (348.1813ms)
+  ✔ una persona autenticada lista la colección (96.1285ms)
+  ✔ sin iniciar sesión no se lee ni se lista (96.9733ms)
+[2026-09-19T18:35:50.921Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x3c913250 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L9, false for 'create' @ L39, false for 'update' @ L9, false for 'update' @ L39
+[2026-09-19T18:35:50.948Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x3c913251 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L9, false for 'create' @ L39, false for 'update' @ L9, false for 'update' @ L39
+  ✔ nadie crea documentos desde la app (53.7593ms)
+[2026-09-19T18:35:50.992Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x3c913253 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'update' @ L9, false for 'update' @ L39
+[2026-09-19T18:35:51.014Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x3c913254 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L9, false for 'create' @ L39, false for 'update' @ L9, false for 'update' @ L39
+  ✔ nadie modifica documentos desde la app (65.6943ms)
+[2026-09-19T18:35:51.057Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x3c913256 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'delete' @ L9, false for 'delete' @ L39
+  ✔ nadie borra documentos desde la app (42.8575ms)
+✔ reglas de challenges/{id} (1261.8211ms)
+▶ reglas de rewards/{id}
+  ✔ una persona autenticada lee un documento (348.085ms)
+  ✔ una persona autenticada lista la colección (100.31ms)
+  ✔ sin iniciar sesión no se lee ni se lista (92.5441ms)
+[2026-09-19T18:35:50.921Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x8848a216 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L9, false for 'create' @ L44, false for 'update' @ L9, false for 'update' @ L44
+[2026-09-19T18:35:50.948Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x8848a217 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L9, false for 'create' @ L44, false for 'update' @ L9, false for 'update' @ L44
+  ✔ nadie crea documentos desde la app (54.3368ms)
+[2026-09-19T18:35:50.992Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x8848a219 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'update' @ L9, false for 'update' @ L44
+[2026-09-19T18:35:51.014Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x8848a21a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L9, false for 'create' @ L44, false for 'update' @ L9, false for 'update' @ L44
+  ✔ nadie modifica documentos desde la app (65.3769ms)
+[2026-09-19T18:35:51.050Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x8848a21c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'delete' @ L9, false for 'delete' @ L44
+  ✔ nadie borra documentos desde la app (36.8152ms)
+✔ reglas de rewards/{id} (1257.3252ms)
+▶ reglas de users/{uid}
+  ▶ crear
+    ✔ el dueño puede crear su perfil con exactamente username, email y createdAt (357.6152ms)
+[2026-09-19T18:35:50.768Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x32330616 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L9, evaluation error at L20:24 for 'create' @ L20, false for 'update' @ L9, false for 'update' @ L32, false for 'create' @ L9, false for 'create' @ L20
+    ✔ se rechaza un campo extra (85.1511ms)
+[2026-09-19T18:35:50.827Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x32330617 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L9, false for 'create' @ L20, false for 'update' @ L9, false for 'update' @ L32
+    ✔ se rechaza si falta un campo (32.3361ms)
+    ✔ acepta un username de 1 y de 30 caracteres (62.1036ms)
+[2026-09-19T18:35:50.921Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x3233061a error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L9, evaluation error at L20:24 for 'create' @ L20, false for 'update' @ L9, false for 'update' @ L32, false for 'create' @ L9, false for 'create' @ L20
+[2026-09-19T18:35:50.952Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x3233061b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L9, evaluation error at L20:24 for 'create' @ L20, false for 'update' @ L9, false for 'update' @ L32, false for 'create' @ L9, false for 'create' @ L20
+    ✔ se rechaza un username vacío o de 31 caracteres (60.2957ms)
+[2026-09-19T18:35:50.978Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x3233061c error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L9, evaluation error at L20:24 for 'create' @ L20, false for 'update' @ L9, false for 'update' @ L32, false for 'create' @ L9, false for 'create' @ L20
+    ✔ se rechaza un username que no es texto (28.5539ms)
+[2026-09-19T18:35:51.008Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x3233061d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L9, evaluation error at L20:24 for 'create' @ L20, false for 'update' @ L9, false for 'update' @ L32, false for 'create' @ L9, false for 'create' @ L20
+    ✔ se rechaza un email distinto del correo del token (30.3163ms)
+[2026-09-19T18:35:51.036Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x3233061e error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L9, evaluation error at L20:24 for 'create' @ L20, false for 'update' @ L9, false for 'update' @ L32, false for 'create' @ L9, false for 'create' @ L20
+    ✔ se rechaza un email con mayúsculas (debe ir en minúsculas) (25.6103ms)
+[2026-09-19T18:35:51.057Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x3233061f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L9, false for 'create' @ L20, false for 'update' @ L9, false for 'update' @ L32
+    ✔ se rechaza un createdAt que no es la hora del servidor (20.3177ms)
+[2026-09-19T18:35:51.081Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x32330620 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L9, false for 'create' @ L20, false for 'update' @ L9, false for 'update' @ L32
+    ✔ se rechaza crear el perfil de otro uid (24.6461ms)
+[2026-09-19T18:35:51.111Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x32330621 error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L9, false for 'create' @ L20, false for 'update' @ L9, false for 'update' @ L32
+    ✔ se rechaza sin iniciar sesión (29.2057ms)
+  ✔ crear (757.4919ms)
+  ▶ leer
+    ✔ el dueño lee su perfil (36.5565ms)
+    ✔ no se puede leer el perfil de otra persona (44.2769ms)
+    ✔ sin sesión no se lee ningún perfil (46.1225ms)
+    ✔ no se puede listar la colección de perfiles (46.4887ms)
+  ✔ leer (173.7185ms)
+[2026-09-19T18:35:51.318Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x3233062b error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'update' @ L9, false for 'update' @ L32
+  ▶ modificar y borrar
+    ✔ ni el dueño puede actualizar su perfil (32.9934ms)
+[2026-09-19T18:35:51.348Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x3233062d error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'delete' @ L9, false for 'delete' @ L32
+    ✔ ni el dueño puede borrar su perfil (30.2364ms)
+  ✔ modificar y borrar (63.3768ms)
+[2026-09-19T18:35:51.395Z]  @firebase/firestore: Firestore (12.19.0): GrpcConnection RPC 'Write' stream 0x3233062f error. Code: 7 Message: 7 PERMISSION_DENIED: 
+false for 'create' @ L9, false for 'update' @ L9
+  ▶ denegación por defecto
+    ✔ una ruta no declarada se deniega para leer y escribir (46.5808ms)
+  ✔ denegación por defecto (46.6959ms)
+✔ reglas de users/{uid} (1590.3326ms)
+ℹ tests 30
+ℹ suites 7
+ℹ pass 30
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1863.6896
+[32m[1m+ [22m[39m Script exited successfully (code 0)
+[36m[1mi  emulators:[22m[39m Shutting down emulators.
+[36m[1mi  firestore:[22m[39m Stopping Firestore Emulator
+[33m[1m! [22m[39m Firestore Emulator has exited upon receiving signal: SIGINT
+[36m[1mi  hub:[22m[39m Stopping emulator hub
+[36m[1mi  logging:[22m[39m Stopping Logging Emulator
