@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="recompensas_titulo">Recompensas</string>
+    <string name="recompensas_aclaracion">Las recompensas son elementos digitales de (des)Conectado y no tienen valor fuera de la app.</string>
+
+    <plurals name="recompensas_costo">
+        <item quantity="one">Costo: %d punto</item>
+        <item quantity="other">Costo: %d puntos</item>
+    </plurals>
+</resources>

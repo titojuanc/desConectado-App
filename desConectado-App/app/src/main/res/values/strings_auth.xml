@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Ingreso -->
+    <string name="ingreso_titulo">Ingresá a tu cuenta</string>
+    <string name="ingreso_boton">Ingresar</string>
+    <string name="ingreso_enlace_registro">¿No tenés cuenta? Creá tu cuenta</string>
+
+    <!-- Registro -->
+    <string name="registro_titulo">Creá tu cuenta</string>
+    <string name="registro_boton">Crear cuenta</string>
+    <string name="registro_enlace_ingreso">¿Ya tenés una cuenta? Ingresá</string>
+
+    <!-- Campos -->
+    <string name="campo_username">Nombre de usuario</string>
+    <string name="campo_correo">Correo</string>
+    <string name="campo_password">Contraseña</string>
+
+    <!-- Validación por campo -->
+    <string name="error_username_vacio">Ingresá un nombre de usuario.</string>
+    <string name="error_username_corto">El nombre de usuario debe tener al menos 3 caracteres.</string>
+    <string name="error_username_largo">El nombre de usuario puede tener hasta 30 caracteres.</string>
+    <string name="error_correo_vacio">Ingresá tu correo.</string>
+    <string name="error_correo_formato">Ingresá un correo válido.</string>
+    <string name="error_password_vacio">Ingresá tu contraseña.</string>
+    <string name="error_password_corto">La contraseña debe tener al menos 8 caracteres.</string>
+
+    <!-- Errores de envío -->
+    <string name="error_correo_en_uso">Este correo ya está registrado.</string>
+    <string name="error_credenciales">Correo o contraseña incorrectos.</string>
+    <string name="error_conexion_requerida">Necesitás conexión a Internet para continuar.</string>
+    <string name="error_generico">Algo salió mal. Probá de nuevo.</string>
+
+</resources>

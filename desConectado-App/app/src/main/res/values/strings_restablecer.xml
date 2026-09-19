@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="restablecer_enlace">Olvidé mi contraseña</string>
+    <string name="restablecer_titulo">Recuperá tu contraseña</string>
+    <string name="restablecer_explicacion">Ingresá tu correo y te enviamos un enlace para elegir una contraseña nueva.</string>
+    <string name="restablecer_campo_correo">Correo</string>
+    <string name="restablecer_boton">Enviar enlace</string>
+    <string name="restablecer_confirmacion">Si el correo está registrado, te enviamos un enlace para elegir una contraseña nueva.</string>
+    <string name="restablecer_volver">Volver a ingresar</string>
+</resources>

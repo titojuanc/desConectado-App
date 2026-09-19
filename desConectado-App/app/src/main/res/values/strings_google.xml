@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="google_continuar">Continuar con Google</string>
+
+    <!-- Diálogo de vinculación -->
+    <string name="vinculacion_titulo">Ya tenés una cuenta</string>
+    <string name="vinculacion_mensaje">Ya tenés una cuenta con este correo. Ingresá tu contraseña para vincular Google a esa cuenta.</string>
+    <string name="vinculacion_confirmar">Vincular</string>
+    <string name="vinculacion_cancelar">Cancelar</string>
+</resources>

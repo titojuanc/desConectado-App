@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="perfil_titulo">Tu perfil</string>
+    <string name="perfil_etiqueta_username">Nombre de usuario</string>
+    <string name="perfil_etiqueta_email">Correo</string>
+    <string name="perfil_cerrar_sesion">Cerrar sesión</string>
+    <string name="perfil_error">No pudimos cargar tu perfil. Probá de nuevo.</string>
+</resources>

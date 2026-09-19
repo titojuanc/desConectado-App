@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="desafios_titulo">Desafíos</string>
+    <string name="desafios_duracion">Duración: %1$s</string>
+
+    <plurals name="puntos">
+        <item quantity="one">%d punto</item>
+        <item quantity="other">%d puntos</item>
+    </plurals>
+</resources>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="aviso_sin_conexion">Sin conexión. Conectate a Internet para continuar.</string>
+    <string name="estado_cargando">Cargando…</string>
+    <string name="estado_error">No pudimos cargar la información. Probá de nuevo.</string>
+    <string name="estado_sin_conexion">Necesitás conexión a Internet para ver esta sección.</string>
+    <string name="accion_reintentar">Reintentar</string>
+
+    <string name="tab_desafios">Desafíos</string>
+    <string name="tab_recompensas">Recompensas</string>
+    <string name="tab_perfil">Perfil</string>
+</resources>
