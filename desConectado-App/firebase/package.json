@@ -1,0 +1,18 @@
+{
+  "name": "desconectado-firebase",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Reglas de seguridad, siembra de catálogos y pruebas de (des)Conectado",
+  "scripts": {
+    "emulators": "firebase emulators:start --only auth,firestore --project demo-desconectado",
+    "test": "firebase emulators:exec --only firestore --project demo-desconectado \"node --test tests/rules/*.test.mjs\"",
+    "test:seed": "node --test tests/seed/*.test.mjs"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "firebase": "^12.19.0",
+    "firebase-admin": "^14.4.0",
+    "firebase-tools": "^15.30.2"
+  }
+}

@@ -1,0 +1,36 @@
+# Secretos y configuración local (nunca se versionan)
+google-services.json
+keystore/
+keystore.properties
+*.jks
+firebase/service-account*.json
+local.properties
+
+# Compilación
+build/
+.gradle/
+.kotlin/
+.cxx/
+.externalNativeBuild/
+captures/
+dist/
+
+# Node
+node_modules/
+
+# Firebase (emuladores y depuración)
+firebase/.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+*-debug.log
+
+# IDE y sistema
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Temporales de evidencia
+evidencia/**/*.tmp
+specs/**/evidencia/**/*.tmp

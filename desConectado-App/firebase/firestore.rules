@@ -1,0 +1,48 @@
+rules_version = '2';
+
+// Reglas de seguridad de (des)Conectado (contracts/firestore-data.md).
+// Denegación por defecto: cualquier ruta o acción no permitida de forma explícita queda cerrada.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function autenticado() {
+      return request.auth != null;
+    }
+
+    // Perfil de la persona. Lo crea ella una sola vez tras autenticarse; después es de solo lectura.
+    match /users/{uid} {
+      allow read: if autenticado() && request.auth.uid == uid;
+
+      allow create: if autenticado()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['username', 'email', 'createdAt'])
+        && request.resource.data.keys().hasAll(['username', 'email', 'createdAt'])
+        && request.resource.data.username is string
+        && request.resource.data.username.size() >= 1
+        && request.resource.data.username.size() <= 30
+        && request.resource.data.email is string
+        && request.auth.token.email != null
+        && request.resource.data.email == request.auth.token.email.lower()
+        && request.resource.data.createdAt == request.time;
+
+      allow update, delete: if false;
+    }
+
+    // Catálogos provistos por la plataforma: los lee cualquier persona autenticada y nadie los
+    // escribe desde la app (los carga el script de siembra con credenciales de administrador).
+    match /challenges/{id} {
+      allow read: if autenticado();
+      allow write: if false;
+    }
+
+    match /rewards/{id} {
+      allow read: if autenticado();
+      allow write: if false;
+    }
+
+  }
+}

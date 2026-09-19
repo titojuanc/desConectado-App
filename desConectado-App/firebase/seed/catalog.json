@@ -1,0 +1,100 @@
+{
+  "challenges": [
+    {
+      "id": "facil-30-minutos",
+      "title": "No uses redes sociales por 30 minutos",
+      "description": "Media hora sin redes. Dejá el celular a un lado y tomate un mate, charlá con alguien o salí a caminar.",
+      "durationMinutes": 30,
+      "difficulty": "easy",
+      "points": 10,
+      "order": 1
+    },
+    {
+      "id": "facil-1-hora",
+      "title": "No uses redes sociales por 1 hora",
+      "description": "Una hora sin redes. Ideal para una comida sin pantallas o para ordenar tus cosas con calma.",
+      "durationMinutes": 60,
+      "difficulty": "easy",
+      "points": 20,
+      "order": 2
+    },
+    {
+      "id": "normal-2-horas",
+      "title": "No uses redes sociales por 2 horas",
+      "description": "Dos horas sin redes para estudiar, leer o encontrarte con alguien sin mirar el celular.",
+      "durationMinutes": 120,
+      "difficulty": "normal",
+      "points": 50,
+      "order": 3
+    },
+    {
+      "id": "normal-4-horas",
+      "title": "No uses redes sociales por 4 horas",
+      "description": "Media jornada sin redes: una tarde para vos y para las personas que tenés cerca.",
+      "durationMinutes": 240,
+      "difficulty": "normal",
+      "points": 100,
+      "order": 4
+    },
+    {
+      "id": "dificil-8-horas",
+      "title": "No uses redes sociales por 8 horas",
+      "description": "Una jornada completa sin redes, para trabajar o estudiar sin distracciones y volver a lo que pasa a tu alrededor.",
+      "durationMinutes": 480,
+      "difficulty": "hard",
+      "points": 200,
+      "order": 5
+    },
+    {
+      "id": "dificil-12-horas",
+      "title": "No uses redes sociales por 12 horas",
+      "description": "El desafío más largo: de la mañana a la noche sin redes. Animate y quedate con la gente que tenés al lado.",
+      "durationMinutes": 720,
+      "difficulty": "hard",
+      "points": 320,
+      "order": 6
+    }
+  ],
+  "rewards": [
+    {
+      "id": "insignia-primer-paso",
+      "name": "Insignia \"Primer paso\"",
+      "description": "Una insignia digital para tu perfil que celebra tu primer desafío cumplido. Es solo de (des)Conectado.",
+      "costPoints": 50,
+      "kind": "badge",
+      "order": 1
+    },
+    {
+      "id": "tema-de-color",
+      "name": "Tema de color para la app",
+      "description": "Cambiá los colores de la app con un tema exclusivo. Es un elemento digital que solo existe dentro de (des)Conectado.",
+      "costPoints": 100,
+      "kind": "theme",
+      "order": 2
+    },
+    {
+      "id": "cupon-descuento-de-ejemplo",
+      "name": "Cupón digital \"Descuento de ejemplo\"",
+      "description": "Un cupón de ejemplo con código único, para ver cómo funciona el canje. No tiene valor fuera de la app.",
+      "costPoints": 200,
+      "kind": "coupon",
+      "order": 3
+    },
+    {
+      "id": "insignia-semana-desconectada",
+      "name": "Insignia \"Semana desconectada\"",
+      "description": "Una insignia digital para quienes sostienen su desconexión durante una semana. Es solo de (des)Conectado.",
+      "costPoints": 300,
+      "kind": "badge",
+      "order": 4
+    },
+    {
+      "id": "cupon-regalo-sorpresa",
+      "name": "Cupón digital \"Regalo sorpresa\"",
+      "description": "Un cupón de ejemplo con código único y una sorpresa dentro de la app. No tiene valor fuera de ella.",
+      "costPoints": 500,
+      "kind": "coupon",
+      "order": 5
+    }
+  ]
+}
