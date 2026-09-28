@@ -1,3 +1,13 @@
+<!--
+## Sync Impact Report
+- Version change: 2.2.1 -> 2.3.0
+- Modified guidance: Principle I and Architecture of Data now define the fixed social-app list and offline tolerance.
+- Added sections: None.
+- Removed sections: None.
+- Resolved decisions: MEDICION_USO and OFFLINE_TOLERANCIA.
+- Remaining TODOs: NOTIFICACIONES_FRECUENCIA, CATALOGO_RECOMPENSAS, CATALOGO_DESAFIOS, PUNTOS_SEGURIDAD.
+-->
+
 # (des)Conectado Constitution
 
 (des)Conectado es una app móvil que fomenta el no-uso de redes sociales para "conectar
@@ -150,8 +160,9 @@ Definido en `specs/001-auth-profile-catalog/research.md`. Cambiarlo MUST tratars
   verdad persistente.
 - La medición del uso de apps, el cálculo del cumplimiento y la acreditación de puntos se realizan
   en el dispositivo; Firestore valida cada escritura con sus reglas de seguridad (Principio VI).
-- La app requiere conexión a Internet. Sin conexión no se puede iniciar un desafío, y si esta se
-  pierde durante un desafío en curso, el desafío queda invalidado.
+- La app requiere conexión a Internet para iniciar y sincronizar un desafío. Durante un desafío,
+  se toleran hasta cinco minutos acumulados sin conexión; la medición continúa localmente y se
+  sincroniza al recuperar la conexión. Al superar ese plazo, el desafío queda invalidado.
 
 ### Recompensas y notificaciones
 - La tienda MUST ofrecer cupones digitales ficticios: al canjear se genera un código único
@@ -185,7 +196,8 @@ Definido en `specs/001-auth-profile-catalog/research.md`. Cambiarlo MUST tratars
 - 2026-09-19: backend en la nube como fuente de verdad persistente.
 - 2026-09-19: login con correo + contraseña y Google Sign-In; recuperación por correo.
 - 2026-09-19: solo cuentan las apps de redes sociales de una lista fija.
-- 2026-09-19: conexión obligatoria; perder la conexión durante un desafío lo invalida.
+- 2026-09-19: conexión obligatoria; superar cinco minutos acumulados sin conexión durante un
+  desafío lo invalida.
 - 2026-09-19: los puntos vencen a los 30 días de otorgados (FIFO).
 - 2026-09-19: notificaciones en la entrega del 2026-10-08, con avisos de estado y recordatorios
   motivacionales por inactividad desde el backend.
@@ -204,13 +216,13 @@ Definido en `specs/001-auth-profile-catalog/research.md`. Cambiarlo MUST tratars
   izquierda en cada pestaña) y los últimos desafíos hechos, solo lectura desde Firestore; sin
   acreditación, canje, vencimiento ni participación (siguen en 2026-10-01 y 2026-10-08). Las
   cuentas nuevas parten en 0 puntos y sin historial; no hay datos demo.
+- 2026-09-28: solo cuentan Instagram, TikTok, Facebook, X, Snapchat y YouTube; WhatsApp y otras
+  aplicaciones quedan excluidas. El uso permitido de las aplicaciones incluidas es cero minutos.
+- 2026-09-28: una pérdida de conexión durante un desafío se tolera hasta cinco minutos acumulados;
+  la medición continúa localmente y una interrupción mayor invalida el desafío.
 
 ### Decisiones abiertas (contradicciones del documento del cliente)
 Se resuelven de a una con el usuario; cada resolución enmienda esta constitución.
-- TODO(MEDICION_USO): lista concreta de apps de redes sociales (¿incluye WhatsApp?) y umbral
-  máximo de uso por desafío.
-- TODO(OFFLINE_TOLERANCIA): cuánto dura una desconexión antes de invalidar el desafío y cómo se
-  detecta. Riesgo: desafíos de actividad física al aire libre, donde puede faltar señal.
 - TODO(NOTIFICACIONES_FRECUENCIA): tope de frecuencia y definición de "inactividad".
 - TODO(CATALOGO_RECOMPENSAS): qué cupones ofrece la tienda y a qué costo en puntos.
 - TODO(CATALOGO_DESAFIOS): duraciones y asignación de puntos (los nombres con actividades ya se
@@ -257,4 +269,4 @@ cliente donde haya contradicción.
 - **Cumplimiento**: toda spec, plan y entrega MUST verificarse contra esta constitución; las
   desviaciones MUST justificarse por escrito o corregirse antes de entregar.
 
-**Version**: 2.2.1 | **Ratified**: 2026-09-19 | **Last Amended**: 2026-09-23
+**Version**: 2.3.0 | **Ratified**: 2026-09-19 | **Last Amended**: 2026-09-28
