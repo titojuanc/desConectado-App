@@ -5,10 +5,12 @@ import com.desconectado.app.data.auth.FirebaseAuthRepository
 import com.desconectado.app.data.auth.GoogleCredentialProvider
 import com.desconectado.app.data.catalog.FirestoreCatalogRepository
 import com.desconectado.app.data.connectivity.AndroidConnectivityMonitor
+import com.desconectado.app.data.points.FirestorePointsRepository
 import com.desconectado.app.data.profile.FirestoreProfileRepository
 import com.desconectado.app.domain.repository.AuthRepository
 import com.desconectado.app.domain.repository.CatalogRepository
 import com.desconectado.app.domain.repository.ConnectivityMonitor
+import com.desconectado.app.domain.repository.PointsRepository
 import com.desconectado.app.domain.repository.ProfileRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -42,6 +44,7 @@ class AppContainer(context: Context) {
     val perfilRepository: ProfileRepository = FirestoreProfileRepository(firestore)
     val authRepository: AuthRepository = FirebaseAuthRepository(auth, perfilRepository)
     val catalogRepository: CatalogRepository = FirestoreCatalogRepository(firestore)
+    val pointsRepository: PointsRepository = FirestorePointsRepository(firestore)
 
     val googleCredentialProvider = GoogleCredentialProvider(context.getString(R.string.default_web_client_id))
 

@@ -6,6 +6,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
@@ -30,9 +31,9 @@ class DesafiosScreenTest {
     val compose = createComposeRule()
 
     private val desafios = listOf(
-        Desafio("d1", "No uses redes sociales por 30 minutos", "Media hora sin redes.", 30, Dificultad.FACIL, 10, 1),
-        Desafio("d2", "No uses redes sociales por 2 horas", "Dos horas sin redes.", 120, Dificultad.NORMAL, 50, 2),
-        Desafio("d3", "No uses redes sociales por 8 horas", "Ocho horas sin redes.", 480, Dificultad.DIFICIL, 200, 3),
+        Desafio("d1", "Salir a caminar", "Media hora sin redes.", 30, Dificultad.FACIL, 10, 1),
+        Desafio("d2", "Salir a trotar", "Dos horas sin redes.", 120, Dificultad.NORMAL, 50, 2),
+        Desafio("d3", "Excursión al aire libre", "Ocho horas sin redes.", 480, Dificultad.DIFICIL, 200, 3),
     )
 
     private fun texto(id: Int): String =
@@ -47,13 +48,15 @@ class DesafiosScreenTest {
         mostrar(DesafiosUiState.Lista(desafios))
 
         compose.onNodeWithTag("lista_desafios").assertIsDisplayed()
-        compose.onNodeWithText("No uses redes sociales por 30 minutos").assertIsDisplayed()
+        compose.onNodeWithText("Salir a caminar").assertIsDisplayed()
         compose.onNodeWithText("Media hora sin redes.").assertIsDisplayed()
         compose.onNodeWithText("Duración: 30 minutos").assertIsDisplayed()
         compose.onNodeWithText("10 puntos").assertIsDisplayed()
 
-        compose.onNodeWithText("No uses redes sociales por 2 horas").assertIsDisplayed()
+        compose.onNodeWithText("Salir a trotar").assertIsDisplayed()
         compose.onNodeWithText("Duración: 2 horas").assertIsDisplayed()
+        // FR-014: cada descripción visible deja claro que la condición es no usar redes.
+        compose.onAllNodesWithText("redes", substring = true).assertCountEquals(3)
         compose.onNodeWithText("50 puntos").assertIsDisplayed()
     }
 

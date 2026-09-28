@@ -1,0 +1,47 @@
+
+> desconectado-firebase@1.0.0 test:seed
+> node --test tests/seed/*.test.mjs
+
+▶ catálogo de desafíos sembrado (catalog.json)
+  ✔ cumple todas las invariantes del validador (0.9865ms)
+  ✔ tiene exactamente 6 desafíos, 2 por cada dificultad (0.1242ms)
+  ✔ un desafío de mayor dificultad dura más y otorga más puntos que cualquiera de menor dificultad (0.177ms)
+  ✔ cada título es el nombre de una actividad: no vacío, único y sin el formato anterior "No uses redes…" (0.1796ms)
+  ✔ cada descripción deja claro que la condición es no usar redes (0.1026ms)
+  ✔ cada desafío tiene descripción no vacía, duración y puntos enteros mayores que 0 (0.099ms)
+  ✔ contiene los 6 valores iniciales del spec (0.1926ms)
+✔ catálogo de desafíos sembrado (catalog.json) (2.5488ms)
+▶ formatearDuracion
+  ✔ formatea minutos y horas como en la app (0.1236ms)
+✔ formatearDuracion (0.2208ms)
+▶ validarDesafios detecta datos inválidos
+  ✔ rechaza un catálogo con menos de 2 desafíos por dificultad (0.1803ms)
+  ✔ rechaza una dificultad mayor que no dura más o no da más puntos (0.167ms)
+  ✔ rechaza campos inválidos (0.158ms)
+  ✔ rechaza el formato anterior de título, títulos repetidos y descripciones sin mención a las redes (0.1953ms)
+  ✔ rechaza un catálogo que no tiene exactamente 6 desafíos y 2 por dificultad (0.1511ms)
+✔ validarDesafios detecta datos inválidos (1.4656ms)
+▶ catálogo de recompensas sembrado (catalog.json)
+  ✔ cumple todas las invariantes del validador (1.2946ms)
+  ✔ tiene al menos 5 recompensas (0.1456ms)
+  ✔ cada recompensa tiene nombre y descripción no vacíos, costo entero mayor que 0 y tipo válido (0.139ms)
+  ✔ las recompensas van ordenadas por costo ascendente (0.1967ms)
+  ✔ ninguna recompensa de tipo coupon menciona comercios, locales ni descuentos reales (0.1821ms)
+  ✔ las recompensas aclaran que son digitales y de la app (0.1626ms)
+  ✔ contiene las 5 recompensas iniciales del spec (0.1428ms)
+✔ catálogo de recompensas sembrado (catalog.json) (3.1152ms)
+▶ validarRecompensas detecta datos inválidos
+  ✔ acepta cinco recompensas válidas (0.2814ms)
+  ✔ rechaza menos de 5 recompensas (0.1495ms)
+  ✔ rechaza campos inválidos (0.1781ms)
+  ✔ rechaza un cupón que menciona comercios o descuentos reales (0.1119ms)
+  ✔ rechaza recompensas que no van por costo ascendente (0.0806ms)
+✔ validarRecompensas detecta datos inválidos (1.0422ms)
+ℹ tests 25
+ℹ suites 5
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 73.0632

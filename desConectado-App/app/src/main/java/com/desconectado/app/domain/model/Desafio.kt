@@ -13,7 +13,8 @@ enum class Dificultad(val valorAlmacen: String) {
 }
 
 /**
- * Propuesta predefinida "No uses redes sociales por X tiempo", provista por la plataforma.
+ * Propuesta predefinida de hacer una actividad (por ejemplo "Salir a trotar") sin usar redes
+ * sociales durante un tiempo, provista por la plataforma.
  *
  * `durationMinutes` y `points` son mayores que 0.
  */

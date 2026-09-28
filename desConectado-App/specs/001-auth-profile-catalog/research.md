@@ -242,6 +242,85 @@ y capturas) referenciada desde ese documento.
   Google, cuyo correo llega verificado, puede coincidir con una cuenta de contraseña con el mismo
   correo sin verificar; el manejo se comprueba en T-VERIF-1 (D-5).
 
+## D-19. Puntos: saldo guardado más registro de movimientos (ajuste 2026-09-23; FR-027, FR-030, FR-031)
+
+- **Decisión**: cada persona tiene un saldo en `users/{uid}.pointsBalance` (entero, 0 al crear la
+  cuenta) y un registro de movimientos en la subcolección `users/{uid}/movements/{id}`. Un movimiento
+  tiene `type` (`credit` hoy; `redeem` y `expire` en entregas futuras), `amount` (entero mayor que 0;
+  el signo lo da `type`), `challengeId`, `challengeTitle` y `createdAt`. En esta entrega el cliente
+  no escribe ni el saldo ni los movimientos y las reglas lo deniegan; solo se leen.
+- **Razón**: el Principio VI exige que el saldo derive de un registro de movimientos y que cambie
+  únicamente junto con un movimiento y por su monto (invariante 5); para poder imponerlo con reglas
+  hace falta un saldo almacenado que las reglas comparen con el movimiento. Leer un solo campo
+  (el mismo documento del perfil) alimenta el indicador de las tres pestañas sin sumar movimientos
+  en el cliente. El título del desafío se copia al movimiento para que el listado no dependa del
+  catálogo si este cambia.
+- **Alternativas**: *sumar los movimientos en el cliente*: sin campo extra, pero cada pestaña
+  leería toda la subcolección y el vencimiento futuro lo volvería más costoso; descartada.
+  *Guardar solo el saldo sin movimientos*: incumple el Principio VI. *Colección de primer nivel
+  `movements` con `uid` dentro*: reglas más complejas; la subcolección hereda la pertenencia a la
+  cuenta del propio camino.
+- **Cuentas anteriores**: los perfiles creados antes del ajuste no tienen `pointsBalance`; la app lo
+  trata como 0 al leer y no hace falta migrarlos. Las cuentas nuevas lo reciben en 0 al crearse
+  (la app nueva lo escribe). La regla de creación lo admite ausente o igual a 0, para que el APK
+  de la entrega 1, ya instalado, siga registrando cuentas al publicar las reglas antes de que todos
+  los teléfonos se actualicen (`contracts/firestore-data.md`, condición 6).
+- **Riesgo aceptado**: como en el Principio VI, un dispositivo modificado podría falsear puntos en
+  el futuro; las reglas de la entrega del 01/10 elevan el esfuerzo pero no lo eliminan.
+
+## D-20. Catálogo de desafíos con actividades (ajuste 2026-09-23; FR-013, FR-014)
+
+- **Decisión**: se renombran los 6 desafíos de `firebase/seed/catalog.json` con los títulos de la
+  spec (Assumptions). Se conservan `id`, `durationMinutes`, `difficulty`, `points` y `order`; las
+  descripciones se ajustan solo donde contradigan el título y siempre indican que la condición es no
+  usar redes sociales. Volver a sembrar actualiza los documentos existentes por `id`.
+- **Razón**: la constitución (Principio I, v2.2.0) permite títulos de actividad si el cumplimiento
+  sigue midiéndose por uso de redes; conservar los `id` mantiene estables las referencias futuras
+  (movimientos, intentos).
+- **Cambio en la validación de la siembra** (`validate.mjs`): se elimina la exigencia de que el
+  título empiece con "No uses redes sociales por " y coincida con la duración. Se exige: título no
+  vacío y único; descripción que mencione "redes" (la condición debe ser visible); exactamente 6
+  desafíos y 2 por dificultad; y se mantienen las invariantes de duración y puntos crecientes.
+  Estas reglas se prueban primero (Principio IV).
+- **Alternativa**: agregar un campo `activity` separado del título: más flexible, pero el pedido es
+  solo cambiar el nombre; descartada por Principio V.
+
+## D-21. Lectura y presentación de puntos (FR-028, FR-029, FR-033)
+
+- **Decisión**: el saldo se lee del documento del perfil y los últimos desafíos hechos con la
+  consulta "movimientos de tipo `credit`, por `createdAt` descendente, límite 5", forzando la lectura
+  del servidor (D-7). Esa consulta necesita un índice compuesto (`type`, `createdAt`), que se
+  versiona en `firebase/firestore.indexes.json` y se despliega junto con las reglas. El indicador
+  vive en la barra superior de `MainShell`, a la izquierda, con estado compartido por las tres
+  pestañas; se recarga al cambiar de pestaña y con Reintentar. Sin conexión o ante un fallo el
+  indicador muestra un guion, nunca un 0 (FR-033). Sin oyentes en tiempo real: la política de
+  lectura es la misma del resto de la app.
+- **Razón**: una sola lectura por pestaña, coherente con D-7 y sin dependencias nuevas. El índice es
+  necesario porque, cuando existan canjes y vencimientos, la consulta debe seguir mostrando solo
+  desafíos hechos; el emulador no lo exige, pero el proyecto real sí, así que su despliegue queda en
+  el quickstart.
+- **Alternativas**: *ordenar por `createdAt` sin filtrar por tipo*: sin índice, pero mostraría
+  canjes como desafíos hechos cuando existan; descartada. *Oyente en tiempo real*: refresca solo el
+  saldo, pero contradice la política sin caché de D-7.
+- **Formato**: el número se muestra completo con separador de miles; `formatearPuntos` es una
+  función pura de `domain/`.
+
+## D-22. Camino previsto para las entregas siguientes (sin implementar; nota de diseño)
+
+El pedido incluye dejar el terreno preparado para guardar qué desafío está haciendo la persona y
+cuáles ya hizo, y aplicar después el vencimiento de puntos. Por Principio V **nada de esto se
+construye en esta entrega**; se documenta para que el modelo de D-19 no obligue a migrar datos.
+
+| Entrega | Qué se agregará | Compatibilidad con el modelo actual |
+|---------|-----------------|-------------------------------------|
+| 2026-10-01 (participar) | Desafío en curso: un único documento `users/{uid}/activeChallenge/current` (`challengeId`, `startedAt` de servidor); existe solo mientras hay un desafío en curso. Al cumplirlo, un lote atómico crea el movimiento `credit` y suma el saldo; las reglas imponen las invariantes 3 a 5 (`TODO(PUNTOS_SEGURIDAD)`) | Se abre la escritura en `users/{uid}` únicamente para cambiar `pointsBalance` junto con un movimiento; los campos y la consulta actuales no cambian |
+| 2026-10-08 (historial y vencimiento) | Historial de intentos `users/{uid}/attempts/{id}` con estado (`completed`, `failed`, `cancelled`, `invalidated`), para registrar también los no cumplidos (Principio I). Movimientos `expire`: los puntos vencen a los 30 días de la acreditación (`createdAt` del `credit`) y se consumen FIFO, calculado en la app con reloj simulable | El vencimiento se deriva de `createdAt`; no hace falta ningún campo nuevo en los créditos de esta entrega. `expire` y `redeem` son tipos nuevos de `type`, sin tocar los movimientos existentes |
+
+Decisiones ya tomadas para no romper esa evolución: `amount` es siempre positivo y el signo lo da
+`type`; `createdAt` es la fecha de acreditación y la fija el servidor; los movimientos son solo de
+agregado; el desafío en curso y el historial de intentos se separan del registro de puntos (un
+desafío incumplido queda registrado sin generar movimiento).
+
 ## Riesgos abiertos
 
 | ID  | Riesgo                                                            | Mitigación                                       |
@@ -251,6 +330,7 @@ y capturas) referenciada desde ese documento.
 | R-4 | Comportamiento de unificación de cuentas por correo sin verificar | **Comprobado (T-VERIF-1, 2026-09-19)**: Firebase no unifica solo; se activa el diálogo de vinculación y funciona |
 | R-5 | El equipo podría no dominar Kotlin                                | Revisar D-1 de inmediato si es el caso           |
 | R-6 | El correo de restablecimiento puede tardar o caer en spam durante la demo | Probarlo con el proyecto real antes de la entrega (M-11); avisar de revisar spam |
+| R-7 | El índice compuesto de movimientos falta en el proyecto real y la consulta de últimos desafíos falla solo allí (el emulador no lo exige) | Desplegar `firestore.indexes.json` junto con las reglas y comprobarlo en M-14 |
 
 El antiguo R-2 (puntos autoritativos en el backend y plan de pago) se cerró al redefinir el
 Principio VI en la constitución v2.0.0; su seguimiento pasó a `TODO(PUNTOS_SEGURIDAD)`.

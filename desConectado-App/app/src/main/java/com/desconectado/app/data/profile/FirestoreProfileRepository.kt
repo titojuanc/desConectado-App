@@ -6,6 +6,7 @@ import com.desconectado.app.domain.model.Perfil
 import com.desconectado.app.domain.model.Resultado
 import com.desconectado.app.domain.nombreParaPerfil
 import com.desconectado.app.domain.normalizarCorreo
+import com.desconectado.app.domain.normalizarSaldo
 import com.desconectado.app.domain.repository.ProfileRepository
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FieldValue
@@ -25,7 +26,7 @@ class FirestoreProfileRepository(private val firestore: FirebaseFirestore) : Pro
         val username = doc.getString("username")
         val email = doc.getString("email")
         if (doc.exists() && username != null && email != null) {
-            Resultado.Exito(Perfil(username = username, email = email))
+            Resultado.Exito(Perfil(username = username, email = email, puntos = normalizarSaldo(doc.getLong("pointsBalance"))))
         } else {
             Resultado.Fallo(ErrorApp.Desconocido)
         }
@@ -53,6 +54,8 @@ class FirestoreProfileRepository(private val firestore: FirebaseFirestore) : Pro
             "username" to nombreParaPerfil(nombre, correo),
             "email" to correo,
             "createdAt" to FieldValue.serverTimestamp(),
+            // Nadie nace con puntos (FR-030); las reglas exigen que este valor sea 0.
+            "pointsBalance" to 0,
         )
         try {
             ref.set(datos).await()

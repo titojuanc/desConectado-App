@@ -10,9 +10,13 @@ export const TIPOS_RECOMPENSA = ['badge', 'theme', 'coupon'];
 /** Palabras que sugieren un beneficio fuera de la app (FR-019); no deben aparecer en los cupones. */
 export const REFERENCIAS_EXTERNAS = /\b(comercios?|locales?|tiendas? f[ií]sicas?|descuentos? reales?)\b/i;
 
-const MIN_DESAFIOS_POR_DIFICULTAD = 2;
+const CANTIDAD_DESAFIOS = 6;
+const DESAFIOS_POR_DIFICULTAD = 2;
 const MIN_RECOMPENSAS = 5;
-const PREFIJO_TITULO = 'No uses redes sociales por ';
+// Formato anterior del título; el título ahora es el nombre de una actividad (FR-013).
+const TITULO_FORMATO_ANTERIOR = /^No uses redes/i;
+// La descripción debe dejar claro que la condición es no usar redes (FR-014).
+const MENCIONA_REDES = /redes/i;
 
 const esTextoNoVacio = (valor) => typeof valor === 'string' && valor.trim().length > 0;
 const esEnteroPositivo = (valor) => Number.isInteger(valor) && valor > 0;
@@ -32,7 +36,12 @@ export function validarDesafios(desafios) {
   const errores = [];
   if (!Array.isArray(desafios)) return ['challenges debe ser una lista'];
 
+  if (desafios.length !== CANTIDAD_DESAFIOS) {
+    errores.push(`hay ${desafios.length} desafíos y debe haber exactamente ${CANTIDAD_DESAFIOS}`);
+  }
+
   const ids = new Set();
+  const titulos = new Set();
   for (const d of desafios) {
     const nombre = d?.id ?? '(sin id)';
     if (!esTextoNoVacio(d?.id)) errores.push(`${nombre}: id vacío`);
@@ -41,12 +50,18 @@ export function validarDesafios(desafios) {
 
     if (!esTextoNoVacio(d?.title)) {
       errores.push(`${nombre}: title vacío`);
-    } else if (!d.title.startsWith(PREFIJO_TITULO)) {
-      errores.push(`${nombre}: title debe empezar con "${PREFIJO_TITULO}"`);
-    } else if (esEnteroPositivo(d.durationMinutes) && d.title !== PREFIJO_TITULO + formatearDuracion(d.durationMinutes)) {
-      errores.push(`${nombre}: title no coincide con durationMinutes (${d.durationMinutes})`);
+    } else {
+      if (TITULO_FORMATO_ANTERIOR.test(d.title)) {
+        errores.push(`${nombre}: title debe ser el nombre de una actividad, no "No uses redes…"`);
+      }
+      if (titulos.has(d.title.trim())) errores.push(`${nombre}: title repetido`);
+      titulos.add(d.title.trim());
     }
-    if (!esTextoNoVacio(d?.description)) errores.push(`${nombre}: description vacía`);
+    if (!esTextoNoVacio(d?.description)) {
+      errores.push(`${nombre}: description vacía`);
+    } else if (!MENCIONA_REDES.test(d.description)) {
+      errores.push(`${nombre}: description debe mencionar que la condición es no usar redes`);
+    }
     if (!esEnteroPositivo(d?.durationMinutes)) errores.push(`${nombre}: durationMinutes debe ser un entero mayor que 0`);
     if (!esEnteroPositivo(d?.points)) errores.push(`${nombre}: points debe ser un entero mayor que 0`);
     if (!DIFICULTADES.includes(d?.difficulty)) errores.push(`${nombre}: difficulty debe ser easy, normal o hard`);
@@ -55,8 +70,8 @@ export function validarDesafios(desafios) {
 
   for (const dificultad of DIFICULTADES) {
     const cantidad = desafios.filter((d) => d?.difficulty === dificultad).length;
-    if (cantidad < MIN_DESAFIOS_POR_DIFICULTAD) {
-      errores.push(`${dificultad}: hay ${cantidad} desafíos y se necesitan al menos ${MIN_DESAFIOS_POR_DIFICULTAD}`);
+    if (cantidad !== DESAFIOS_POR_DIFICULTAD) {
+      errores.push(`${dificultad}: hay ${cantidad} desafíos y debe haber exactamente ${DESAFIOS_POR_DIFICULTAD}`);
     }
   }
 

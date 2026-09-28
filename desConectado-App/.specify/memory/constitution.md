@@ -1,25 +1,3 @@
-<!--
-SYNC IMPACT REPORT (temporal; eliminar antes de commitear)
-Version change: 2.0.0 → 2.1.0
-Bump: MINOR. Se resuelve una decisión abierta (Firebase App Check queda descartado porque el
-  proyecto no se publicará en Google Play), se agrega un elemento a "Fuera de alcance" y se
-  posterga una regla de seguridad hasta comprobarla en la práctica. Ninguna redefinición
-  incompatible de un principio.
-Principios modificados:
-  II. Android Nativo (distribución solo por APK directo, sin Google Play)
-  VI. Integridad de la Economía de Puntos (la condición "no antes de que transcurra la duración"
-      deja de ser exigible hasta comprobar su viabilidad)
-Secciones agregadas: ninguna
-Secciones modificadas: Fuera de alcance, Decisiones resueltas, Decisiones abiertas
-Secciones eliminadas: ninguna
-Decisión resuelta: evaluación de App Check (descartado)
-Plantillas y artefactos dependientes (no se modifican aquí): sin pendientes; los de
-  specs/001-auth-profile-catalog se alinearon con esta versión en el mismo cambio.
-TODOs diferidos (a resolver con el usuario):
-  - TODO(MEDICION_USO)  - TODO(OFFLINE_TOLERANCIA)  - TODO(NOTIFICACIONES_FRECUENCIA)
-  - TODO(CATALOGO_RECOMPENSAS)  - TODO(CATALOGO_DESAFIOS)  - TODO(PUNTOS_SEGURIDAD)
--->
-
 # (des)Conectado Constitution
 
 (des)Conectado es una app móvil que fomenta el no-uso de redes sociales para "conectar
@@ -40,6 +18,10 @@ desafío genuino y deja la decisión al usuario. Reglas:
   sociales de una lista fija predefinida; el resto del uso del teléfono (llamadas, mensajería,
   cámara, mapas) MUST NOT contar contra el límite. No basta una declaración del usuario.
 - El límite de uso de cada desafío MUST ser lo bastante exigente para constituir un desafío real.
+- El título de un desafío MAY aludir a una actividad al aire libre o social ("Salir a trotar",
+  "Andar en bici", "Juntarse con amigos"); es una invitación a hacer algo en lugar de usar redes.
+  Su cumplimiento MUST seguir determinándose solo por el uso medido de redes sociales, sin
+  geolocalización, sensores ni declaración del usuario.
 - Un desafío incumplido o invalidado (incluida la pérdida de conexión, ver "Arquitectura de
   datos") se registra como "no cumplido" y no otorga puntos. La app MUST NOT aplicar
   restricciones ni sanciones sobre el dispositivo.
@@ -113,6 +95,10 @@ reglas de seguridad. Reglas:
   antes de que transcurra la duración del desafío según la hora del servidor. Solo se incorporará
   a la lista anterior si una prueba práctica confirma que las reglas pueden imponerla (ver
   TODO(PUNTOS_SEGURIDAD)).
+- En la entrega 2026-09-24 el saldo y los últimos desafíos hechos MUST poder leerse desde
+  Firestore, solo lectura: el cliente MUST NOT escribir puntos ni movimientos y las reglas MUST
+  denegar esas escrituras hasta que exista la acreditación (2026-10-01). Una cuenta nueva MUST
+  partir con saldo 0 y sin historial.
 - El vencimiento (30 días desde la acreditación) y el consumo de los puntos más antiguos primero
   (FIFO) MUST aplicarse en la app de forma determinista y ser probables mediante un reloj
   simulable. Las reglas de seguridad no pueden verificarlos; son reglas de equidad, no de
@@ -132,8 +118,9 @@ esfuerzo de hacer trampa sin salir del plan gratuito.
 ### Dentro de alcance
 Cuenta y login (correo + contraseña y Google Sign-In, recuperación por correo); participación en
 desafíos con medición de uso; canje de puntos en la tienda de la app; perfil (datos personales,
-tiempo total de pantalla, historial de logros y canjes); cancelar/interrumpir desafío; calificar
-desafío; vencimiento de puntos; notificaciones.
+saldo de puntos, últimos desafíos hechos, tiempo total de pantalla, historial de logros y canjes); cancelar/interrumpir desafío; calificar
+desafío; vencimiento de puntos; notificaciones. Desde la entrega 2026-09-24 también: indicador
+del saldo de puntos, siempre arriba a la izquierda en cada pestaña principal (solo lectura).
 
 ### Fuera de alcance (MVP)
 iOS y Apple ID; publicación en Google Play; login o recuperación por teléfono/SMS; cámara y fotos
@@ -211,6 +198,13 @@ Definido en `specs/001-auth-profile-catalog/research.md`. Cambiarlo MUST tratars
   Check queda descartado, porque su proveedor de integridad en Android está pensado para apps
   distribuidas por Google Play.
 
+- 2026-09-23: los títulos del catálogo pueden aludir a actividades al aire libre o sociales; solo
+  cambia el nombre, el cumplimiento sigue medido por uso de redes (Principio I).
+- 2026-09-23: la entrega 2026-09-24 muestra el saldo de puntos (perfil e indicador arriba a la
+  izquierda en cada pestaña) y los últimos desafíos hechos, solo lectura desde Firestore; sin
+  acreditación, canje, vencimiento ni participación (siguen en 2026-10-01 y 2026-10-08). Las
+  cuentas nuevas parten en 0 puntos y sin historial; no hay datos demo.
+
 ### Decisiones abiertas (contradicciones del documento del cliente)
 Se resuelven de a una con el usuario; cada resolución enmienda esta constitución.
 - TODO(MEDICION_USO): lista concreta de apps de redes sociales (¿incluye WhatsApp?) y umbral
@@ -219,20 +213,24 @@ Se resuelven de a una con el usuario; cada resolución enmienda esta constituci�
   detecta. Riesgo: desafíos de actividad física al aire libre, donde puede faltar señal.
 - TODO(NOTIFICACIONES_FRECUENCIA): tope de frecuencia y definición de "inactividad".
 - TODO(CATALOGO_RECOMPENSAS): qué cupones ofrece la tienda y a qué costo en puntos.
-- TODO(CATALOGO_DESAFIOS): desafíos, duraciones y asignación de puntos. Hay valores iniciales
+- TODO(CATALOGO_DESAFIOS): duraciones y asignación de puntos (los nombres con actividades ya se
+  resolvieron el 2026-09-23). Hay valores iniciales
   propuestos en `specs/001-auth-profile-catalog/spec.md` (Assumptions).
-- TODO(PUNTOS_SEGURIDAD): definir en el plan de la entrega del 2026-10-01 el modelo de datos de los
-  puntos (registro de movimientos y saldo), sus reglas de seguridad y la cobertura de pruebas de
-  manipulación; y comprobar en la práctica, contra el emulador, si las reglas pueden imponer que
-  una acreditación no ocurra antes de que transcurra la duración del desafío según la hora del
-  servidor. Si es viable, se agrega a las invariantes del Principio VI; si no, se descarta.
+- TODO(PUNTOS_SEGURIDAD): el modelo de datos de los puntos (saldo en `users/{uid}.pointsBalance` y
+  movimientos en `users/{uid}/movements`) quedó definido el 2026-09-23 en
+  `specs/001-auth-profile-catalog/research.md` D-19 (solo lectura en la entrega del 2026-09-24).
+  Queda para el plan de la entrega del 2026-10-01: las reglas que validan acreditación, canje y
+  saldo (invariantes 3 a 5 del Principio VI), sus pruebas de manipulación y la comprobación, contra
+  el emulador, de si las reglas pueden imponer que una acreditación no ocurra antes de que
+  transcurra la duración del desafío según la hora del servidor. Si es viable, se agrega a las
+  invariantes del Principio VI; si no, se descarta.
 
 ## Flujo de Trabajo y Entregas
 
 ### Calendario de entregas
 | Fecha      | Objetivo                 | Entregable                                                   |
 |------------|--------------------------|--------------------------------------------------------------|
-| 2026-09-24 | Perfil y catálogo        | App base con login/registro, perfil y catálogo de desafíos    |
+| 2026-09-24 | Perfil y catálogo        | App base con login/registro, perfil y catálogo de desafíos; saldo de puntos y últimos desafíos visibles (solo lectura, ajuste 2026-09-23) |
 | 2026-10-01 | Participación y canje    | Aceptar desafío, medición de uso, canje de puntos             |
 | 2026-10-08 | Validaciones e historial | Interrumpir y calificar desafío, vencimiento de puntos, notificaciones, historial de desafíos y canjes |
 | 2026-10-15 | Ajustar                  | Integración completa, pruebas, corrección de errores, UI y demo |
@@ -259,4 +257,4 @@ cliente donde haya contradicción.
 - **Cumplimiento**: toda spec, plan y entrega MUST verificarse contra esta constitución; las
   desviaciones MUST justificarse por escrito o corregirse antes de entregar.
 
-**Version**: 2.1.0 | **Ratified**: 2026-09-19 | **Last Amended**: 2026-09-19
+**Version**: 2.2.1 | **Ratified**: 2026-09-19 | **Last Amended**: 2026-09-23

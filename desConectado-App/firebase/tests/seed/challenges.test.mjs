@@ -9,16 +9,17 @@ const aqui = dirname(fileURLToPath(import.meta.url));
 const catalogo = JSON.parse(readFileSync(resolve(aqui, '../../seed/catalog.json'), 'utf8'));
 const desafios = catalogo.challenges;
 
-// FR-013 a FR-016: catálogo de desafíos "No uses redes sociales por X tiempo".
+// FR-013 a FR-016: catálogo de 6 desafíos con nombres de actividades, que se cumplen sin usar redes.
 describe('catálogo de desafíos sembrado (catalog.json)', () => {
   it('cumple todas las invariantes del validador', () => {
     assert.deepEqual(validarDesafios(desafios), []);
   });
 
-  it('tiene al menos 2 desafíos por cada dificultad', () => {
+  it('tiene exactamente 6 desafíos, 2 por cada dificultad', () => {
+    assert.equal(desafios.length, 6);
     for (const dificultad of DIFICULTADES) {
       const cantidad = desafios.filter((d) => d.difficulty === dificultad).length;
-      assert.ok(cantidad >= 2, `${dificultad} tiene ${cantidad} desafíos`);
+      assert.equal(cantidad, 2, `${dificultad} tiene ${cantidad} desafíos`);
     }
   });
 
@@ -35,10 +36,18 @@ describe('catálogo de desafíos sembrado (catalog.json)', () => {
     }
   });
 
-  it('todos los títulos empiezan con "No uses redes sociales por" y coinciden con la duración', () => {
+  it('cada título es el nombre de una actividad: no vacío, único y sin el formato anterior "No uses redes…"', () => {
+    const titulos = desafios.map((d) => d.title);
+    for (const titulo of titulos) {
+      assert.ok(typeof titulo === 'string' && titulo.trim().length > 0);
+      assert.doesNotMatch(titulo, /^No uses redes/i);
+    }
+    assert.equal(new Set(titulos).size, titulos.length, 'hay títulos repetidos');
+  });
+
+  it('cada descripción deja claro que la condición es no usar redes', () => {
     for (const d of desafios) {
-      assert.match(d.title, /^No uses redes sociales por /);
-      assert.equal(d.title, `No uses redes sociales por ${formatearDuracion(d.durationMinutes)}`);
+      assert.match(d.description, /redes/i, `${d.id}: la descripción no menciona las redes`);
     }
   });
 
@@ -76,11 +85,25 @@ describe('formatearDuracion', () => {
 });
 
 // El validador debe detectar de verdad los datos inválidos (si no, las pruebas de arriba no valdrían).
+// Catálogo válido de 6 desafíos; si se pasan más o menos títulos, cambia la cantidad (los extra son 'hard').
+const catalogoDe = (titulos) => {
+  const plantilla = [
+    [30, 'easy', 10], [60, 'easy', 20], [120, 'normal', 50], [240, 'normal', 100], [480, 'hard', 200], [720, 'hard', 320],
+  ];
+  return titulos.map((title, i) => {
+    const [durationMinutes, difficulty, points] = plantilla[Math.min(i, plantilla.length - 1)];
+    return {
+      id: `d${i}`, title, description: 'Sin redes.', durationMinutes: durationMinutes + Math.max(0, i - 5), difficulty,
+      points: points + Math.max(0, i - 5), order: i + 1,
+    };
+  });
+};
+
 describe('validarDesafios detecta datos inválidos', () => {
   const base = (extra = {}) => ({
     id: 'x',
-    title: 'No uses redes sociales por 30 minutos',
-    description: 'Algo',
+    title: 'Salir a caminar',
+    description: 'Media hora sin redes.',
     durationMinutes: 30,
     difficulty: 'easy',
     points: 10,
@@ -95,11 +118,11 @@ describe('validarDesafios detecta datos inválidos', () => {
   it('rechaza una dificultad mayor que no dura más o no da más puntos', () => {
     const datos = [
       base({ id: 'a', order: 1 }),
-      base({ id: 'b', order: 2, durationMinutes: 60, title: 'No uses redes sociales por 1 hora', points: 20 }),
-      base({ id: 'c', order: 3, difficulty: 'normal', durationMinutes: 45, title: 'No uses redes sociales por 45 minutos', points: 50 }),
-      base({ id: 'd', order: 4, difficulty: 'normal', durationMinutes: 120, title: 'No uses redes sociales por 2 horas', points: 60 }),
-      base({ id: 'e', order: 5, difficulty: 'hard', durationMinutes: 480, title: 'No uses redes sociales por 8 horas', points: 200 }),
-      base({ id: 'f', order: 6, difficulty: 'hard', durationMinutes: 720, title: 'No uses redes sociales por 12 horas', points: 320 }),
+      base({ id: 'b', order: 2, durationMinutes: 60, title: 'Andar en bici', points: 20 }),
+      base({ id: 'c', order: 3, difficulty: 'normal', durationMinutes: 45, title: 'Salir a trotar', points: 50 }),
+      base({ id: 'd', order: 4, difficulty: 'normal', durationMinutes: 120, title: 'Juntarse con amigos', points: 60 }),
+      base({ id: 'e', order: 5, difficulty: 'hard', durationMinutes: 480, title: 'Excursión al aire libre', points: 200 }),
+      base({ id: 'f', order: 6, difficulty: 'hard', durationMinutes: 720, title: 'Escapada a la naturaleza', points: 320 }),
     ];
     assert.ok(validarDesafios(datos).some((e) => e.includes('normal')));
   });
@@ -109,7 +132,17 @@ describe('validarDesafios detecta datos inválidos', () => {
     assert.ok(validarDesafios([base({ points: -5 })]).length > 0);
     assert.ok(validarDesafios([base({ difficulty: 'imposible' })]).length > 0);
     assert.ok(validarDesafios([base({ description: '  ' })]).length > 0);
-    assert.ok(validarDesafios([base({ title: 'Otro título' })]).length > 0);
-    assert.ok(validarDesafios([base({ title: 'No uses redes sociales por 5 minutos' })]).length > 0);
+    assert.ok(validarDesafios([base({ title: '  ' })]).length > 0);
+  });
+
+  it('rechaza el formato anterior de título, títulos repetidos y descripciones sin mención a las redes', () => {
+    assert.ok(validarDesafios([base({ title: 'No uses redes sociales por 30 minutos' })]).some((e) => e.includes('title')));
+    assert.ok(validarDesafios(catalogoDe(['Salir a caminar', 'Salir a caminar'])).some((e) => e.includes('repetido')));
+    assert.ok(validarDesafios([base({ description: 'Salí a caminar un rato.' })]).some((e) => e.includes('redes')));
+  });
+
+  it('rechaza un catálogo que no tiene exactamente 6 desafíos y 2 por dificultad', () => {
+    assert.ok(validarDesafios(catalogoDe(['A', 'B', 'C', 'D', 'E', 'F', 'G'])).some((e) => e.includes('6')));
+    assert.ok(validarDesafios(catalogoDe(['A', 'B', 'C', 'D', 'E', 'F']).slice(0, 5)).length > 0);
   });
 });

@@ -12,6 +12,11 @@ description: "Lista de tareas de la entrega del 24/09: cuenta, perfil y catálog
 **Tests**: INCLUIDAS. La constitución (Principio IV) exige pruebas de cada requisito y desarrollo
 test-first de la lógica de negocio, y el spec exige evidencia (FR-024, SC-008).
 
+**Ajuste 2026-09-23** (constitución v2.2.0): las fases 10 a 12 (T114 a T141) renombran los desafíos
+con actividades (US2) y agregan los puntos de solo lectura (US7). Las fases 1 a 9 son la entrega ya
+cerrada y no se reabren. Sigue vigente el Principio IV: en cada fase las pruebas se escriben y se
+ven fallar antes de implementar.
+
 **Objetivo final**: al terminar, existe un APK firmado listo para instalar en un dispositivo
 Android real (`dist/desConectado-entrega1.apk`) que cumple los requisitos de la entrega del 24/09.
 
@@ -21,7 +26,7 @@ una por separado.
 ## Format: `[ID] [P?] [Story] Description`
 
 - **[P]**: puede ejecutarse en paralelo (archivos distintos, sin dependencia de tareas incompletas)
-- **[Story]**: historia de usuario a la que pertenece (US1 a US5)
+- **[Story]**: historia de usuario a la que pertenece (US1 a US7)
 - **(MANUAL)**: la tarea la debe hacer la persona, no el asistente (instalaciones, consola de
   Firebase, dispositivo físico). El asistente prepara todo lo demás y espera la confirmación.
 
@@ -302,6 +307,82 @@ evidencia de cada requisito referenciada.
 
 ---
 
+## Phase 10: Ajuste - US2 Desafíos con nombres de actividades (Priority: P2)
+
+**Goal**: los 6 desafíos pasan a títulos de actividades al aire libre o sociales, conservando
+duraciones, puntos e `id`, y cada descripción deja claro que la condición es no usar redes
+(FR-013, FR-014; `research.md` D-20).
+
+**Independent Test**: sembrar el emulador, abrir Desafíos y ver 6 títulos de actividad, 2 por
+dificultad, cada uno con una descripción que dice que no se usan redes (quickstart M-16).
+
+### Tests for Ajuste US2 ⚠️
+
+- [X] T114 [P] [US2] Actualizar `firebase/tests/seed/challenges.test.mjs` sobre `firebase/seed/catalog.json`: exactamente 6 desafíos y exactamente 2 por dificultad; `title` "No vacío y único" y que **no** empiece con "No uses redes" (debe ser el nombre de una actividad); `description` "No vacía; menciona que la condición es no usar redes" (contiene "redes"); se elimina la exigencia del prefijo "No uses redes sociales por" y de que el título coincida con la duración; se mantienen las invariantes de duración y puntos crecientes por dificultad. Debe fallar con el catálogo actual
+- [X] T115 [P] [US2] Cambiar los datos de prueba que usan los títulos viejos a los nuevos ("Salir a caminar", "Andar en bici", "Salir a trotar", "Juntarse con amigos", "Excursión al aire libre", "Escapada a la naturaleza") en `firebase/tests/rules/challenges.test.mjs`, `app/src/test/java/com/desconectado/app/ui/challenges/DesafiosViewModelTest.kt`, `app/src/androidTest/java/com/desconectado/app/ui/DesafiosScreenTest.kt` y `app/src/androidTest/java/com/desconectado/app/data/CatalogDesafiosEmulatorTest.kt` (este último espera el primer título "Salir a caminar" y los 6 en orden); y en `DesafiosScreenTest` comprobar que la descripción visible de cada tarjeta menciona las redes
+
+### Implementation for Ajuste US2
+
+- [X] T116 [US2] Renombrar los 6 desafíos en `firebase/seed/catalog.json` conservando `id`, `durationMinutes`, `difficulty`, `points` y `order`: `facil-30-minutos` "Salir a caminar", `facil-1-hora` "Andar en bici", `normal-2-horas` "Salir a trotar", `normal-4-horas` "Juntarse con amigos", `dificil-8-horas` "Excursión al aire libre", `dificil-12-horas` "Escapada a la naturaleza"; ajustar cada `description` solo donde contradiga el título y siempre indicando que la condición es no usar redes sociales por ese tiempo; y reemplazar en `firebase/seed/validate.mjs` la regla del prefijo por las invariantes de T114 (la usan el script y las pruebas); hace pasar T114
+- [X] T117 [P] [US2] Actualizar el comentario de `app/src/main/java/com/desconectado/app/domain/model/Desafio.kt` ("propuesta de hacer una actividad sin usar redes sociales durante un tiempo") y revisar que `ui/challenges/DesafiosScreen.kt` y `app/src/main/res/values/strings_desafios.xml` no dependan del prefijo "No uses redes"; hace pasar T115
+- [X] T118 [US2] Verificar: `npm run test:seed` y `npm test` en `firebase/`; volver a sembrar el emulador (`node firebase/seed/seed.mjs --emulator`); correr `./gradlew testDebugUnitTest` y las instrumentadas de desafíos; ejecutar a mano M-16 y guardar evidencia en `specs/001-auth-profile-catalog/evidencia/ajuste-0923/us2/` *(M-16 comprobado en el emulador de Android con captura, no en teléfono real; ver `evidencia/ajuste-0923/resumen.md`)*
+
+**Checkpoint**: el catálogo muestra títulos de actividades sin cambiar duraciones ni puntos.
+
+---
+
+## Phase 11: Ajuste - US7 Ver mis puntos y mis últimos desafíos (Priority: P2)
+
+**Goal**: mostrar el saldo de puntos (ícono arriba a la izquierda en Desafíos, Recompensas y Perfil, y
+en el Perfil) y los últimos 5 desafíos hechos, todo de solo lectura desde Firestore, con las reglas
+denegando toda escritura de puntos (FR-027 a FR-033; `research.md` D-19 y D-21).
+
+**Independent Test**: registrar una cuenta nueva y ver 0 en el ícono de las tres pestañas y saldo 0
+con texto explicativo en el Perfil (M-13); con movimientos cargados por administrador, ver el saldo
+y los 5 más recientes (M-14); sin conexión ver guion y Reintentar (M-15).
+
+### Tests for US7 ⚠️
+
+- [X] T119 [P] [US7] Ampliar `firebase/tests/rules/users.test.mjs`: actualizar `perfilValido()` para que incluya `pointsBalance: 0`, agregar `perfilLegacy()` sin ese campo y revisar las pruebas de creación existentes que dicen "exactamente username, email y createdAt"; para la creación de `users/{uid}`: se acepta con `pointsBalance` "entero igual a 0" y también sin `pointsBalance` (ausente equivale a 0, para el APK de la entrega 1); se rechaza con `pointsBalance` 5, -1, 0.5 o "0", y con cualquier campo extra; un perfil anterior al ajuste (sin `pointsBalance`, cargado con administrador) sigue siendo legible por su dueña; `update` de `pointsBalance` y de cualquier otro campo sigue rechazado, y `delete` también
+- [X] T120 [P] [US7] Crear `firebase/tests/rules/points.test.mjs` (Principio VI, con el emulador): la dueña lee `users/{uid}/movements` y ejecuta la consulta `type == "credit"`, `createdAt` descendente, límite 5; otra persona autenticada y una sin autenticar no leen; **manipulaciones rechazadas** para la dueña: crear un movimiento (incluso uno con apariencia válida, `type` "credit", `amount` igual a los puntos del catálogo, `challengeId`, `challengeTitle` y `createdAt` de servidor), crear uno duplicado para el mismo desafío, crear con `amount` distinto o negativo, editar un movimiento existente (cargado con administrador), borrarlo, cambiar `pointsBalance` en un lote junto con un movimiento, dejar el saldo negativo; escribir o leer los movimientos y el saldo de otra cuenta; y una ruta no prevista (`users/{uid}/otra/x`) por denegación por defecto
+- [X] T121 [P] [US7] Crear `app/src/test/java/com/desconectado/app/domain/PuntosTest.kt` para `formatearPuntos(n)`: 0 da "0", 999 da "999", 1250 da "1.250", 1234567 da "1.234.567"; y `normalizarSaldo(n?)`: nulo da 0, 50 da 50, -3 da 0 (nunca se muestra un saldo negativo, FR-031)
+- [X] T122 [P] [US7] Crear `app/src/test/java/com/desconectado/app/fakes/FakePointsRepository.kt`, actualizar `FakeProfileRepository.kt` para que `Perfil` traiga `puntos`, y ampliar `app/src/test/java/com/desconectado/app/ui/profile/PerfilViewModelTest.kt`: expone `puntos` y los últimos desafíos hechos (del más reciente al más antiguo, máximo 5); cuenta nueva da saldo 0 y lista vacía como **éxito**, no como error; un fallo de puntos produce error de puntos con reintento sin perder nombre ni correo; `SinConexion` produce el estado sin conexión de puntos (nunca un 0); reintentar vuelve a pedir
+- [X] T123 [P] [US7] Crear `app/src/test/java/com/desconectado/app/ui/points/SaldoViewModelTest.kt`: carga el saldo del perfil de la sesión; ausente da 0; un fallo o `SinConexion` da estado sin saldo (guion, no 0); `recargar()` vuelve a pedir; el saldo mostrado coincide con el del Perfil (SC-010)
+- [X] T124 [P] [US7] Crear `app/src/androidTest/java/com/desconectado/app/ui/PuntosUiTest.kt` y ampliar `PerfilScreenTest.kt`: `indicador_puntos` visible arriba a la izquierda en las tres pestañas (`tab_desafios`, `tab_recompensas`, `tab_perfil`) con el saldo formateado; guion cuando no hay saldo; en Perfil `puntos_perfil`, `lista_desafios_hechos` con título, puntos y fecha en el orden recibido, `texto_sin_desafios_hechos` cuando está vacía, estado de error con `boton_reintentar_puntos` sin ocultar `texto_username` y `texto_email`; tocar `indicador_puntos` desde `tab_desafios` o `tab_recompensas` abre Perfil y desde Perfil no cambia de pantalla; ningún elemento accionable para ganar, gastar o modificar puntos (FR-032)
+- [X] T125 [P] [US7] Crear `app/src/androidTest/java/com/desconectado/app/data/PointsRepositoryEmulatorTest.kt` y ampliar `PerfilFlowEmulatorTest.kt`, con un ayudante en `app/src/androidTest/java/com/desconectado/app/util/EmuladorFirebase.kt` que carga documentos por la API REST del emulador con credenciales de administrador (sin pasar por las reglas): con 6 movimientos `credit` y 1 `redeem`, `ultimosDesafiosHechos(uid)` devuelve los 5 `credit` más recientes en orden descendente y ninguno `redeem`; una cuenta nueva devuelve lista vacía con éxito; con el emulador detenido devuelve `SinConexion`; una cuenta recién registrada tiene `puntos == 0` y `pointsBalance` 0 en Firestore; un perfil sin `pointsBalance` se lee como 0; con movimientos `credit` cargados por administrador, `puntos` del perfil coincide con la suma de sus montos (FR-031)
+
+### Implementation for US7
+
+- [X] T126 [US7] Modificar `firebase/firestore.rules`: en `create` de `users/{uid}` exigir los campos `username`, `email` y `createdAt` y admitir opcionalmente `pointsBalance`, que si viene debe ser el entero 0, manteniendo `update, delete: if false`; agregar `match /users/{uid}/movements/{id}` con `allow read: if autenticado() && request.auth.uid == uid` y `allow write: if false`; crear `firebase/firestore.indexes.json` con el índice compuesto de `movements` (`type` ascendente, `createdAt` descendente, ámbito de colección) y registrarlo en `firebase/firebase.json` (`firestore.indexes`); hace pasar T119 y T120
+- [X] T127 [P] [US7] Crear `app/src/main/java/com/desconectado/app/domain/Puntos.kt` con `formatearPuntos` y `normalizarSaldo`, agregar `puntos: Int` a `app/src/main/java/com/desconectado/app/domain/model/Perfil.kt` ("saldo de puntos; al crear la cuenta vale 0; nunca negativo") y crear `app/src/main/java/com/desconectado/app/domain/model/DesafioHecho.kt` (`titulo`, `puntos`, `fecha`); hace pasar T121
+- [X] T128 [US7] Actualizar `app/src/main/java/com/desconectado/app/data/profile/FirestoreProfileRepository.kt`: `perfil` lee `pointsBalance` con `normalizarSaldo` (ausente da 0) y `asegurarPerfil` crea el documento con `pointsBalance = 0`; hace pasar la parte de perfil de T125
+- [X] T129 [US7] Crear `app/src/main/java/com/desconectado/app/domain/repository/PointsRepository.kt` y `app/src/main/java/com/desconectado/app/data/points/FirestorePointsRepository.kt`: consulta `users/{uid}/movements` con `type == "credit"`, `createdAt` descendente, límite 5, lectura del servidor; mapea `challengeTitle`, `amount` y `createdAt` a `DesafioHecho`; error de red a `SinConexion`; sin ninguna operación de escritura; registrarlo en `AppContainer.kt`; hace pasar T125
+- [X] T130 [P] [US7] Crear `app/src/main/res/values/strings_puntos.xml` en español rioplatense: descripción accesible del indicador ("Tenés %s puntos"), guion de saldo no disponible, "Puntos", "Últimos desafíos hechos", "Todavía no hiciste desafíos", error de carga de puntos y "Reintentar"
+- [X] T131 [US7] Crear `app/src/main/java/com/desconectado/app/ui/points/SaldoViewModel.kt` (saldo del perfil de la sesión, estado sin saldo ante fallo o sin conexión, `recargar()`) y `app/src/main/java/com/desconectado/app/ui/points/IndicadorPuntos.kt` (`indicador_puntos`: ícono pequeño de Material y saldo con `formatearPuntos`, al tocarlo desde Desafíos o Recompensas navega a Perfil y desde Perfil no hace nada; recibe la acción como parámetro); hace pasar T123
+- [X] T132 [US7] Modificar `app/src/main/java/com/desconectado/app/ui/navigation/MainShell.kt` y `AppNavigation.kt`: barra superior con `IndicadorPuntos` a la izquierda, visible en las tres pestañas y por encima del aviso de conexión; conectar el toque del indicador para cambiar a la pestaña Perfil; recargar el saldo al cambiar de pestaña; hace pasar la parte de indicador de T124
+- [X] T133 [US7] Actualizar `app/src/main/java/com/desconectado/app/ui/profile/PerfilViewModel.kt` y `PerfilScreen.kt`: sección de puntos con `puntos_perfil`, `lista_desafios_hechos` (título, puntos y fecha, del más reciente al más antiguo), `texto_sin_desafios_hechos`, estados de carga, error con `boton_reintentar_puntos` y sin conexión (nunca un 0 inventado), sin ninguna acción de puntos; el error de puntos no oculta nombre ni correo; hace pasar T122 y la parte de Perfil de T124
+- [ ] T134 [US7] Verificar la historia: `npm test` y `npm run test:seed` en `firebase/`, pruebas JVM e instrumentadas con los emuladores, y M-13 y M-15 a mano (M-14 va en T136); guardar evidencia en `specs/001-auth-profile-catalog/evidencia/ajuste-0923/us7/` *(pruebas automatizadas y M-13 en emulador hechos; falta M-15, modo avión en dispositivo)*
+
+**Checkpoint**: el saldo y los últimos desafíos hechos se ven en todas las cuentas, en solo lectura y sin ninguna vía de escritura.
+
+---
+
+## Phase 12: Ajuste - Polish, Evidencia y APK
+
+**Purpose**: publicar el ajuste, dejar evidencia y regenerar el APK.
+
+- [ ] T135 (MANUAL) Publicar el ajuste en el proyecto real: `firebase deploy --only firestore:rules,firestore:indexes --project <id>` y, con `GOOGLE_APPLICATION_CREDENTIALS=firebase/service-account.json`, `node firebase/seed/seed.mjs --project <id>`; comprobar en la consola que el índice de `movements` está "Habilitado" y que los 6 desafíos tienen los títulos nuevos (riesgo R-7)
+- [ ] T136 (MANUAL) M-14 con el proyecto real: cargar desde la consola de Firebase, para una cuenta de prueba, un saldo y 6 movimientos `credit`; comprobar el ícono y los 5 más recientes en el Perfil; **borrar esos datos al terminar** (no hay datos demo en la app)
+- [ ] T137 Regenerar el APK con `./gradlew assembleRelease`, copiarlo a `dist/desConectado-entrega1-ajuste.apk`, verificar la firma con `apksigner verify --print-certs` y que el manifiesto sigue solo con `INTERNET` y `ACCESS_NETWORK_STATE` (`aapt dump permissions`); instalarlo en el dispositivo (MANUAL) y ejecutar M-13 a M-16 con el proyecto real *(APK generado, firmado y con permisos verificados; falta instalarlo en el teléfono y ejecutar M-13 a M-16)*
+- [X] T138 Ejecutar todas las suites (`./gradlew testDebugUnitTest`, `npm test` y `npm run test:seed` en `firebase/`, `./gradlew connectedDebugAndroidTest -PuseEmulator=true`) y guardar sus salidas en `specs/001-auth-profile-catalog/evidencia/automatizadas/` con el sufijo `-ajuste-0923`; todas en verde
+- [X] T139 Actualizar la matriz de evidencia de `specs/001-auth-profile-catalog/quickstart.md` (sección 5) con FR-013 a FR-016 (renombrados) y FR-027 a FR-033, SC-006, SC-010 y SC-011, con resultado y enlace a la evidencia; cambiar la tabla "Pruebas previstas" de pendiente a resultado
+- [X] T140 Revisión final contra `.specify/memory/constitution.md` v2.2.0: solo los permisos `INTERNET` y `ACCESS_NETWORK_STATE`; sin geolocalización ni sensores; sin escrituras de puntos desde la app; sin acreditación, canje, vencimiento ni inicio de desafíos; sin Cloud Functions; anotar el resultado en `specs/001-auth-profile-catalog/evidencia/revision-constitucion.md` y actualizar `README.md` (puntos de solo lectura e índice); y eliminar de `constitution.md` el comentario temporal del Sync Impact Report antes de hacer commit
+- [X] T141 Revisar que ninguna cadena visible nueva rompa el voseo (FR-023) ("Tenés", "Todavía no hiciste") buscando "Tienes", "Aún no" y similares en `app/src/main/res/values/strings_puntos.xml` y `ui/points/`
+
+**Checkpoint final**: `dist/desConectado-entrega1-ajuste.apk` validado en el dispositivo con la evidencia referenciada.
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -313,6 +394,17 @@ evidencia de cada requisito referenciada.
 - **Historias (Fase 3 a 8)**: dependen de la Fase 2.
 - **Polish (Fase 9)**: depende de las historias que se quieran entregar; T106 y T107 antes de T108
   y de T111; T102 (plantilla del correo) antes de T111 para que M-11 pruebe el texto final.
+
+### Ajuste 2026-09-23 (fases 10 a 12)
+
+- Fase 10 (US2) y Fase 11 (US7) son independientes entre sí y parten de las fases 1 a 9 ya
+  cerradas; pueden hacerse en paralelo. La Fase 12 va después de ambas.
+- Dentro de la Fase 11: T119 a T125 (pruebas) antes que T126 a T133; T126 antes de correr T119,
+  T120 y T125 (T126 y T128 no dependen entre sí: la regla acepta el perfil con o sin `pointsBalance`); T127 antes de T128, T129, T131 y T133; T128 y T129 antes de T133; T130 y T131 antes
+  de T132; T135 (publicar el índice) antes de T136 y T137.
+- Paralelo: T114 y T115; T119 a T125; T127 y T130.
+- Decisión de alcance: no se crean el desafío en curso ni el historial de intentos (Principio V;
+  `research.md` D-22). Esa evolución llega con las entregas del 01/10 y 08/10.
 
 ### User Story Dependencies
 

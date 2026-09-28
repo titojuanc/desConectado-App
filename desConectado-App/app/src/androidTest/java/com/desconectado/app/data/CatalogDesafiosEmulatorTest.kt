@@ -51,7 +51,14 @@ class CatalogDesafiosEmulatorTest {
         assertEquals("¿Está sembrado el emulador? (node firebase/seed/seed.mjs --emulator)", 6, desafios.size)
         assertEquals(desafios.sortedBy { it.order }, desafios)
         assertEquals(setOf(Dificultad.FACIL, Dificultad.NORMAL, Dificultad.DIFICIL), desafios.map { it.difficulty }.toSet())
-        assertTrue(desafios.all { it.title.startsWith("No uses redes sociales por") })
+        assertEquals(
+            listOf(
+                "Salir a caminar", "Andar en bici", "Salir a trotar",
+                "Juntarse con amigos", "Excursión al aire libre", "Escapada a la naturaleza",
+            ),
+            desafios.map { it.title },
+        )
+        assertTrue(desafios.all { it.description.contains("redes") })
     }
 
     @Test

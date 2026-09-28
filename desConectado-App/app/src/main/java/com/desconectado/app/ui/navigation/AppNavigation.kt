@@ -27,6 +27,7 @@ import com.desconectado.app.ui.auth.SesionViewModel
 import com.desconectado.app.ui.challenges.DesafiosScreen
 import com.desconectado.app.ui.challenges.DesafiosViewModel
 import com.desconectado.app.ui.profile.PerfilScreen
+import com.desconectado.app.ui.points.SaldoViewModel
 import com.desconectado.app.ui.profile.PerfilViewModel
 import com.desconectado.app.ui.rewards.RecompensasScreen
 import com.desconectado.app.ui.rewards.RecompensasViewModel
@@ -53,14 +54,28 @@ fun AppNavigation(container: AppContainer) {
         estado = estado,
         conectividad = conectividad,
         sinSesion = { GrafoAcceso(container) },
-        conSesion = {
-            MainShell(
-                conectividad = conectividad,
-                desafios = { DesafiosRoute(container) },
-                recompensas = { RecompensasRoute(container) },
-                perfil = { PerfilRoute(container) },
-            )
+        conSesion = { ShellConSesion(container, conectividad) },
+    )
+}
+
+/** Navegación principal con el saldo de puntos compartido por las tres pestañas (FR-028). */
+@Composable
+private fun ShellConSesion(container: AppContainer, conectividad: Conectividad) {
+    val saldoViewModel: SaldoViewModel = viewModel(
+        factory = viewModelFactory {
+            initializer {
+                SaldoViewModel(container.authRepository, container.perfilRepository, container.connectivityMonitor)
+            }
         },
+    )
+    val saldo by saldoViewModel.estado.collectAsStateWithLifecycle()
+    MainShell(
+        conectividad = conectividad,
+        saldo = saldo,
+        onDestinoCambiado = saldoViewModel::recargar,
+        desafios = { DesafiosRoute(container) },
+        recompensas = { RecompensasRoute(container) },
+        perfil = { PerfilRoute(container) },
     )
 }
 
@@ -91,12 +106,24 @@ private fun PerfilRoute(container: AppContainer) {
     val viewModel: PerfilViewModel = viewModel(
         factory = viewModelFactory {
             initializer {
-                PerfilViewModel(container.authRepository, container.perfilRepository, container.connectivityMonitor)
+                PerfilViewModel(
+                    container.authRepository,
+                    container.perfilRepository,
+                    container.pointsRepository,
+                    container.connectivityMonitor,
+                )
             }
         },
     )
     val estado by viewModel.estado.collectAsStateWithLifecycle()
-    PerfilScreen(estado = estado, onReintentar = viewModel::reintentar, onCerrarSesion = viewModel::cerrarSesion)
+    val desafiosHechos by viewModel.desafiosHechos.collectAsStateWithLifecycle()
+    PerfilScreen(
+        estado = estado,
+        desafiosHechos = desafiosHechos,
+        onReintentar = viewModel::reintentar,
+        onReintentarPuntos = viewModel::reintentarPuntos,
+        onCerrarSesion = viewModel::cerrarSesion,
+    )
 }
 
 /**

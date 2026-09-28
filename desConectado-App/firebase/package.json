@@ -6,7 +6,7 @@
   "description": "Reglas de seguridad, siembra de catálogos y pruebas de (des)Conectado",
   "scripts": {
     "emulators": "firebase emulators:start --only auth,firestore --project demo-desconectado",
-    "test": "firebase emulators:exec --only firestore --project demo-desconectado \"node --test tests/rules/*.test.mjs\"",
+    "test": "firebase emulators:exec --only firestore --project demo-desconectado \"node --test --test-concurrency=1 tests/rules/*.test.mjs\"",
     "test:seed": "node --test tests/seed/*.test.mjs"
   },
   "devDependencies": {

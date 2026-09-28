@@ -15,7 +15,9 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { validarCatalogo } from './validate.mjs';
 
 const aqui = dirname(fileURLToPath(import.meta.url));
-const PROYECTO_EMULADOR = 'demo-desconectado';
+// La app de depuración usa el proyecto real (`des-conectado`); para las pruebas instrumentadas hay que
+// sembrar con ese mismo id: EMULATOR_PROJECT_ID=des-conectado node seed/seed.mjs --emulator
+const PROYECTO_EMULADOR = process.env.EMULATOR_PROJECT_ID ?? 'demo-desconectado';
 
 function leerArgumentos(argv) {
   const opciones = { dryRun: false, emulador: false, proyecto: null };

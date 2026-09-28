@@ -16,6 +16,7 @@ import java.net.URL
 object EmuladorFirebase {
 
     private const val PUERTO_AUTH = 9099
+    private const val PUERTO_FIRESTORE = 8080
     private const val CLAVE_FALSA = "clave-falsa"
     private const val NOMBRE_APP_SIN_RED = "sin-red"
     private const val PUERTO_SIN_SERVICIO = 1
@@ -52,6 +53,24 @@ object EmuladorFirebase {
     }
 
     /**
+     * Crea un documento con credenciales de administrador (`Bearer owner`), sin pasar por las reglas
+     * de seguridad. Sirve para cargar saldos y movimientos, que la app no puede escribir (FR-032).
+     * `campos` usa los tipos de la API REST: `"stringValue"`, `"integerValue"`, `"timestampValue"`.
+     */
+    fun cargarDocumento(coleccion: String, id: String, campos: Map<String, Pair<String, Any>>) {
+        val fields = JSONObject()
+        campos.forEach { (nombre, valor) -> fields.put(nombre, JSONObject().put(valor.first, valor.second)) }
+        val url = "http://$host:$PUERTO_FIRESTORE/v1/projects/$proyecto/databases/(default)/documents/$coleccion?documentId=$id"
+        pedir("POST", url, JSONObject().put("fields", fields).toString(), mapOf("Authorization" to "Bearer owner"))
+    }
+
+    /** Borra un documento con credenciales de administrador. */
+    fun borrarDocumento(ruta: String) {
+        val url = "http://$host:$PUERTO_FIRESTORE/v1/projects/$proyecto/databases/(default)/documents/$ruta"
+        pedir("DELETE", url, cabeceras = mapOf("Authorization" to "Bearer owner"))
+    }
+
+    /**
      * Una app de Firebase aparte cuyo Firestore apunta a un puerto sin nada escuchando: tiene el
      * mismo efecto que tener el emulador detenido, sin afectar al resto de las pruebas.
      *
@@ -68,10 +87,16 @@ object EmuladorFirebase {
         return app
     }
 
-    private fun pedir(metodo: String, url: String, cuerpo: String? = null): String {
+    private fun pedir(
+        metodo: String,
+        url: String,
+        cuerpo: String? = null,
+        cabeceras: Map<String, String> = emptyMap(),
+    ): String {
         val conexion = URL(url).openConnection() as HttpURLConnection
         try {
             conexion.requestMethod = metodo
+            cabeceras.forEach { (nombre, valor) -> conexion.setRequestProperty(nombre, valor) }
             conexion.connectTimeout = 5_000
             conexion.readTimeout = 10_000
             if (cuerpo != null) {

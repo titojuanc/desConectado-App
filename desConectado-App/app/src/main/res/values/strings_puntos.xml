@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Indicador de puntos (arriba a la izquierda en cada pestaña) -->
+    <string name="puntos_indicador_descripcion">Tenés %1$s puntos. Tocá para ver tu perfil.</string>
+    <string name="puntos_indicador_no_disponible_descripcion">Puntos no disponibles. Tocá para ver tu perfil.</string>
+    <string name="puntos_no_disponible">–</string>
+
+    <!-- Perfil: saldo y últimos desafíos hechos -->
+    <string name="perfil_etiqueta_puntos">Puntos</string>
+    <string name="perfil_desafios_hechos_titulo">Últimos desafíos hechos</string>
+    <string name="perfil_sin_desafios_hechos">Todavía no hiciste desafíos. Cuando completés uno, lo vas a ver acá.</string>
+    <string name="perfil_error_puntos">No pudimos cargar tus desafíos hechos. Probá de nuevo.</string>
+    <string name="perfil_desafio_hecho_puntos">+%1$s puntos</string>
+</resources>

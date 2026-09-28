@@ -19,22 +19,35 @@ describe('reglas de users/{uid}', () => {
 
   const UID = 'ana';
   const CORREO = 'ana@mail.com';
-  const perfilValido = () => ({ username: 'Ana Prueba', email: CORREO, createdAt: serverTimestamp() });
+  const perfilValido = () => ({ username: 'Ana Prueba', email: CORREO, createdAt: serverTimestamp(), pointsBalance: 0 });
+  // Perfil como lo crea el APK de la entrega 1: sin `pointsBalance` (ausente equivale a 0).
+  const perfilLegacy = () => ({ username: 'Ana Prueba', email: CORREO, createdAt: serverTimestamp() });
   const ana = () => comoPersona(entorno, UID, CORREO);
 
-  async function sembrarPerfil(uid = UID) {
+  async function sembrarPerfil(uid = UID, conSaldo = true) {
     await entorno.withSecurityRulesDisabled(async (contexto) => {
       await setDoc(doc(contexto.firestore(), 'users', uid), {
         username: 'Ana Prueba',
         email: CORREO,
         createdAt: new Date(),
+        ...(conSaldo ? { pointsBalance: 0 } : {}),
       });
     });
   }
 
   describe('crear', () => {
-    it('el dueño puede crear su perfil con exactamente username, email y createdAt', async () => {
+    it('el dueño puede crear su perfil con username, email, createdAt y pointsBalance 0', async () => {
       await assertSucceeds(setDoc(doc(ana(), 'users', UID), perfilValido()));
+    });
+
+    it('también se acepta sin pointsBalance (ausente equivale a 0, APK de la entrega 1)', async () => {
+      await assertSucceeds(setDoc(doc(ana(), 'users', UID), perfilLegacy()));
+    });
+
+    it('se rechaza un pointsBalance distinto de 0 (nadie nace con puntos)', async () => {
+      for (const valor of [5, -1, 0.5, '0', null]) {
+        await assertFails(setDoc(doc(ana(), 'users', UID), { ...perfilValido(), pointsBalance: valor }));
+      }
     });
 
     it('se rechaza un campo extra', async () => {
@@ -88,6 +101,11 @@ describe('reglas de users/{uid}', () => {
       await assertSucceeds(getDoc(doc(ana(), 'users', UID)));
     });
 
+    it('el dueño lee un perfil anterior al ajuste, sin pointsBalance', async () => {
+      await sembrarPerfil(UID, false);
+      await assertSucceeds(getDoc(doc(ana(), 'users', UID)));
+    });
+
     it('no se puede leer el perfil de otra persona', async () => {
       await sembrarPerfil('otra-persona');
       await assertFails(getDoc(doc(ana(), 'users', 'otra-persona')));
@@ -108,6 +126,17 @@ describe('reglas de users/{uid}', () => {
     it('ni el dueño puede actualizar su perfil', async () => {
       await sembrarPerfil();
       await assertFails(updateDoc(doc(ana(), 'users', UID), { username: 'Otro nombre' }));
+    });
+
+    it('ni el dueño puede cambiar su saldo de puntos (FR-032)', async () => {
+      await sembrarPerfil();
+      await assertFails(updateDoc(doc(ana(), 'users', UID), { pointsBalance: 100 }));
+      await assertFails(updateDoc(doc(ana(), 'users', UID), { pointsBalance: -1 }));
+    });
+
+    it('ni un perfil anterior sin pointsBalance admite que se le agregue', async () => {
+      await sembrarPerfil(UID, false);
+      await assertFails(updateDoc(doc(ana(), 'users', UID), { pointsBalance: 0 }));
     });
 
     it('ni el dueño puede borrar su perfil', async () => {

@@ -1,7 +1,7 @@
 import { probarCatalogoDeSoloLectura } from './catalogos.helpers.mjs';
 
 probarCatalogoDeSoloLectura('challenges', {
-  title: 'No uses redes sociales por 30 minutos',
+  title: 'Salir a caminar',
   description: 'Media hora sin redes.',
   durationMinutes: 30,
   difficulty: 'easy',

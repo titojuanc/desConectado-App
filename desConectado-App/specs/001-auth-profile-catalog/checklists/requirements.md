@@ -36,6 +36,9 @@
   cuentas Google/correo, valores iniciales de los catálogos).
 - La única mención de proveedor de backend está en Assumptions y remite al Input del usuario; la
   decisión técnica se formaliza en `/speckit-plan`.
-- Alineación con la constitución v2.1.0: solo Android, sin Google Play, conexión obligatoria,
+- Alineación con la constitución v2.2.0: solo Android, sin Google Play, conexión obligatoria,
   cupones no presentados como beneficios externos, sin cámara ni bloqueo, evidencia de pruebas por
   entrega (FR-024, SC-008).
+- Ajuste 2026-09-23 (constitución v2.2.0): títulos de desafíos con actividades (FR-013, FR-014) y
+  puntos de solo lectura (Historia 7, FR-027 a FR-033, SC-010, SC-011). Se revalidó la lista: sin
+  marcadores [NEEDS CLARIFICATION] y con valores por defecto documentados en Assumptions.

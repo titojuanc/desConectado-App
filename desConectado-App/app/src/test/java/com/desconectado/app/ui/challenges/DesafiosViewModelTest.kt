@@ -23,8 +23,8 @@ class DesafiosViewModelTest {
     private val conectividad = FakeConnectivityMonitor()
 
     private val desafios = listOf(
-        Desafio("d2", "No uses redes sociales por 1 hora", "Una hora sin redes.", 60, Dificultad.FACIL, 20, order = 2),
-        Desafio("d1", "No uses redes sociales por 30 minutos", "Media hora sin redes.", 30, Dificultad.FACIL, 10, order = 1),
+        Desafio("d2", "Andar en bici", "Una hora sin redes.", 60, Dificultad.FACIL, 20, order = 2),
+        Desafio("d1", "Salir a caminar", "Media hora sin redes.", 30, Dificultad.FACIL, 10, order = 1),
     )
 
     private fun crearViewModel() = DesafiosViewModel(catalogo, conectividad)

@@ -55,11 +55,24 @@ Comportamiento exigido:
 ## ProfileRepository
 
 ```text
-perfil(uid)   -> Resultado<Perfil>      // Perfil(username, email)
-asegurarPerfil(uid, nombre?, email)     -> Resultado<Unit>   // crea si falta
+perfil(uid)   -> Resultado<Perfil>      // Perfil(username, email, puntos)
+asegurarPerfil(uid, nombre?, email)     -> Resultado<Unit>   // crea si falta, con saldo 0
 ```
 
-`Perfil` nunca contiene la contraseña (FR-010, FR-021).
+`Perfil` nunca contiene la contraseña (FR-010, FR-021). `puntos` es el saldo (FR-027); si el
+documento no tiene `pointsBalance` (cuentas anteriores al ajuste) vale 0. `asegurarPerfil` crea el
+documento con `pointsBalance = 0` (FR-030).
+
+## PointsRepository
+
+```text
+ultimosDesafiosHechos(uid, limite = 5) -> Resultado<Lista<DesafioHecho>>
+// DesafioHecho(titulo, puntos, fecha); del más reciente al más antiguo; solo movimientos `credit`
+```
+
+Solo lectura: no existe ninguna operación que escriba puntos o movimientos (FR-032). Lectura del
+servidor; sin conexión devuelve `SinConexion`, nunca datos en caché ni una lista vacía (FR-033). Una
+lista vacía significa "no hay desafíos hechos" y solo se devuelve con éxito.
 
 ## CatalogRepository
 
@@ -85,3 +98,5 @@ estado: Flujo<Conectividad>   // Conectado | SinConexion
 | `validarPassword(s)`          | Al menos 8 caracteres; acepta espacios y caracteres especiales tal cual | FR-002 |
 | `validarUsername(s)`          | Entre 3 y 30 caracteres tras recortar                                  | FR-002 |
 | `validarRegistro(u, e, p)`    | Devuelve la lista de campos inválidos, cada uno con su motivo          | FR-002 |
+| `normalizarSaldo(n?)`         | Ausente pasa a 0; un valor negativo no se muestra como tal (se muestra 0) | FR-030, FR-031 |
+| `formatearPuntos(n)`          | Número completo con separador de miles ("1.250")                        | FR-028 |

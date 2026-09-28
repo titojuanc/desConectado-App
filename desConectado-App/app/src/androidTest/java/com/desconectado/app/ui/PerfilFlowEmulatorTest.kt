@@ -80,4 +80,27 @@ class PerfilFlowEmulatorTest {
         compose.esperarPorTag("campo_correo")
         compose.onNodeWithTag("boton_ingresar").assertIsDisplayed()
     }
+
+    @Test
+    fun unaCuentaNuevaMuestraCeroPuntosSinDesafiosHechosYElIndicadorLlevaAlPerfil() {
+        compose.esperarPorTag("enlace_registro")
+        compose.onNodeWithTag("enlace_registro").performClick()
+        compose.esperarPorTag("campo_username")
+        compose.onNodeWithTag("campo_username").performTextInput("Ana Prueba")
+        compose.onNodeWithTag("campo_correo").performTextInput("ana@mail.com")
+        compose.onNodeWithTag("campo_password").performTextInput("Secreto123")
+        compose.onNodeWithTag("boton_registrar").performClick()
+
+        // Ícono de puntos con 0 en Desafíos (FR-028, FR-030).
+        compose.esperarPorTag("indicador_puntos")
+        compose.waitUntil(timeoutMillis = 20_000) {
+            runCatching { compose.onNodeWithTag("indicador_puntos").assertTextEquals("0") }.isSuccess
+        }
+        // Tocarlo lleva al Perfil: saldo 0 y texto explicativo, sin lista.
+        compose.onNodeWithTag("indicador_puntos").performClick()
+        compose.esperarPorTag("puntos_perfil")
+        compose.onNodeWithTag("puntos_perfil").assertTextEquals("0")
+        compose.esperarPorTag("texto_sin_desafios_hechos")
+        compose.onNodeWithTag("lista_desafios_hechos").assertDoesNotExist()
+    }
 }

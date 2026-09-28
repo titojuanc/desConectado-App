@@ -2,8 +2,8 @@
   "challenges": [
     {
       "id": "facil-30-minutos",
-      "title": "No uses redes sociales por 30 minutos",
-      "description": "Media hora sin redes. Dejá el celular a un lado y tomate un mate, charlá con alguien o salí a caminar.",
+      "title": "Salir a caminar",
+      "description": "Media hora sin redes. Dejá el celular a un lado y salí a caminar: tomá aire y mirá lo que pasa a tu alrededor.",
       "durationMinutes": 30,
       "difficulty": "easy",
       "points": 10,
@@ -11,8 +11,8 @@
     },
     {
       "id": "facil-1-hora",
-      "title": "No uses redes sociales por 1 hora",
-      "description": "Una hora sin redes. Ideal para una comida sin pantallas o para ordenar tus cosas con calma.",
+      "title": "Andar en bici",
+      "description": "Una hora sin redes para andar en bici. Salí a pedalear sin mirar el celular y disfrutá del recorrido.",
       "durationMinutes": 60,
       "difficulty": "easy",
       "points": 20,
@@ -20,8 +20,8 @@
     },
     {
       "id": "normal-2-horas",
-      "title": "No uses redes sociales por 2 horas",
-      "description": "Dos horas sin redes para estudiar, leer o encontrarte con alguien sin mirar el celular.",
+      "title": "Salir a trotar",
+      "description": "Dos horas sin redes para salir a trotar, despejar la cabeza y volver sin haber mirado el celular.",
       "durationMinutes": 120,
       "difficulty": "normal",
       "points": 50,
@@ -29,8 +29,8 @@
     },
     {
       "id": "normal-4-horas",
-      "title": "No uses redes sociales por 4 horas",
-      "description": "Media jornada sin redes: una tarde para vos y para las personas que tenés cerca.",
+      "title": "Juntarse con amigos",
+      "description": "Media jornada sin redes: una tarde para juntarte con amigos y estar de verdad con las personas que tenés cerca.",
       "durationMinutes": 240,
       "difficulty": "normal",
       "points": 100,
@@ -38,8 +38,8 @@
     },
     {
       "id": "dificil-8-horas",
-      "title": "No uses redes sociales por 8 horas",
-      "description": "Una jornada completa sin redes, para trabajar o estudiar sin distracciones y volver a lo que pasa a tu alrededor.",
+      "title": "Excursión al aire libre",
+      "description": "Una jornada completa sin redes para una excursión al aire libre: salí temprano, disfrutá del paisaje y volvé a lo que pasa a tu alrededor.",
       "durationMinutes": 480,
       "difficulty": "hard",
       "points": 200,
@@ -47,8 +47,8 @@
     },
     {
       "id": "dificil-12-horas",
-      "title": "No uses redes sociales por 12 horas",
-      "description": "El desafío más largo: de la mañana a la noche sin redes. Animate y quedate con la gente que tenés al lado.",
+      "title": "Escapada a la naturaleza",
+      "description": "El desafío más largo: de la mañana a la noche sin redes, en plena naturaleza. Animate y quedate con la gente que tenés al lado.",
       "durationMinutes": 720,
       "difficulty": "hard",
       "points": 320,

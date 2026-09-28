@@ -42,8 +42,8 @@ npm test               # reglas, contra el emulador de Firestore (necesita JDK 2
 npm run test:seed      # invariantes del catálogo
 
 # Instrumentadas (UI y repositorios contra los emuladores de Firebase)
-npm run emulators      # en una terminal, con JDK 21
-node seed/seed.mjs --emulator   # en otra: carga desafíos y recompensas
+npx firebase emulators:start --only auth,firestore --project des-conectado   # en una terminal, con JDK 21
+EMULATOR_PROJECT_ID=des-conectado node seed/seed.mjs --emulator           # en otra: carga desafíos y recompensas
 cd ..
 ./gradlew connectedDebugAndroidTest -PuseEmulator=true
 ```
@@ -68,3 +68,11 @@ dispositivo físico, usá `adb reverse tcp:9099 tcp:9099` y `adb reverse tcp:808
    `adb install -r dist/desConectado-entrega1.apk`.
 
 Sin `keystore.properties` el APK de release sale **sin firmar** y no se puede instalar.
+
+## Puntos (solo lectura)
+
+La app muestra el saldo de puntos (ícono arriba a la izquierda en cada pestaña y en el Perfil) y los últimos
+5 desafíos hechos, guardados por usuario en Firestore (`users/{uid}.pointsBalance` y
+`users/{uid}/movements`). En esta entrega son solo lectura: las reglas rechazan toda escritura de puntos. La
+consulta de últimos desafíos necesita un índice: desplegá las reglas y el índice con
+`firebase deploy --only firestore:rules,firestore:indexes --project <id>`.

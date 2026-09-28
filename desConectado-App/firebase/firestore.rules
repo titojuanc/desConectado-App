@@ -13,13 +13,14 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Perfil de la persona. Lo crea ella una sola vez tras autenticarse; después es de solo lectura.
+    // Perfil de la persona. Lo crea ella una sola vez tras autenticarse; después es de solo lectura,
+    // incluido el saldo de puntos (`pointsBalance`): en esta entrega el cliente no escribe puntos.
     match /users/{uid} {
       allow read: if autenticado() && request.auth.uid == uid;
 
       allow create: if autenticado()
         && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['username', 'email', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['username', 'email', 'createdAt', 'pointsBalance'])
         && request.resource.data.keys().hasAll(['username', 'email', 'createdAt'])
         && request.resource.data.username is string
         && request.resource.data.username.size() >= 1
@@ -27,9 +28,19 @@ service cloud.firestore {
         && request.resource.data.email is string
         && request.auth.token.email != null
         && request.resource.data.email == request.auth.token.email.lower()
-        && request.resource.data.createdAt == request.time;
+        && request.resource.data.createdAt == request.time
+        // Nadie nace con puntos. Ausente equivale a 0 (el APK de la entrega 1 no escribe el campo).
+        && request.resource.data.get('pointsBalance', 0) is int
+        && request.resource.data.get('pointsBalance', 0) == 0;
 
       allow update, delete: if false;
+    }
+
+    // Movimientos de puntos de la persona: solo los lee su dueña. Nadie los escribe desde la app
+    // hasta que exista la acreditación (Principio VI; contracts/firestore-data.md).
+    match /users/{uid}/movements/{id} {
+      allow read: if autenticado() && request.auth.uid == uid;
+      allow write: if false;
     }
 
     // Catálogos provistos por la plataforma: los lee cualquier persona autenticada y nadie los

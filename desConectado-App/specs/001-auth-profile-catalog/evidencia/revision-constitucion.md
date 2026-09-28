@@ -51,3 +51,28 @@ desarrolló con la prueba escrita y vista fallar antes de la implementación. La
 - Firebase **no unifica** solo una cuenta de correo con una de Google con el mismo correo: se activa el camino
   de vinculación (T-VERIF-1), que funciona.
 - La protección contra enumeración de correos está activa, lo que da la respuesta uniforme que exige FR-026.
+
+---
+
+# Revisión del ajuste 2026-09-23 contra la constitución v2.2.1 (T140)
+
+Fecha: 2026-09-23. Estado: **cerrada en lo automatizado**; falta la pasada en teléfono real (ver
+`ajuste-0923/resumen.md`).
+
+| Restricción | Resultado | Cómo se verificó |
+|-------------|-----------|------------------|
+| Principio I: el cumplimiento sigue siendo por uso de redes; sin geolocalización ni sensores | Cumple | Solo cambian títulos y descripciones (`catalog.json`); sin permisos de ubicación ni de sensores |
+| Permisos mínimos | Cumple (igual que la entrega 1) | `aapt dump permissions` del APK de ajuste: `INTERNET`, `ACCESS_NETWORK_STATE` y los dos de las bibliotecas |
+| Principio VI: puntos y su registro en Firestore, sin escrituras desde la app | Cumple | `points.test.mjs` y `users.test.mjs` (48/48); `PointsRepository` no tiene operaciones de escritura |
+| Cuenta nueva con saldo 0 y sin historial | Cumple | `PointsRepositoryEmulatorTest`, `PerfilFlowEmulatorTest` |
+| Sin acreditación, canje, vencimiento ni inicio de desafíos | Cumple | `PerfilScreenTest` (solo "Cerrar sesión" es accionable); ningún código de esas funciones |
+| Sin Cloud Functions ni plan de pago | Cumple | Sin dependencias nuevas; el índice y las reglas se despliegan en el plan gratuito |
+| Sin funciones de "Fuera de alcance" | Cumple | Sin rankings, mapas, cámara, IA ni bloqueo |
+| Voseo (FR-023) | Cumple | Textos nuevos en `strings_puntos.xml` ("Tenés", "Tocá", "Probá", "completés") |
+| Principio IV: pruebas escritas y vistas fallar antes de implementar | Cumple | Ver `ajuste-0923/resumen.md` |
+
+**Excepción aceptada en la regla de creación del perfil.** El contrato admite `pointsBalance` ausente o igual a 0
+al crear el perfil para que el APK de la entrega 1, ya instalado, siga registrando cuentas cuando se publiquen
+las reglas. La ausencia equivale a 0 y nadie puede crear una cuenta con puntos. Se cierra cuando todos los
+teléfonos tengan la app nueva (entrega del 01/10).
+
