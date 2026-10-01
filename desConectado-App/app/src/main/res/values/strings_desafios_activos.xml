@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="desafio_iniciar">Iniciar desafío</string>
+    <string name="desafio_sin_activo">No hay un desafío activo.</string>
+    <string name="desafio_finalizar">Comprobar desafío</string>
+    <string name="desafio_actualizar">Actualizar</string>
+    <string name="desafio_uso_medido">Uso de redes medido: %1$d segundos</string>
+    <string name="desafio_tiempo_transcurrido">Tiempo transcurrido: %1$d/%2$d segundos</string>
+    <string name="desafio_volver_catalogo">Volver al catálogo</string>
+    <string name="desafios_duracion_segundos">%1$d segundos</string>
+    <string name="desafio_activo">Desafío activo</string>
+    <string name="desafio_tiempo_restante">Tiempo restante: %1$s</string>
+    <string name="desafio_permiso_titulo">Necesitamos medir el uso de redes</string>
+    <string name="desafio_permiso_mensaje">Android no muestra este permiso como una ventana común. En Ajustes abrí "Acceso especial de apps" → "Acceso al uso" → "(des)Conectado" y activá "Permitir acceso al uso". Después volvé a la app y tocá Actualizar. No bloqueamos otras aplicaciones ni publicamos tu uso.</string>
+    <string name="desafio_abrir_ajustes">Abrir Ajustes</string>
+    <string name="desafio_cancelar">Cancelar desafío</string>
+    <string name="desafio_confirmar_cancelacion">¿Querés cancelar este desafío? No vas a recibir puntos.</string>
+    <string name="desafio_confirmar">Confirmar</string>
+    <string name="desafio_volver">Volver</string>
+    <string name="desafio_cumplido">Desafío cumplido: ganaste %1$d puntos.</string>
+    <string name="desafio_no_cumplido">Desafío no cumplido. No se acreditaron puntos.</string>
+    <string name="desafio_invalidado">Desafío invalidado. No se acreditaron puntos.</string>
+    <string name="desafio_cancelado">Desafío cancelado. No se acreditaron puntos.</string>
+    <string name="desafio_medicion_no_disponible">No pudimos comprobar el uso de redes.</string>
+    <string name="desafio_error_inicio">No pudimos iniciar el desafío. Revisá tu conexión y que el catálogo esté disponible.</string>
+    <string name="desafio_error_firestore_permiso">Firebase rechazó el acceso a los datos. Revisá la sesión y las reglas de Firestore.</string>
+    <string name="desafio_error_dato">No encontramos el desafío en el catálogo de Firebase.</string>
+    <string name="desafio_requiere_conexion">Necesitás conexión para sincronizar el desafío.</string>
+</resources>

@@ -1,6 +1,9 @@
 package com.desconectado.app.domain.repository
 
 import com.desconectado.app.domain.model.DesafioHecho
+import com.desconectado.app.domain.model.ChallengeResult
+import com.desconectado.app.domain.model.Recompensa
+import com.desconectado.app.domain.model.RedeemedReward
 import com.desconectado.app.domain.model.Resultado
 
 /**
@@ -14,4 +17,16 @@ interface PointsRepository {
      * lista vacía (FR-033). Una lista vacía con éxito significa "todavía no hay desafíos hechos".
      */
     suspend fun ultimosDesafiosHechos(uid: String, limite: Int = 5): Resultado<List<DesafioHecho>>
+
+    suspend fun acreditar(uid: String, result: ChallengeResult): Resultado<Unit> =
+        Resultado.Fallo(com.desconectado.app.domain.model.ErrorApp.Desconocido)
+
+    suspend fun saldo(uid: String): Resultado<Int> =
+        Resultado.Fallo(com.desconectado.app.domain.model.ErrorApp.Desconocido)
+
+    suspend fun recompensasCanjeadas(uid: String): Resultado<List<RedeemedReward>> =
+        Resultado.Fallo(com.desconectado.app.domain.model.ErrorApp.Desconocido)
+
+    suspend fun redeem(uid: String, reward: Recompensa, redemptionId: String): Resultado<RedeemedReward> =
+        Resultado.Fallo(com.desconectado.app.domain.model.ErrorApp.Desconocido)
 }

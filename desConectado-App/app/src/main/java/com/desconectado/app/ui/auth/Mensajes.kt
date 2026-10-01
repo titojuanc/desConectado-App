@@ -33,6 +33,11 @@ fun ErrorApp.mensajeEnvio(): Int? = when (this) {
     ErrorApp.CorreoEnUso -> R.string.error_correo_en_uso
     ErrorApp.CredencialesInvalidas -> R.string.error_credenciales
     ErrorApp.SinConexion -> R.string.error_conexion_requerida
+    ErrorApp.SaldoInsuficiente -> R.string.canje_saldo_insuficiente
+    ErrorApp.AccesoUsoDenegado -> R.string.desafio_permiso_mensaje
     ErrorApp.Cancelado -> null
-    ErrorApp.CuentaExistenteConOtroProveedor, ErrorApp.Desconocido -> R.string.error_generico
+    ErrorApp.CuentaExistenteConOtroProveedor,
+    ErrorApp.FirestoreNoAutorizado,
+    ErrorApp.DatoNoEncontrado,
+    ErrorApp.Desconocido -> R.string.error_generico
 }

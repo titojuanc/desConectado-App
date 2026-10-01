@@ -61,6 +61,7 @@ class FirestoreCatalogRepository(private val firestore: FirebaseFirestore) : Cat
         val titulo = getString("title") ?: return null
         val descripcion = getString("description") ?: return null
         val duracion = getLong("durationMinutes")?.toInt() ?: return null
+        val duracionSegundos = getLong("durationSeconds")?.toInt()
         val dificultad = Dificultad.desdeAlmacen(getString("difficulty")) ?: return null
         val puntos = getLong("points")?.toInt() ?: return null
         val orden = getLong("order")?.toInt() ?: return null
@@ -72,6 +73,7 @@ class FirestoreCatalogRepository(private val firestore: FirebaseFirestore) : Cat
             difficulty = dificultad,
             points = puntos,
             order = orden,
+            durationSeconds = duracionSegundos,
         )
     }
 }

@@ -5,6 +5,8 @@
     <!-- Únicos permisos de la app (constitución: permisos mínimos indispensables). -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!--
       androidx.biometric (llega con Credential Manager) declara estos dos permisos para passkeys y

@@ -26,4 +26,5 @@ data class Desafio(
     val difficulty: Dificultad,
     val points: Int,
     val order: Int,
+    val durationSeconds: Int? = null,
 )

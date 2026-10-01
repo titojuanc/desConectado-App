@@ -32,8 +32,8 @@ desafío genuino y deja la decisión al usuario. Reglas:
   "Andar en bici", "Juntarse con amigos"); es una invitación a hacer algo en lugar de usar redes.
   Su cumplimiento MUST seguir determinándose solo por el uso medido de redes sociales, sin
   geolocalización, sensores ni declaración del usuario.
-- Un desafío incumplido o invalidado (incluida la pérdida de conexión, ver "Arquitectura de
-  datos") se registra como "no cumplido" y no otorga puntos. La app MUST NOT aplicar
+- Un desafío incumplido o invalidado (incluido superar la tolerancia de conexión, ver
+  "Arquitectura de datos") se registra como "no cumplido" y no otorga puntos. La app MUST NOT aplicar
   restricciones ni sanciones sobre el dispositivo.
 - El usuario MUST poder cancelar o interrumpir un desafío en cualquier momento; cancelar no otorga
   puntos y permite iniciar otro de inmediato.

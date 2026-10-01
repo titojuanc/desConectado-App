@@ -13,10 +13,14 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Perfil de la persona. Lo crea ella una sola vez tras autenticarse; después es de solo lectura,
-    // incluido el saldo de puntos (`pointsBalance`): en esta entrega el cliente no escribe puntos.
+    function esDueno(uid) {
+      return autenticado() && request.auth.uid == uid;
+    }
+
+    // Perfil de la persona. Lo crea ella una sola vez tras autenticarse; el saldo solo cambia junto
+    // con un movimiento validado dentro de una transacción.
     match /users/{uid} {
-      allow read: if autenticado() && request.auth.uid == uid;
+      allow read: if esDueno(uid);
 
       allow create: if autenticado()
         && request.auth.uid == uid
@@ -33,14 +37,96 @@ service cloud.firestore {
         && request.resource.data.get('pointsBalance', 0) is int
         && request.resource.data.get('pointsBalance', 0) == 0;
 
+      allow update: if esDueno(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pointsBalance', 'lastMovementId'])
+        && request.resource.data.pointsBalance is int
+        && request.resource.data.pointsBalance >= 0
+        && request.resource.data.lastMovementId is string
+        && !exists(/databases/$(database)/documents/users/$(uid)/movements/$(request.resource.data.lastMovementId))
+        && existsAfter(/databases/$(database)/documents/users/$(uid)/movements/$(request.resource.data.lastMovementId))
+        && getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(request.resource.data.lastMovementId)).data.amount is int
+        && getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(request.resource.data.lastMovementId)).data.createdAt == request.time
+        && (
+          (getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(request.resource.data.lastMovementId)).data.type == 'credit'
+            && request.resource.data.pointsBalance == resource.data.get('pointsBalance', 0)
+              + getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(request.resource.data.lastMovementId)).data.amount)
+          ||
+          (getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(request.resource.data.lastMovementId)).data.type == 'redeem'
+            && request.resource.data.pointsBalance == resource.data.get('pointsBalance', 0)
+              - getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(request.resource.data.lastMovementId)).data.amount)
+        );
+
+      allow delete: if false;
+    }
+
+    match /users/{uid}/activeChallenge/{challengeId} {
+      allow read: if esDueno(uid);
+      allow create: if esDueno(uid) && challengeId == 'current'
+        && request.resource.data.status == 'ACTIVE'
+        && request.resource.data.offlineSeconds == 0;
+      allow update: if esDueno(uid) && challengeId == 'current';
+      allow delete: if esDueno(uid) && challengeId == 'current';
+    }
+
+    match /users/{uid}/challengeResults/{runId} {
+      allow read: if esDueno(uid);
+      allow create: if esDueno(uid)
+        && request.resource.data.challengeRunId == runId
+        && request.resource.data.pointsAwarded >= 0
+        && request.resource.data.measuredSocialSeconds >= 0
+        && request.resource.data.offlineSeconds >= 0;
       allow update, delete: if false;
     }
 
-    // Movimientos de puntos de la persona: solo los lee su dueña. Nadie los escribe desde la app
-    // hasta que exista la acreditación (Principio VI; contracts/firestore-data.md).
-    match /users/{uid}/movements/{id} {
-      allow read: if autenticado() && request.auth.uid == uid;
-      allow write: if false;
+    // Movimientos de puntos: solo los lee su dueña y se agregan dentro de una transacción.
+    match /users/{uid}/movements/{movementId} {
+      allow read: if esDueno(uid);
+      allow create: if esDueno(uid)
+        && request.resource.data.amount is int
+        && request.resource.data.amount > 0
+        && request.resource.data.sourceId is string
+        && request.resource.data.createdAt == request.time
+        && getAfter(/databases/$(database)/documents/users/$(uid)).data.lastMovementId == movementId
+        && (
+          (request.resource.data.type == 'credit'
+            && movementId == 'credit-' + request.resource.data.sourceId
+            && request.resource.data.challengeId is string
+            && getAfter(/databases/$(database)/documents/users/$(uid)/challengeResults/$(request.resource.data.sourceId)).data.status == 'COMPLETED'
+            && request.time >= getAfter(/databases/$(database)/documents/users/$(uid)/challengeResults/$(request.resource.data.sourceId)).data.startedAt
+              + duration.value(getAfter(/databases/$(database)/documents/users/$(uid)/challengeResults/$(request.resource.data.sourceId)).data.durationSeconds, 's')
+            && get(/databases/$(database)/documents/challenges/$(request.resource.data.challengeId)).data.points == request.resource.data.amount)
+          ||
+          (request.resource.data.type == 'redeem'
+            && request.resource.data.rewardId is string
+            && request.resource.data.get('challengeId', null) == null
+            && get(/databases/$(database)/documents/rewards/$(request.resource.data.rewardId)).data.costPoints == request.resource.data.amount
+            && getAfter(/databases/$(database)/documents/users/$(uid)/redeemedRewards/$(request.resource.data.sourceId)).data.rewardId == request.resource.data.rewardId
+            && getAfter(/databases/$(database)/documents/users/$(uid)/redeemedRewards/$(request.resource.data.sourceId)).data.costPoints == request.resource.data.amount
+            && getAfter(/databases/$(database)/documents/users/$(uid)/redeemedRewards/$(request.resource.data.sourceId)).data.movementId == movementId
+            && getAfter(/databases/$(database)/documents/users/$(uid)/redeemedRewards/$(request.resource.data.sourceId)).data.createdAt == request.time
+            && request.resource.data.code is string
+            && request.resource.data.code.size() > 0)
+        );
+      allow update, delete: if false;
+      allow update, delete: if false;
+    }
+
+    match /users/{uid}/redeemedRewards/{redemptionId} {
+      allow read: if esDueno(uid);
+      allow create: if esDueno(uid)
+        && request.resource.data.redemptionId == redemptionId
+        && !exists(/databases/$(database)/documents/users/$(uid)/redeemedRewards/$(redemptionId))
+        && request.resource.data.costPoints is int
+        && request.resource.data.costPoints > 0
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.movementId == 'redeem-' + redemptionId
+        && get(/databases/$(database)/documents/rewards/$(request.resource.data.rewardId)).data.costPoints == request.resource.data.costPoints
+        && getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(request.resource.data.movementId)).data.type == 'redeem'
+        && getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(request.resource.data.movementId)).data.amount == request.resource.data.costPoints
+        && getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(request.resource.data.movementId)).data.sourceId == redemptionId
+        && (request.resource.data.code == null
+          || (request.resource.data.code is string && request.resource.data.code.size() > 3));
+      allow update, delete: if false;
     }
 
     // Catálogos provistos por la plataforma: los lee cualquier persona autenticada y nadie los

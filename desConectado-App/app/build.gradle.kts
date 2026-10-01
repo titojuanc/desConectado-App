@@ -98,6 +98,7 @@ dependencies {
 
     implementation(libs.coroutines.android)
     implementation(libs.coroutines.play.services)
+    implementation(libs.androidx.datastore.preferences)
 
     debugImplementation(libs.compose.ui.tooling)
     debugImplementation(libs.compose.ui.test.manifest)

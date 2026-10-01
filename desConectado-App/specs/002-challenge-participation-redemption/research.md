@@ -2,9 +2,9 @@
 
 ## R1. Medicion de uso en Android
 
-**Decision**: encapsular `UsageStatsManager` detras de un `UsageStatsRepository`; solicitar al usuario el acceso de uso desde Ajustes y medir solo los paquetes configurados para Instagram, TikTok, Facebook, X, Snapchat y YouTube.
+**Decision**: encapsular `UsageStatsManager` detras de un `UsageStatsRepository`; solicitar al usuario el acceso de uso desde Ajustes y medir solo estos paquetes: Instagram `com.instagram.android`, TikTok `com.zhiliaoapp.musically`, Facebook `com.facebook.katana`, X `com.twitter.android`, Snapchat `com.snapchat.android` y YouTube `com.google.android.youtube`. Si un paquete no esta instalado, se omite y cuenta como cero uso.
 
-**Rationale**: Android expone el tiempo de uso y eventos de foreground mediante `UsageStatsManager`, pero el acceso depende de una autorizacion especial del usuario. El adaptador permite probar la regla de cumplimiento con un reloj y un proveedor falso, sin probar la API de Android en cada test JVM. Para evitar contar otras apps, la lista de paquetes se mantiene fija y versionada; WhatsApp queda fuera.
+**Rationale**: Android expone el tiempo de uso y eventos de foreground mediante `UsageStatsManager`, pero el acceso depende de una autorizacion especial del usuario. El adaptador permite probar la regla de cumplimiento con un reloj y un proveedor falso, sin probar la API de Android en cada test JVM. Para evitar contar otras apps, la lista de paquetes se mantiene fija y versionada; WhatsApp queda fuera. La ausencia de un paquete no es una falla de medicion.
 
 **Alternatives considered**: `AccessibilityService` y superposicion de pantalla fueron rechazados por violar la constitucion; una declaracion del usuario no es verificable; guardar el historial completo de uso seria mas invasivo que guardar solo los totales necesarios.
 
@@ -26,29 +26,37 @@
 
 ## R4. Acreditacion y canje con Firestore
 
-**Decision**: guardar el desafio en curso y los movimientos bajo la cuenta, usar un identificador determinista para el resultado de un desafio y un identificador generado para cada canje, y escribir movimiento mas `pointsBalance` en una transaccion. Las reglas validan propiedad, catalogo, monto, unicidad y saldo no negativo.
+**Decision**: guardar el desafio en curso y los movimientos bajo la cuenta, usar un identificador determinista para el resultado y el credito (`credit-{challengeRunId}`), y usar un identificador determinista `unique-{rewardId}` para insignias/temas y generado para cada cupon. El codigo de cada cupon se deriva del `redemptionId` aleatorio, sin datos personales ni una coleccion adicional. Movimiento mas `pointsBalance` se escriben en una transaccion. Las reglas validan propiedad, catalogo, monto, unicidad y saldo no negativo.
 
-**Rationale**: una transaccion evita que dos reintentos consuman o acrediten el mismo saldo. El identificador determinista de un desafio hace idempotente el cierre; el canje confirmado se identifica con un id unico y la UI no permite confirmar dos veces mientras espera respuesta.
+**Rationale**: una transaccion evita que dos reintentos consuman o acrediten el mismo saldo. El identificador determinista de un desafio hace idempotente el cierre; los IDs deterministas de credito, insignia y tema permiten expresar la unicidad con rutas Firestore. Los cupones pueden repetirse porque cada uno usa un ID propio.
 
 **Alternatives considered**: dos escrituras independientes podrian dejar saldo y movimiento desincronizados; Cloud Functions o un servidor propio elevarian el costo y estan fuera del stack aprobado; permitir escrituras directas sin reglas no es aceptable porque el cliente no es confiable.
 
-## R5. Codigo de recompensa
+## R5. Duracion validada por hora del servidor
 
-**Decision**: generar un codigo opaco unico al confirmar un cupon y guardar la recompensa canjeada como registro inmutable asociado al movimiento de debito. Insignias y temas tambien se registran, pero no necesitan codigo.
+**Decision**: el cierre cumplido solo puede acreditar si la hora del servidor ya supero `startedAt + durationMinutes`. La prueba de reglas intentara imponer esta condicion mediante `request.time` y el `startedAt` fijado al crear el desafio. Si Firestore Rules no puede expresar o probar la comparacion sin Cloud Functions, la escritura de acreditacion se rechaza y el resultado queda sin puntos.
+
+**Rationale**: evita que un cliente cierre antes de tiempo y reciba puntos. El fallback de rechazo conserva la integridad de la economia sin agregar un servidor propio.
+
+**Alternatives considered**: confiar en el reloj del dispositivo deja una via de manipulacion; Cloud Functions seria mas autoritativo pero contradice el stack gratuito aprobado.
+
+## R6. Codigo de recompensa
+
+**Decision**: derivar un codigo opaco unico con la formula `DC-` + `redemptionId` codificado en Base64 URL-safe sin padding al confirmar cada cupon y guardar la recompensa canjeada como registro inmutable asociado al movimiento de debito. Insignias y temas tambien se registran sin codigo y usan una clave determinista que impide repetirlos.
 
 **Rationale**: el codigo solo tiene valor dentro de la app y permite demostrar el canje sin integrar comercios externos. El catalogo sigue siendo de solo lectura desde el cliente.
 
 **Alternatives considered**: reutilizar el id de recompensa permitiria colisiones entre canjes; un codigo derivado del correo expondria datos personales; beneficios reales estan fuera de alcance.
 
-## R6. Persistencia y restauracion
+## R7. Persistencia y restauracion
 
-**Decision**: persistir una instantanea minima del desafio activo: id, titulo, duracion, puntos, inicio, tiempo offline acumulado y estado. Al abrir la app se recalcula el progreso desde los instantes guardados y se finaliza de forma idempotente si la ventana ya termino.
+**Decision**: persistir en DataStore una instantanea minima del desafio activo: id, titulo, duracion, puntos, inicio, tiempo offline acumulado y estado. Al revocar el acceso de uso se invalida de inmediato; al abrir la app se recalcula el progreso desde los instantes guardados y se finaliza de forma idempotente si la ventana ya termino.
 
 **Rationale**: permite recuperar el flujo tras cierre o reinicio sin guardar cada muestra de uso ni crear un servicio en segundo plano complejo.
 
 **Alternatives considered**: mantener todo solo en memoria perderia el desafio; un worker permanente seria mas complejo y no es necesario para una entrega demostrable.
 
-## R7. Riesgo aceptado de cliente
+## R8. Riesgo aceptado de cliente
 
 **Decision**: aceptar que un dispositivo modificado puede falsear estadisticas de uso, tal como define la constitucion, porque las recompensas no tienen valor fuera de la app. Se registran estados y movimientos auditables y se impide la manipulacion normal mediante reglas.
 

@@ -14,6 +14,12 @@
 
 - Q: ¿Qué apps y qué límite de uso cuentan para cumplir cada desafío? → A: Instagram, TikTok, Facebook, X, Snapchat y YouTube; WhatsApp queda excluido y el límite permitido es cero minutos.
 - Q: Si se pierde Internet mientras corre un desafío, ¿cuándo debe invalidarse? → A: Se toleran hasta cinco minutos acumulados sin conexión por desafío; la medición local continúa durante la interrupción y, si se supera el plazo, el desafío se invalida sin puntos.
+- Q: ¿Qué debe ocurrir si una aplicación objetivo no está instalada en el dispositivo? → A: Se considera que esa aplicación tuvo cero uso y no se impide iniciar el desafío.
+- Q: ¿Puede una persona canjear la misma recompensa más de una vez mientras tenga saldo suficiente? → A: Puede repetir cupones; cada canje genera un registro y código propio. Las insignias y los temas solo pueden canjearse una vez por persona.
+- Q: ¿Qué debe ocurrir si la persona revoca el acceso a las estadísticas de uso mientras hay un desafío activo? → A: El desafío se invalida inmediatamente, otorga cero puntos y permite iniciar otro después de volver al catálogo.
+- Q: ¿Cómo debe garantizarse que cada código de cupón sea único? → A: El código se deriva de un `redemptionId` aleatorio y único, sin incluir datos personales ni requerir una colección adicional de códigos.
+- Q: ¿Qué fórmula exacta debe usar la app para generar el código de cupón a partir de `redemptionId`? → A: `DC-` seguido del `redemptionId` codificado en Base64 URL-safe, sin padding.
+- Q: ¿Debe Firestore impedir una acreditación si todavía no transcurrió la duración completa del desafío según la hora del servidor? → A: Sí. Si las reglas no pueden imponerlo sin Cloud Functions, el desafío no acredita puntos y la limitación se documenta.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -62,10 +68,14 @@ La persona consulta las recompensas disponibles, ve su costo y confirma el canje
 ### Edge Cases
 
 - La persona no concede el permiso de medición o lo revoca durante un desafío.
+- Si se revoca el acceso durante un desafío, debe invalidarse inmediatamente, sin puntos, y permitir volver al catálogo para iniciar otro.
+- Una o más aplicaciones objetivo no están instaladas; deben contar como cero uso sin impedir el desafío.
 - La conexión se pierde durante un desafío o durante la confirmación de un canje.
 - La persona intenta iniciar otro desafío mientras ya tiene uno activo.
 - La app se cierra, el dispositivo se reinicia o cambia la hora mientras hay un desafío en curso.
 - El registro de un desafío cumplido o de un canje se reintenta después de un tiempo de espera, y no debe duplicar el movimiento ni descontar dos veces.
+- La persona intenta canjear una insignia o tema que ya obtuvo, o repetir un cupón con saldo suficiente; solo el cupón repetido debe permitirse.
+- Un reintento del mismo canje debe conservar el mismo `redemptionId` y código; un nuevo canje de cupón debe generar otro `redemptionId` y código.
 - El catálogo de desafíos o recompensas cambia mientras la persona tiene una pantalla abierta.
 - La medición no está disponible para una aplicación o devuelve un valor incompleto.
 
@@ -74,19 +84,19 @@ La persona consulta las recompensas disponibles, ve su costo y confirma el canje
 ### Functional Requirements
 
 - **FR-001**: La app MUST permitir que una persona autenticada seleccione e inicie un desafío disponible del catálogo.
-- **FR-002**: Antes de iniciar el primer desafío, la app MUST explicar qué datos de uso necesita y para qué; MUST permitir continuar solo después de que la persona otorgue el permiso requerido.
+- **FR-002**: Antes de iniciar el primer desafío, la app MUST explicar qué datos de uso necesita y para qué; MUST permitir continuar solo después de que la persona otorgue el permiso requerido. Si el acceso se revoca durante un desafío, MUST invalidarlo inmediatamente, otorgar cero puntos y permitir volver al catálogo.
 - **FR-003**: La app MUST mantener como máximo un desafío activo por persona y MUST mostrar el desafío, el tiempo restante y el estado de cumplimiento.
-- **FR-004**: La medición MUST contar únicamente el uso de Instagram, TikTok, Facebook, X, Snapchat y YouTube; MUST NOT contar WhatsApp ni otras aplicaciones. El límite permitido para las aplicaciones incluidas MUST ser cero minutos durante el desafío.
+- **FR-004**: La medición MUST contar únicamente el uso de Instagram, TikTok, Facebook, X, Snapchat y YouTube; MUST NOT contar WhatsApp ni otras aplicaciones. El límite permitido para las aplicaciones incluidas MUST ser cero minutos durante el desafío. Si una aplicación objetivo no está instalada, MUST contar como cero uso y MUST NOT impedir iniciar el desafío.
 - **FR-005**: La app MUST comparar el uso medido durante la duración del desafío con el límite permitido y determinar el resultado sin depender de una declaración de la persona.
 - **FR-006**: La app MUST conservar el estado y el progreso de un desafío activo al navegar fuera de la pantalla y al volver a abrir la app.
-- **FR-007**: Un desafío solo MUST otorgar los puntos indicados en el catálogo si termina dentro del límite de uso; el mismo desafío MUST NOT acreditarse más de una vez.
+- **FR-007**: Un desafío solo MUST otorgar los puntos indicados en el catálogo cuando terminó su duración completa según la hora del servidor y el uso quedó dentro del límite; el mismo desafío MUST NOT acreditarse más de una vez. Si las reglas no pueden verificar la duración sin Cloud Functions, MUST rechazar la acreditación.
 - **FR-008**: La app MUST permitir cancelar un desafío activo en cualquier momento; la cancelación MUST NOT otorgar puntos y MUST permitir iniciar otro desafío de inmediato.
 - **FR-009**: La app MUST requerir conexión a Internet para iniciar y completar la sincronización de un desafío. Durante un desafío, MUST tolerar hasta cinco minutos acumulados sin conexión, continuar la medición local y sincronizar al recuperar la conexión; al superar cinco minutos acumulados, MUST invalidar el desafío y no acreditar puntos.
 - **FR-010**: La app MUST mostrar el saldo actualizado y el resultado del desafío después de completarlo o cancelarlo.
 - **FR-011**: La app MUST permitir consultar las recompensas disponibles, sus descripciones y sus costos en puntos.
 - **FR-012**: La app MUST permitir confirmar un canje únicamente si el saldo alcanza para cubrir su costo; un canje rechazado MUST dejar intactos el saldo y el historial.
-- **FR-013**: Un canje aceptado MUST descontar exactamente el costo de la recompensa y registrar la recompensa obtenida junto con el movimiento correspondiente, sin permitir saldos negativos ni duplicar un canje ante reintentos.
-- **FR-014**: La app MUST mostrar las recompensas canjeadas en una sección personal. Los cupones MUST ser digitales, tener un código único y no representar beneficios fuera de la app.
+- **FR-013**: Un canje aceptado MUST descontar exactamente el costo de la recompensa y registrar la recompensa obtenida junto con el movimiento correspondiente, sin permitir saldos negativos ni duplicar un canje ante reintentos. Los cupones pueden canjearse varias veces con saldo suficiente; una insignia o un tema ya canjeado MUST rechazarse sin modificar saldo ni historial.
+- **FR-014**: La app MUST mostrar las recompensas canjeadas en una sección personal. Los cupones MUST ser digitales y tener un código único con la fórmula `DC-` + `redemptionId` codificado en Base64 URL-safe sin padding; el código no debe incluir datos personales ni representar beneficios fuera de la app.
 - **FR-015**: La app MUST registrar por persona los resultados de desafíos y canjes de forma auditable, sin permitir editar ni borrar movimientos ya confirmados.
 - **FR-016**: La app MUST NOT bloquear, ocultar, cerrar ni superponer contenido de otras aplicaciones. MUST NOT solicitar cámara, capturar fotos ni usar inteligencia artificial.
 - **FR-017**: La medición MUST compartir solo los datos necesarios para determinar el resultado del desafío; MUST NOT publicar el uso individual de otras aplicaciones.

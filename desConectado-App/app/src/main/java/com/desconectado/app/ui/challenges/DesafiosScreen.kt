@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -39,18 +40,19 @@ import com.desconectado.app.ui.theme.DificultadNormal
 fun DesafiosScreen(
     estado: DesafiosUiState,
     onReintentar: () -> Unit,
+    onIniciar: ((Desafio) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     when (estado) {
         DesafiosUiState.Cargando -> PantallaCargando(modifier)
         DesafiosUiState.Error -> PantallaError(onReintentar, modifier)
         DesafiosUiState.SinConexion -> PantallaSinConexion(onReintentar, modifier)
-        is DesafiosUiState.Lista -> ListaDesafios(estado.desafios, modifier)
+        is DesafiosUiState.Lista -> ListaDesafios(estado.desafios, onIniciar, modifier)
     }
 }
 
 @Composable
-private fun ListaDesafios(desafios: List<Desafio>, modifier: Modifier = Modifier) {
+private fun ListaDesafios(desafios: List<Desafio>, onIniciar: ((Desafio) -> Unit)?, modifier: Modifier = Modifier) {
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -58,12 +60,12 @@ private fun ListaDesafios(desafios: List<Desafio>, modifier: Modifier = Modifier
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        items(desafios, key = { it.id }) { desafio -> TarjetaDesafio(desafio) }
+        items(desafios, key = { it.id }) { desafio -> TarjetaDesafio(desafio, onIniciar) }
     }
 }
 
 @Composable
-private fun TarjetaDesafio(desafio: Desafio) {
+private fun TarjetaDesafio(desafio: Desafio, onIniciar: ((Desafio) -> Unit)?) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(
@@ -81,10 +83,19 @@ private fun TarjetaDesafio(desafio: Desafio) {
             Text(text = desafio.title, style = MaterialTheme.typography.titleMedium)
             Text(text = desafio.description, style = MaterialTheme.typography.bodyMedium)
             Text(
-                text = stringResource(R.string.desafios_duracion, formatearDuracion(desafio.durationMinutes)),
+                text = desafio.durationSeconds?.let { stringResource(R.string.desafios_duracion_segundos, it) }
+                    ?: stringResource(R.string.desafios_duracion, formatearDuracion(desafio.durationMinutes)),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (onIniciar != null) {
+                Button(
+                    onClick = { onIniciar(desafio) },
+                    modifier = Modifier.testTag("boton_iniciar_desafio_${desafio.id}"),
+                ) {
+                    Text(stringResource(R.string.desafio_iniciar))
+                }
+            }
         }
     }
 }

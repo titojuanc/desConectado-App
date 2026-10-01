@@ -1,0 +1,147 @@
+package com.desconectado.app.data.challenges
+
+import com.desconectado.app.data.aErrorApp
+import com.desconectado.app.data.aErrorFirestore
+import com.desconectado.app.domain.model.ActiveChallenge
+import com.desconectado.app.domain.model.ChallengeResult
+import com.desconectado.app.domain.model.Dificultad
+import com.desconectado.app.domain.model.Desafio
+import com.desconectado.app.domain.model.Resultado
+import com.desconectado.app.domain.repository.ChallengeRepository
+import com.google.firebase.firestore.DocumentReference
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Source
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.tasks.await
+import android.util.Log
+import java.time.Instant
+
+class FirestoreChallengeRepository(
+    private val firestore: FirebaseFirestore,
+    private val store: ActiveChallengeStore? = null,
+) : ChallengeRepository {
+    override suspend fun active(uid: String): Resultado<ActiveChallenge?> = try {
+        val document = activeReference(uid).get(Source.SERVER).await()
+        Resultado.Exito(document.toActiveChallenge())
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Resultado.Fallo(e.aErrorApp())
+    }
+
+    override suspend fun start(uid: String, challengeId: String): Resultado<ActiveChallenge> = try {
+        val activeRef = activeReference(uid)
+        val existing = activeRef.get(Source.SERVER).await().toActiveChallenge()
+        if (existing != null) return Resultado.Exito(existing)
+        val challengeRef = firestore.collection("challenges").document(challengeId)
+        firestore.runTransaction { transaction ->
+            if (transaction.get(activeRef).exists()) return@runTransaction Unit
+            val challenge = transaction.get(challengeRef)
+            check(challenge.exists()) { "challenge does not exist" }
+            val now = FieldValue.serverTimestamp()
+            transaction.set(activeRef, mapOf(
+                "challengeId" to challengeId,
+                "challengeTitle" to challenge.getString("title").orEmpty(),
+                "durationMinutes" to (challenge.getLong("durationMinutes") ?: 0L),
+                "points" to (challenge.getLong("points") ?: 0L),
+                "durationSeconds" to (challenge.getLong("durationSeconds") ?: (challenge.getLong("durationMinutes") ?: 0L) * 60L),
+                "startedAt" to now,
+                "offlineSeconds" to 0L,
+                "status" to ActiveChallenge.Status.ACTIVE.name,
+                "updatedAt" to now,
+            ))
+            Unit
+        }.await()
+        active(uid).valorOrThrow()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Log.e(TAG, "No se pudo iniciar el desafío en Firestore", e)
+        Resultado.Fallo(e.aErrorFirestore())
+    }
+
+    override suspend fun updateOffline(uid: String, runId: String, seconds: Long): Resultado<Unit> = try {
+        activeReference(uid).update(mapOf("offlineSeconds" to seconds.coerceAtLeast(0L), "updatedAt" to FieldValue.serverTimestamp())).await()
+        Resultado.Exito(Unit)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Resultado.Fallo(e.aErrorApp())
+    }
+
+    override suspend fun finish(uid: String, runId: String, result: ChallengeResult): Resultado<ChallengeResult> = close(uid, result)
+
+    override suspend fun cancel(uid: String, runId: String): Resultado<ChallengeResult> = close(uid, terminalResult(uid, runId, ChallengeResult.Status.CANCELLED))
+
+    override suspend fun invalidate(uid: String, runId: String, reason: String): Resultado<ChallengeResult> = close(uid, terminalResult(uid, runId, ChallengeResult.Status.INVALIDATED))
+
+    private suspend fun close(uid: String, result: ChallengeResult): Resultado<ChallengeResult> = try {
+        val resultRef = firestore.collection("users").document(uid).collection("challengeResults").document(result.challengeRunId)
+        val activeRef = activeReference(uid)
+        firestore.runTransaction { transaction ->
+            if (!transaction.get(resultRef).exists()) {
+                transaction.set(resultRef, result.toMap())
+                transaction.delete(activeRef)
+            }
+            Unit
+        }.await()
+        Resultado.Exito(result)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Resultado.Fallo(e.aErrorApp())
+    }
+
+    private fun terminalResult(uid: String, runId: String, status: ChallengeResult.Status): ChallengeResult = ChallengeResult(
+        challengeRunId = runId,
+        challengeId = "",
+        challengeTitle = "",
+        durationMinutes = 0,
+        startedAt = Instant.EPOCH,
+        finishedAt = Instant.now(),
+        status = status,
+        measuredSocialSeconds = 0,
+        offlineSeconds = 0,
+        pointsAwarded = 0,
+    )
+
+    private fun activeReference(uid: String): DocumentReference = firestore.collection("users").document(uid).collection("activeChallenge").document("current")
+
+    private fun Map<String, Any>.toActiveChallenge(): ActiveChallenge = ActiveChallenge(
+        challengeId = get("challengeId") as String,
+        challengeTitle = get("challengeTitle") as String,
+        durationMinutes = (get("durationMinutes") as Number).toInt(),
+        points = (get("points") as Number).toInt(),
+        startedAt = (get("startedAt") as com.google.firebase.Timestamp).toDate().toInstant(),
+        offlineSeconds = (get("offlineSeconds") as Number).toLong(),
+        status = ActiveChallenge.Status.valueOf(get("status") as String),
+        updatedAt = (get("updatedAt") as com.google.firebase.Timestamp).toDate().toInstant(),
+        durationSeconds = (get("durationSeconds") as? Number)?.toInt() ?: (get("durationMinutes") as Number).toInt() * 60,
+    )
+
+    private fun com.google.firebase.firestore.DocumentSnapshot.toActiveChallenge(): ActiveChallenge? = if (!exists()) null else data?.toActiveChallenge()
+
+    private fun ChallengeResult.toMap(): Map<String, Any> = mapOf(
+        "challengeRunId" to challengeRunId,
+        "challengeId" to challengeId,
+        "challengeTitle" to challengeTitle,
+        "durationMinutes" to durationMinutes,
+        "durationSeconds" to durationSeconds,
+        "startedAt" to com.google.firebase.Timestamp(startedAt.epochSecond, startedAt.nano),
+        "finishedAt" to com.google.firebase.Timestamp(finishedAt.epochSecond, finishedAt.nano),
+        "status" to status.name,
+        "measuredSocialSeconds" to measuredSocialSeconds,
+        "offlineSeconds" to offlineSeconds,
+        "pointsAwarded" to pointsAwarded,
+    )
+
+    private suspend fun Resultado<ActiveChallenge?>.valorOrThrow(): Resultado<ActiveChallenge> = when (this) {
+        is Resultado.Exito -> valor?.let { Resultado.Exito(it) } ?: Resultado.Fallo(com.desconectado.app.domain.model.ErrorApp.Desconocido)
+        is Resultado.Fallo -> this
+    }
+
+    private companion object {
+        const val TAG = "FirestoreChallenge"
+    }
+}

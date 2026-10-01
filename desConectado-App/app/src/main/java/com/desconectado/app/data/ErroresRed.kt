@@ -35,3 +35,15 @@ private fun String?.mencionaUnaFallaDeRed(): Boolean {
 
 /** Traducción genérica de un fallo de lectura o escritura: sin red, o desconocido. */
 internal fun Throwable.aErrorApp(): ErrorApp = if (esErrorDeRed()) ErrorApp.SinConexion else ErrorApp.Desconocido
+
+internal fun Throwable.aErrorFirestore(): ErrorApp = when (this) {
+    is FirebaseFirestoreException -> when (code) {
+        FirebaseFirestoreException.Code.PERMISSION_DENIED -> ErrorApp.FirestoreNoAutorizado
+        FirebaseFirestoreException.Code.NOT_FOUND -> ErrorApp.DatoNoEncontrado
+        FirebaseFirestoreException.Code.UNAVAILABLE,
+        FirebaseFirestoreException.Code.DEADLINE_EXCEEDED -> ErrorApp.SinConexion
+        else -> ErrorApp.Desconocido
+    }
+    is IllegalStateException -> if (message == "challenge does not exist") ErrorApp.DatoNoEncontrado else ErrorApp.Desconocido
+    else -> aErrorApp()
+}

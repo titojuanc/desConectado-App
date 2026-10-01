@@ -22,7 +22,7 @@ Documento unico `users/{uid}/activeChallenge/current`.
 | `durationMinutes`, `points` | entero | Coinciden con el catalogo al iniciar. |
 | `startedAt` | timestamp | Hora del servidor o referencia sincronizada de inicio. |
 | `offlineSeconds` | entero | 0 o mayor; maximo permitido antes de invalidar: 300. |
-| `status` | enum | `active`, `cancelled`, `failed`, `completed`. |
+| `status` | enum | `active`, `cancelled`, `failed`, `completed`, `invalidated`. |
 | `updatedAt` | timestamp | Hora del ultimo cambio. |
 
 Solo puede existir un documento `current`. Un estado terminal se transforma en un `ChallengeResult` inmutable y el documento activo se elimina o queda marcado terminal de forma idempotente.
@@ -50,7 +50,7 @@ Documento inmutable `users/{uid}/movements/{movementId}`.
 | `type` | enum | `credit` o `redeem`. |
 | `amount` | entero positivo | Credito suma; canje resta. |
 | `challengeId` / `rewardId` | texto | Exactamente el origen correspondiente al tipo. |
-| `sourceId` | texto | Id del resultado o del canje; unico por operacion. |
+| `sourceId` | texto | Para `credit`, `challengeRunId`; para `redeem`, `redemptionId`. |
 | `createdAt` | timestamp | Hora del servidor. |
 | `code` | texto opcional | Obligatorio y unico para cupones. |
 
@@ -64,8 +64,9 @@ Documento inmutable `users/{uid}/redeemedRewards/{redemptionId}`.
 |---|---|---|
 | `rewardId`, `name` | texto | Snapshot de la recompensa. |
 | `costPoints` | entero positivo | Coincide con el catalogo al confirmar. |
+| `redemptionId` | texto | `unique-{rewardId}` para insignia/tema; ID nuevo para cada cupon. |
 | `movementId` | texto | Referencia al debito unico. |
-| `code` | texto opcional | Obligatorio para `coupon`, opaco y unico. |
+| `code` | texto opcional | Obligatorio para `coupon`; fórmula exacta `DC-` + `redemptionId` codificado en Base64 URL-safe sin padding. |
 | `createdAt` | timestamp | Hora del servidor. |
 
 ## State transitions
@@ -75,7 +76,8 @@ Documento inmutable `users/{uid}/redeemedRewards/{redemptionId}`.
 ## Validation invariants
 
 - La cuenta autenticada solo puede leer y escribir su propia subcoleccion.
-- `credit` solo puede existir una vez por `challengeRunId` y su monto debe coincidir con el catalogo.
-- `redeem` solo puede existir una vez por `redemptionId`, su costo debe coincidir con el catalogo y el saldo posterior debe ser no negativo.
+- `credit` usa el documento `credit-{challengeRunId}`, solo puede existir una vez, su monto debe coincidir con el catalogo y solo se crea cuando la hora del servidor supera `startedAt + durationMinutes`.
+- Una insignia o tema usa el documento `unique-{rewardId}` y solo puede existir una vez; un cupon puede usar varios `redemptionId`.
+- Todo `redeem` debe coincidir con el catalogo y dejar un saldo posterior no negativo.
 - Movimiento, saldo, resultado y recompensa canjeada se confirman atomicamente.
 - Ningun movimiento, resultado ni recompensa canjeada puede editarse o borrarse desde el cliente.

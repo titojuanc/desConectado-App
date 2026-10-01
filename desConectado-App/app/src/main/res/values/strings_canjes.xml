@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="canje_costo">Costo: %1$d puntos</string>
+    <string name="canje_saldo_insuficiente">No tenés suficientes puntos para esta recompensa.</string>
+    <string name="canje_confirmar">¿Querés canjear esta recompensa?</string>
+    <string name="canje_confirmar_accion">Canjear</string>
+    <string name="canje_cancelar">Cancelar</string>
+    <string name="canje_exitoso">Recompensa canjeada</string>
+    <string name="canje_boton">Canjear recompensa</string>
+    <string name="canje_codigo">Código: %1$s</string>
+    <string name="canje_mis_recompensas">Mis recompensas</string>
+    <string name="canje_sin_recompensas">Todavía no canjeaste recompensas.</string>
+    <string name="canje_error">No pudimos completar el canje. Probá de nuevo.</string>
+    <string name="canje_reglas_denegadas">Firebase rechazó el canje. Hay que actualizar las reglas de Firestore del proyecto.</string>
+</resources>

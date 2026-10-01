@@ -17,6 +17,12 @@ sealed interface ErrorApp {
     /** Correo no registrado o contraseña incorrecta; no se distingue (FR-004). */
     data object CredencialesInvalidas : ErrorApp
 
+    data object SaldoInsuficiente : ErrorApp
+
+    data object AccesoUsoDenegado : ErrorApp
+    data object FirestoreNoAutorizado : ErrorApp
+    data object DatoNoEncontrado : ErrorApp
+
     /** La persona cerró la pantalla de Google. */
     data object Cancelado : ErrorApp
 

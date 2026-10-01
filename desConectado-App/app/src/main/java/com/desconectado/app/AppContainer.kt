@@ -7,11 +7,17 @@ import com.desconectado.app.data.catalog.FirestoreCatalogRepository
 import com.desconectado.app.data.connectivity.AndroidConnectivityMonitor
 import com.desconectado.app.data.points.FirestorePointsRepository
 import com.desconectado.app.data.profile.FirestoreProfileRepository
+import com.desconectado.app.data.usage.AndroidUsageStatsRepository
+import com.desconectado.app.data.notifications.DesconectadoNotifications
+import com.desconectado.app.data.challenges.ActiveChallengeStore
+import com.desconectado.app.data.challenges.FirestoreChallengeRepository
 import com.desconectado.app.domain.repository.AuthRepository
 import com.desconectado.app.domain.repository.CatalogRepository
 import com.desconectado.app.domain.repository.ConnectivityMonitor
 import com.desconectado.app.domain.repository.PointsRepository
 import com.desconectado.app.domain.repository.ProfileRepository
+import com.desconectado.app.domain.repository.UsageStatsRepository
+import com.desconectado.app.domain.repository.ChallengeRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreSettings
@@ -45,6 +51,10 @@ class AppContainer(context: Context) {
     val authRepository: AuthRepository = FirebaseAuthRepository(auth, perfilRepository)
     val catalogRepository: CatalogRepository = FirestoreCatalogRepository(firestore)
     val pointsRepository: PointsRepository = FirestorePointsRepository(firestore)
+    val usageStatsRepository: UsageStatsRepository = AndroidUsageStatsRepository(context)
+    val activeChallengeStore = ActiveChallengeStore(context)
+    val challengeRepository: ChallengeRepository = FirestoreChallengeRepository(firestore, activeChallengeStore)
+    val notifications = DesconectadoNotifications(context)
 
     val googleCredentialProvider = GoogleCredentialProvider(context.getString(R.string.default_web_client_id))
 
