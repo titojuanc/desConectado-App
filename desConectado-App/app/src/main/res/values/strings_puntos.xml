@@ -7,8 +7,18 @@
 
     <!-- Perfil: saldo y últimos desafíos hechos -->
     <string name="perfil_etiqueta_puntos">Puntos</string>
-    <string name="perfil_desafios_hechos_titulo">Últimos desafíos hechos</string>
+    <string name="perfil_desafios_hechos_titulo">Historial de desafíos</string>
     <string name="perfil_sin_desafios_hechos">Todavía no hiciste desafíos. Cuando completés uno, lo vas a ver acá.</string>
     <string name="perfil_error_puntos">No pudimos cargar tus desafíos hechos. Probá de nuevo.</string>
     <string name="perfil_desafio_hecho_puntos">+%1$s puntos</string>
+    <string name="perfil_resultado_completado">Completado</string>
+    <string name="perfil_resultado_fallido">No cumplido</string>
+    <string name="perfil_resultado_cancelado">Cancelado</string>
+    <string name="perfil_resultado_invalidado">Invalidado</string>
+    <string name="perfil_historial_puntos">%1$s puntos</string>
+    <string name="perfil_canjes_titulo">Historial de canjes</string>
+    <string name="perfil_sin_canjes">Todavía no canjeaste recompensas.</string>
+    <string name="perfil_error_canjes">No pudimos cargar tus canjes. Probá de nuevo.</string>
+    <string name="perfil_canje_detalle">%1$s puntos · %2$s</string>
+    <string name="perfil_canje_codigo">Código: %1$s</string>
 </resources>

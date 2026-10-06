@@ -1,0 +1,26 @@
+# Validación funcional: Progreso, Recompensas y Perfil
+
+Este documento cubre solo las funciones nuevas de `003-engagement-progress`. Los flujos ya aprobados de la entrega 2 se usan como precondición, no se repiten como alcance.
+
+## Prerrequisitos
+
+- Android con una cuenta de prueba y permiso de estadísticas de uso cuando el escenario lo requiera.
+- Firebase Auth/Firestore de emulador; JDK 21 para Firebase Emulator Suite según la versión instalada.
+- Catálogo con 28 desafíos, recompensas/cosméticos aprobados y definiciones de logros.
+- Reloj inyectable para casos de vencimiento, racha y límite semanal.
+
+## Escenarios
+
+1. **Valoración**: completar un desafío; guardar estrellas y etiquetas; reabrirlo desde el historial. Reintentar el mismo envío no crea otra valoración; un resultado cancelado no ofrece calificación.
+2. **Historial de desafíos**: crear resultados completados, fallidos, cancelados e invalidados en varias fechas; verificar que aparecen todos, con puntos correctos y orden descendente.
+3. **Historial de canjes**: canjear elementos distintos y un cupón; verificar costo, fecha, propiedad/código y que un usuario distinto no puede leerlos.
+4. **Vencimiento**: crear dos lotes con vencimientos distintos; comprobar saldo antes/después, consumo primero del lote más próximo, expiración única, reintento idempotente y rechazo de débito prematuro o excesivo.
+5. **Categorías**: comprobar Todos y cada una de las cuatro categorías; verificar los 28 datos editoriales y que los IDs históricos no desaparecen.
+6. **Logros/progreso**: alcanzar umbrales por cantidad, tiempo y categoría; repetir la última operación; comprobar concesión única, progreso parcial, total acumulado, racha y semana.
+7. **Cosméticos**: canjear un tema/fondo/pack/marco; activarlo; reiniciar app; verificar persistencia. Probar falta de saldo, elemento no poseído y caja sorpresa sin premios repetidos.
+8. **Perfil/preferencias**: editar nombre visible; cambiar preferencias; verificar persistencia, aislamiento de cuentas y que el correo/auth no se altera.
+9. **Privacidad/notificaciones**: revisar explicación y acceso a Ajustes de Android; denegar/revocar permiso; desactivar notificaciones y verificar que no se solicita cámara ni acceso de accesibilidad.
+
+## Criterio de aceptación
+
+Para declarar una función terminada, adjuntar resultado automatizado de dominio/reglas donde sea posible y evidencia manual de los flujos Android que dependen de permisos o configuración del sistema. La matriz por requisito debe quedar referenciada en `evidencia/` de esta feature. No iniciar la réplica visual hasta que los nueve escenarios funcionales estén cubiertos.

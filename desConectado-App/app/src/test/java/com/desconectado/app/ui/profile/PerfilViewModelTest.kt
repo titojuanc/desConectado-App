@@ -5,9 +5,11 @@ import com.desconectado.app.domain.model.DesafioHecho
 import com.desconectado.app.domain.model.ErrorApp
 import com.desconectado.app.domain.model.EstadoSesion
 import com.desconectado.app.domain.model.Perfil
+import com.desconectado.app.domain.model.RedeemedReward
 import com.desconectado.app.domain.model.Resultado
 import com.desconectado.app.fakes.FakeAuthRepository
 import com.desconectado.app.fakes.FakeConnectivityMonitor
+import com.desconectado.app.fakes.FakeChallengeRepository
 import com.desconectado.app.fakes.FakePointsRepository
 import com.desconectado.app.fakes.FakeProfileRepository
 import com.desconectado.app.testutil.MainDispatcherRule
@@ -24,17 +26,27 @@ class PerfilViewModelTest {
 
     private val auth = FakeAuthRepository(EstadoSesion.ConSesion("uid-1"))
     private val perfiles = FakeProfileRepository()
+    private val desafios = FakeChallengeRepository()
     private val puntos = FakePointsRepository()
     private val conectividad = FakeConnectivityMonitor()
 
     private val perfilAna = Perfil(username = "Ana Prueba", email = "ana@mail.com")
+    private val canjeDePrueba = RedeemedReward(
+        redemptionId = "redemption-1",
+        rewardId = "coupon-1",
+        name = "Cupón de prueba",
+        costPoints = 25,
+        movementId = "redeem-redemption-1",
+        code = "DC-coupon-1",
+        createdAt = Instant.parse("2026-09-21T10:00:00Z"),
+    )
 
     private val desafiosHechos = listOf(
         DesafioHecho("Salir a trotar", 50, Instant.parse("2026-09-22T10:00:00Z")),
         DesafioHecho("Salir a caminar", 10, Instant.parse("2026-09-20T10:00:00Z")),
     )
 
-    private fun crearViewModel() = PerfilViewModel(auth, perfiles, puntos, conectividad)
+    private fun crearViewModel() = PerfilViewModel(auth, perfiles, desafios, puntos, conectividad)
 
     @Test
     fun cargaElPerfilDeLaSesionActualYExponeNombreYCorreo() = runTest {
@@ -128,19 +140,57 @@ class PerfilViewModelTest {
     }
 
     @Test
-    fun cargaLosUltimosDesafiosHechosPidiendoCinco() = runTest {
-        puntos.resultado = Resultado.Exito(desafiosHechos)
+    fun cargaElHistorialCompletoDeLaSesionActual() = runTest {
+        desafios.historyResult = Resultado.Exito(desafiosHechos)
 
         val vm = crearViewModel()
 
         assertEquals(DesafiosHechosUiState.Lista(desafiosHechos), vm.desafiosHechos.value)
-        assertEquals(listOf("uid-1" to 5), puntos.llamadas)
+        assertEquals(listOf("uid-1"), desafios.historyCalls)
+    }
+
+    @Test
+    fun conservaTodosLosEstadosDelHistorial() = runTest {
+        val resultados = listOf(
+            DesafioHecho("Cumplido", 20, Instant.parse("2026-10-04T10:00:00Z")),
+            DesafioHecho("No cumplido", 0, Instant.parse("2026-10-03T10:00:00Z"), com.desconectado.app.domain.model.ChallengeResult.Status.FAILED),
+            DesafioHecho("Cancelado", 0, Instant.parse("2026-10-02T10:00:00Z"), com.desconectado.app.domain.model.ChallengeResult.Status.CANCELLED),
+            DesafioHecho("Invalidado", 0, Instant.parse("2026-10-01T10:00:00Z"), com.desconectado.app.domain.model.ChallengeResult.Status.INVALIDATED),
+        )
+        desafios.historyResult = Resultado.Exito(resultados)
+
+        val vm = crearViewModel()
+
+        assertEquals(DesafiosHechosUiState.Lista(resultados), vm.desafiosHechos.value)
+    }
+
+    @Test
+    fun cargaElHistorialDeCanjesDeLaSesionActual() = runTest {
+        puntos.canjeadasResultado = Resultado.Exito(listOf(canjeDePrueba))
+
+        val vm = crearViewModel()
+
+        assertEquals(CanjesPerfilUiState.Lista(listOf(canjeDePrueba)), vm.canjes.value)
+    }
+
+    @Test
+    fun falloAlCargarCanjesNoOcultaPerfilYSePuedeReintentar() = runTest {
+        perfiles.resultadoPerfil = Resultado.Exito(perfilAna)
+        puntos.canjeadasResultado = Resultado.Fallo(ErrorApp.Desconocido)
+        val vm = crearViewModel()
+        assertEquals(CanjesPerfilUiState.Error, vm.canjes.value)
+        assertEquals(PerfilUiState.Datos(perfilAna), vm.estado.value)
+
+        puntos.canjeadasResultado = Resultado.Exito(listOf(canjeDePrueba))
+        vm.reintentarCanjes()
+
+        assertEquals(CanjesPerfilUiState.Lista(listOf(canjeDePrueba)), vm.canjes.value)
     }
 
     @Test
     fun unaCuentaNuevaTieneListaVaciaYSaldo0SinSerUnError() = runTest {
         perfiles.resultadoPerfil = Resultado.Exito(perfilAna)
-        puntos.resultado = Resultado.Exito(emptyList())
+        desafios.historyResult = Resultado.Exito(emptyList())
 
         val vm = crearViewModel()
 
@@ -152,7 +202,7 @@ class PerfilViewModelTest {
     @Test
     fun unFalloDePuntos_dejaErrorConReintentoSinPerderNombreNiCorreo() = runTest {
         perfiles.resultadoPerfil = Resultado.Exito(perfilAna)
-        puntos.resultado = Resultado.Fallo(ErrorApp.Desconocido)
+        desafios.historyResult = Resultado.Fallo(ErrorApp.Desconocido)
 
         val vm = crearViewModel()
 
@@ -162,7 +212,7 @@ class PerfilViewModelTest {
 
     @Test
     fun sinConexionEnPuntos_muestraSinConexionYNuncaUnaListaVacia() = runTest {
-        puntos.resultado = Resultado.Fallo(ErrorApp.SinConexion)
+        desafios.historyResult = Resultado.Fallo(ErrorApp.SinConexion)
 
         val vm = crearViewModel()
 
@@ -176,31 +226,32 @@ class PerfilViewModelTest {
         val vm = crearViewModel()
 
         assertEquals(DesafiosHechosUiState.SinConexion, vm.desafiosHechos.value)
-        assertEquals(emptyList<Pair<String, Int>>(), puntos.llamadas)
+        assertEquals(emptyList<String>(), desafios.historyCalls)
     }
 
     @Test
-    fun reintentarPuntos_vuelveAPedirSoloLosDesafiosHechos() = runTest {
-        puntos.resultado = Resultado.Fallo(ErrorApp.Desconocido)
+    fun reintentarHistorial_vuelveAPedirResultados() = runTest {
+        desafios.historyResult = Resultado.Fallo(ErrorApp.Desconocido)
         val vm = crearViewModel()
         assertEquals(DesafiosHechosUiState.Error, vm.desafiosHechos.value)
 
-        puntos.resultado = Resultado.Exito(desafiosHechos)
-        vm.reintentarPuntos()
+        desafios.historyResult = Resultado.Exito(desafiosHechos)
+        vm.reintentarHistorial()
 
-        assertEquals(2, puntos.llamadas.size)
+        assertEquals(2, desafios.historyCalls.size)
         assertEquals(1, perfiles.llamadasPerfil.size)
         assertEquals(DesafiosHechosUiState.Lista(desafiosHechos), vm.desafiosHechos.value)
     }
 
     @Test
     fun alCerrarSesion_noQuedanDesafiosDeLaPersonaAnterior() = runTest {
-        puntos.resultado = Resultado.Exito(desafiosHechos)
+        desafios.historyResult = Resultado.Exito(desafiosHechos)
         val vm = crearViewModel()
         assertEquals(DesafiosHechosUiState.Lista(desafiosHechos), vm.desafiosHechos.value)
 
         auth.cerrarSesion()
 
         assertEquals(DesafiosHechosUiState.Cargando, vm.desafiosHechos.value)
+        assertEquals(CanjesPerfilUiState.Cargando, vm.canjes.value)
     }
 }

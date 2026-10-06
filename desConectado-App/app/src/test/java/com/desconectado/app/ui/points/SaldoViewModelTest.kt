@@ -148,7 +148,13 @@ class SaldoViewModelTest {
         perfiles.resultadoPerfil = Resultado.Exito(perfilConPuntos(340))
 
         val saldo = crearViewModel()
-        val perfil = PerfilViewModel(auth, perfiles, FakePointsRepository(), conectividad)
+        val perfil = PerfilViewModel(
+            auth,
+            perfiles,
+            com.desconectado.app.fakes.FakeChallengeRepository(),
+            FakePointsRepository(),
+            conectividad,
+        )
 
         val enPerfil = (perfil.estado.value as PerfilUiState.Datos).perfil.puntos
         assertEquals(SaldoUiState.Disponible(enPerfil), saldo.estado.value)

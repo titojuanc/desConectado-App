@@ -22,15 +22,16 @@ import com.desconectado.app.domain.formatearFechaDesafio
 import com.desconectado.app.domain.formatearPuntos
 import com.desconectado.app.domain.model.DesafioHecho
 import com.desconectado.app.domain.model.Perfil
+import com.desconectado.app.domain.model.RedeemedReward
 import com.desconectado.app.ui.components.PantallaCargando
 import com.desconectado.app.ui.components.PantallaError
 import com.desconectado.app.ui.components.PantallaSinConexion
 
 /**
  * Perfil de la persona: nombre de usuario y correo, sin contraseña (FR-010, FR-021), su saldo de
- * puntos y sus últimos desafíos hechos, solo lectura (FR-029, FR-032). Cerrar sesión está
- * disponible en todos los estados, también si el perfil no cargó. Un fallo al cargar los desafíos
- * hechos no oculta los datos de la persona (FR-033).
+ * puntos, el historial completo de desafíos y los canjes, solo lectura. Cerrar sesión está
+ * disponible en todos los estados, también si el perfil no cargó. Los historiales fallan de forma
+ * independiente y no ocultan los datos de la persona.
  */
 @Composable
 fun PerfilScreen(
@@ -40,6 +41,8 @@ fun PerfilScreen(
     modifier: Modifier = Modifier,
     desafiosHechos: DesafiosHechosUiState = DesafiosHechosUiState.Lista(emptyList()),
     onReintentarPuntos: () -> Unit = {},
+    canjes: CanjesPerfilUiState = CanjesPerfilUiState.Lista(emptyList()),
+    onReintentarCanjes: () -> Unit = {},
 ) {
     Column(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.weight(1f)) {
@@ -47,7 +50,13 @@ fun PerfilScreen(
                 PerfilUiState.Cargando -> PantallaCargando()
                 PerfilUiState.Error -> PantallaError(onReintentar, mensaje = stringResource(R.string.perfil_error))
                 PerfilUiState.SinConexion -> PantallaSinConexion(onReintentar)
-                is PerfilUiState.Datos -> DatosPerfil(estado.perfil, desafiosHechos, onReintentarPuntos)
+                is PerfilUiState.Datos -> DatosPerfil(
+                    estado.perfil,
+                    desafiosHechos,
+                    onReintentarPuntos,
+                    canjes,
+                    onReintentarCanjes,
+                )
             }
         }
         OutlinedButton(
@@ -67,6 +76,8 @@ private fun DatosPerfil(
     perfil: Perfil,
     desafiosHechos: DesafiosHechosUiState,
     onReintentarPuntos: () -> Unit,
+    canjes: CanjesPerfilUiState,
+    onReintentarCanjes: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -92,10 +103,11 @@ private fun DatosPerfil(
             etiquetaPrueba = "puntos_perfil",
         )
         DesafiosHechos(desafiosHechos, onReintentarPuntos)
+        CanjesRealizados(canjes, onReintentarCanjes)
     }
 }
 
-/** Últimos desafíos hechos, con sus propios estados de carga, vacío, error y sin conexión. */
+/** Historial completo de desafíos, con sus propios estados de carga, vacío, error y sin conexión. */
 @Composable
 private fun DesafiosHechos(estado: DesafiosHechosUiState, onReintentar: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -128,11 +140,22 @@ private fun DesafiosHechos(estado: DesafiosHechosUiState, onReintentar: () -> Un
 
 @Composable
 private fun FilaDesafioHecho(desafio: DesafioHecho) {
+    val estado = when (desafio.estado) {
+        com.desconectado.app.domain.model.ChallengeResult.Status.COMPLETED -> R.string.perfil_resultado_completado
+        com.desconectado.app.domain.model.ChallengeResult.Status.FAILED -> R.string.perfil_resultado_fallido
+        com.desconectado.app.domain.model.ChallengeResult.Status.CANCELLED -> R.string.perfil_resultado_cancelado
+        com.desconectado.app.domain.model.ChallengeResult.Status.INVALIDATED -> R.string.perfil_resultado_invalidado
+    }
+    val puntos = if (desafio.estado == com.desconectado.app.domain.model.ChallengeResult.Status.COMPLETED) {
+        stringResource(R.string.perfil_desafio_hecho_puntos, formatearPuntos(desafio.puntos))
+    } else {
+        stringResource(R.string.perfil_historial_puntos, formatearPuntos(desafio.puntos))
+    }
     Column {
         Text(text = desafio.titulo, style = MaterialTheme.typography.bodyLarge)
+        Text(text = stringResource(estado), style = MaterialTheme.typography.labelMedium)
         Text(
-            text = stringResource(R.string.perfil_desafio_hecho_puntos, formatearPuntos(desafio.puntos)) +
-                " · " + formatearFechaDesafio(desafio.fecha),
+            text = puntos + " · " + formatearFechaDesafio(desafio.fecha),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -140,10 +163,69 @@ private fun FilaDesafioHecho(desafio: DesafioHecho) {
 }
 
 @Composable
-private fun ErrorPuntos(mensaje: String, onReintentar: () -> Unit) {
+private fun CanjesRealizados(estado: CanjesPerfilUiState, onReintentar: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            text = stringResource(R.string.perfil_canjes_titulo),
+            style = MaterialTheme.typography.titleMedium,
+        )
+        when (estado) {
+            CanjesPerfilUiState.Cargando -> CircularProgressIndicator()
+            is CanjesPerfilUiState.Lista ->
+                if (estado.canjes.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.perfil_sin_canjes),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.testTag("texto_sin_canjes"),
+                    )
+                } else {
+                    Column(
+                        modifier = Modifier.testTag("lista_canjes"),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        estado.canjes.forEach { FilaCanje(it) }
+                    }
+                }
+            CanjesPerfilUiState.Error -> ErrorPuntos(
+                stringResource(R.string.perfil_error_canjes),
+                onReintentar,
+                "boton_reintentar_canjes",
+            )
+            CanjesPerfilUiState.SinConexion -> ErrorPuntos(
+                stringResource(R.string.estado_sin_conexion),
+                onReintentar,
+                "boton_reintentar_canjes",
+            )
+        }
+    }
+}
+
+@Composable
+private fun FilaCanje(canje: RedeemedReward) {
+    Column(modifier = Modifier.testTag("canje_${canje.redemptionId}")) {
+        Text(text = canje.name, style = MaterialTheme.typography.bodyLarge)
+        Text(
+            text = stringResource(
+                R.string.perfil_canje_detalle,
+                formatearPuntos(canje.costPoints),
+                formatearFechaDesafio(canje.createdAt),
+            ),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        canje.code?.let { Text(text = stringResource(R.string.perfil_canje_codigo, it)) }
+    }
+}
+
+@Composable
+private fun ErrorPuntos(
+    mensaje: String,
+    onReintentar: () -> Unit,
+    testTag: String = "boton_reintentar_puntos",
+) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(text = mensaje, style = MaterialTheme.typography.bodyMedium)
-        Button(onClick = onReintentar, modifier = Modifier.testTag("boton_reintentar_puntos")) {
+        Button(onClick = onReintentar, modifier = Modifier.testTag(testTag)) {
             Text(stringResource(R.string.accion_reintentar))
         }
     }

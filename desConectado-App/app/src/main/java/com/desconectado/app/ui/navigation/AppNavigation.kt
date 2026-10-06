@@ -173,6 +173,7 @@ private fun PerfilRoute(container: AppContainer) {
                 PerfilViewModel(
                     container.authRepository,
                     container.perfilRepository,
+                    container.challengeRepository,
                     container.pointsRepository,
                     container.connectivityMonitor,
                 )
@@ -181,11 +182,14 @@ private fun PerfilRoute(container: AppContainer) {
     )
     val estado by viewModel.estado.collectAsStateWithLifecycle()
     val desafiosHechos by viewModel.desafiosHechos.collectAsStateWithLifecycle()
+    val canjes by viewModel.canjes.collectAsStateWithLifecycle()
     PerfilScreen(
         estado = estado,
         desafiosHechos = desafiosHechos,
+        canjes = canjes,
         onReintentar = viewModel::reintentar,
-        onReintentarPuntos = viewModel::reintentarPuntos,
+        onReintentarPuntos = viewModel::reintentarHistorial,
+        onReintentarCanjes = viewModel::reintentarCanjes,
         onCerrarSesion = viewModel::cerrarSesion,
     )
 }
