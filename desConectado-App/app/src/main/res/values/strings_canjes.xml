@@ -12,4 +12,6 @@
     <string name="canje_sin_recompensas">Todavía no canjeaste recompensas.</string>
     <string name="canje_error">No pudimos completar el canje. Probá de nuevo.</string>
     <string name="canje_reglas_denegadas">Firebase rechazó el canje. Hay que actualizar las reglas de Firestore del proyecto.</string>
+    <string name="canje_pendiente_titulo">Canje en proceso</string>
+    <string name="canje_pendiente_detalle">%1$d de %2$d puntos descontados; se va a reanudar cuando vuelvas a la tienda.</string>
 </resources>

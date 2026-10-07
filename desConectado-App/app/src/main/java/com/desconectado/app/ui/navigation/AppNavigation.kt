@@ -157,11 +157,14 @@ private fun RecompensasRoute(container: AppContainer) {
             }
         },
     )
+    val canjeEstado by canjeViewModel.estado.collectAsStateWithLifecycle()
+    val canjePendiente = (canjeEstado as? RecompensasCanjeUiState.Lista)?.pendiente
     RecompensasScreen(
         estado = estado,
         onReintentar = viewModel::reintentar,
         onCanjear = { canjeViewModel.canjear(it, UUID.randomUUID().toString()) },
         feedbackEvents = canjeViewModel.feedback,
+        canjePendiente = canjePendiente,
     )
 }
 

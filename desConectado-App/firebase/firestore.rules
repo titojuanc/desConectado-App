@@ -17,6 +17,10 @@ service cloud.firestore {
       return autenticado() && request.auth.uid == uid;
     }
 
+    function ultimoMovimientoId(uid) {
+      return getAfter(/databases/$(database)/documents/users/$(uid)).data.lastMovementId;
+    }
+
     // Perfil de la persona. Lo crea ella una sola vez tras autenticarse; el saldo solo cambia junto
     // con un movimiento validado dentro de una transacción.
     match /users/{uid} {
@@ -54,6 +58,10 @@ service cloud.firestore {
           (getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(request.resource.data.lastMovementId)).data.type == 'redeem'
             && request.resource.data.pointsBalance == resource.data.get('pointsBalance', 0)
               - getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(request.resource.data.lastMovementId)).data.amount)
+          ||
+          (getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(request.resource.data.lastMovementId)).data.type == 'expire'
+            && request.resource.data.pointsBalance == resource.data.get('pointsBalance', 0)
+              - getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(request.resource.data.lastMovementId)).data.amount)
         );
 
       allow delete: if false;
@@ -78,6 +86,62 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    match /users/{uid}/pointLots/{lotId} {
+      allow read: if esDueno(uid);
+      allow create: if esDueno(uid)
+        && request.resource.data.keys().hasOnly(['lotId', 'localDate', 'timeZoneId', 'windowStartsAt', 'windowEndsAt', 'earnedAt', 'expiresAt', 'issuedPoints', 'remainingPoints'])
+        && request.resource.data.lotId == lotId
+        && request.resource.data.issuedPoints is int
+        && request.resource.data.remainingPoints == request.resource.data.issuedPoints
+        && request.resource.data.issuedPoints > 0
+        && request.resource.data.timeZoneId is string
+        && request.resource.data.localDate is string
+        && request.resource.data.windowStartsAt is timestamp
+        && request.resource.data.windowEndsAt is timestamp
+        && request.resource.data.expiresAt is timestamp
+        && request.resource.data.earnedAt is timestamp
+        && getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(ultimoMovimientoId(uid))).data.type == 'credit'
+        && getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(ultimoMovimientoId(uid))).data.lotId == lotId
+        && getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(ultimoMovimientoId(uid))).data.amount == request.resource.data.issuedPoints;
+      allow update: if esDueno(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['issuedPoints', 'remainingPoints', 'earnedAt'])
+        && getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(ultimoMovimientoId(uid))).data.lotId == lotId
+        && (
+          (getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(ultimoMovimientoId(uid))).data.type == 'credit'
+            && request.resource.data.issuedPoints == resource.data.issuedPoints
+              + getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(ultimoMovimientoId(uid))).data.amount
+            && request.resource.data.remainingPoints == resource.data.remainingPoints
+              + getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(ultimoMovimientoId(uid))).data.amount
+            && (request.resource.data.earnedAt == resource.data.earnedAt
+              || request.resource.data.earnedAt == getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(ultimoMovimientoId(uid))).data.earnedAt))
+          ||
+          (getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(ultimoMovimientoId(uid))).data.type == 'expire'
+            && request.time >= resource.data.expiresAt
+            && getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(ultimoMovimientoId(uid))).data.amount == resource.data.remainingPoints
+            && request.resource.data.remainingPoints == 0
+            && request.resource.data.issuedPoints == resource.data.issuedPoints)
+          ||
+          (getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(ultimoMovimientoId(uid))).data.type == 'redeem'
+            && getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(ultimoMovimientoId(uid))).data.amount == resource.data.remainingPoints - request.resource.data.remainingPoints
+            && request.resource.data.remainingPoints >= 0
+            && request.resource.data.issuedPoints == resource.data.issuedPoints)
+        );
+      allow delete: if false;
+    }
+
+    match /users/{uid}/pointLotSessions/{sessionId} {
+      allow read: if esDueno(uid);
+      allow create, update: if esDueno(uid)
+        && sessionId == 'current'
+        && request.resource.data.keys().hasOnly(['lotId', 'windowEndsAt'])
+        && request.resource.data.lotId is string
+        && request.resource.data.windowEndsAt is timestamp
+        && getAfter(/databases/$(database)/documents/users/$(uid)/pointLots/$(request.resource.data.lotId)).data.windowEndsAt == request.resource.data.windowEndsAt
+        && getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(ultimoMovimientoId(uid))).data.lotId == request.resource.data.lotId
+        && getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(ultimoMovimientoId(uid))).data.type == 'credit';
+      allow delete: if false;
+    }
+
     // Movimientos de puntos: solo los lee su dueña y se agregan dentro de una transacción.
     match /users/{uid}/movements/{movementId} {
       allow read: if esDueno(uid);
@@ -91,6 +155,10 @@ service cloud.firestore {
           (request.resource.data.type == 'credit'
             && movementId == 'credit-' + request.resource.data.sourceId
             && request.resource.data.challengeId is string
+            && request.resource.data.lotId is string
+            && existsAfter(/databases/$(database)/documents/users/$(uid)/pointLots/$(request.resource.data.lotId))
+            && getAfter(/databases/$(database)/documents/users/$(uid)/pointLots/$(request.resource.data.lotId)).data.remainingPoints >= request.resource.data.amount
+            && getAfter(/databases/$(database)/documents/users/$(uid)/pointLotSessions/current).data.lotId == request.resource.data.lotId
             && getAfter(/databases/$(database)/documents/users/$(uid)/challengeResults/$(request.resource.data.sourceId)).data.status == 'COMPLETED'
             && request.time >= getAfter(/databases/$(database)/documents/users/$(uid)/challengeResults/$(request.resource.data.sourceId)).data.startedAt
               + duration.value(getAfter(/databases/$(database)/documents/users/$(uid)/challengeResults/$(request.resource.data.sourceId)).data.durationSeconds, 's')
@@ -106,6 +174,14 @@ service cloud.firestore {
             && getAfter(/databases/$(database)/documents/users/$(uid)/redeemedRewards/$(request.resource.data.sourceId)).data.createdAt == request.time
             && request.resource.data.code is string
             && request.resource.data.code.size() > 0)
+          ||
+          (request.resource.data.type == 'expire'
+            && movementId == 'expire-' + request.resource.data.sourceId
+            && request.resource.data.lotId == request.resource.data.sourceId
+            && request.resource.data.get('challengeId', null) == null
+            && get(/databases/$(database)/documents/users/$(uid)/pointLots/$(request.resource.data.lotId)).data.remainingPoints == request.resource.data.amount
+            && request.time >= get(/databases/$(database)/documents/users/$(uid)/pointLots/$(request.resource.data.lotId)).data.expiresAt
+            && getAfter(/databases/$(database)/documents/users/$(uid)/pointLots/$(request.resource.data.lotId)).data.remainingPoints == 0)
         );
       allow update, delete: if false;
       allow update, delete: if false;

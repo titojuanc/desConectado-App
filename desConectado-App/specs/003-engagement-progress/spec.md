@@ -117,7 +117,7 @@ La persona edita los datos de perfil permitidos, consulta privacidad y configura
 - **FR-001**: La app MUST permitir valorar de 1 a 5 cada desafío completado y asociar etiquetas de feedback configuradas; el resultado solo admite una valoración activa.
 - **FR-002**: La app MUST conservar los resultados de todos los estados del desafío y permitir consultar el historial completo ordenado por fecha descendente.
 - **FR-003**: La app MUST mostrar el historial completo de canjes, incluyendo recompensa, costo, fecha y código cuando corresponda.
-- **FR-004**: La app MUST agrupar los puntos ganados en cada día como un lote diario que vence 30 días después de haber sido ganado; los puntos se consumen en orden de antigüedad y cada consumo MUST reducir la cantidad que vencerá en su lote original.
+- **FR-004**: La app MUST agrupar los puntos ganados durante una sesión diaria en un lote que vence a la medianoche local del día 30 posterior a la fecha local de finalización; conservará la zona del lote al crearlo, consumirá puntos en orden FIFO y restará cada consumo del remanente de su lote.
 - **FR-005**: La app MUST informar saldo disponible y puntos con vencimiento próximo usando una política visible y consistente.
 - **FR-006**: La app MUST asignar cada desafío a una de cuatro categorías: Moverme, Enfocarme, Socializar o Descansar, además de permitir la vista Todos.
 - **FR-007**: El catálogo MUST incluir las 28 propuestas de `Desafios_desconectado.docx`, conservando categorías, títulos, descripciones, duraciones y dificultades; puntos y orden deben configurarse en el catálogo, no inferirse del diseño.
@@ -125,7 +125,7 @@ La persona edita los datos de perfil permitidos, consulta privacidad y configura
 - **FR-009**: La app MUST conceder logros automáticamente, de forma idempotente, para: Primer paso; En marcha (5 desafíos); Modo presente (5 horas); Sin apuro (un desafío de 3 horas o más); Aire libre, Foco total, Más cerca y Tiempo para mí (5 desafíos de cada categoría); Explorador (al menos uno por categoría); 100 horas presentes.
 - **FR-010**: La app MUST mostrar progreso parcial de los logros cuantificables y distinguir desbloqueados de pendientes.
 - **FR-011**: La tienda MUST soportar cosméticos propios de la app: cuatro temas, fondos de enfoque, packs de íconos, marcos de perfil, estrella de puntos, animación, sonido y caja sorpresa.
-- **FR-012**: Las compras MUST descontar el costo una sola vez; la propiedad de un elemento no se pierde al desaparecer del catálogo y la caja sorpresa no puede otorgar un elemento ya poseído.
+- **FR-012**: Un canje MUST descontar exactamente el costo, una sola vez. Si abarca varios lotes, puede procesarse mediante débitos FIFO idempotentes por etapa; mientras queda pendiente se bloquean otros débitos y vencimientos, se reanuda automáticamente al volver a la tienda y se informa allí sin mostrarlo como canje completado. La propiedad de un elemento no se pierde al desaparecer del catálogo y la caja sorpresa no puede otorgar un elemento ya poseído.
 - **FR-013**: La persona MUST poder activar únicamente personalizaciones que posee; la selección activa debe persistir y la insignia de logro MUST ser independiente de las compras.
 - **FR-014**: La app MUST mostrar en el perfil tiempo desconectado total, desafíos completados, racha, meta semanal y resumen de logros.
 - **FR-015**: La app MUST solicitar que la persona configure su meta semanal al registrarse y permitir ajustarla después; MUST permitir editar el nombre visible y preferencias de notificaciones/apariencia, sin modificar la identidad de autenticación desde el perfil.
@@ -155,12 +155,17 @@ La persona edita los datos de perfil permitidos, consulta privacidad y configura
 
 - Se reutilizan autenticación, medición, cancelación, canje, movimientos y navegación existentes; no se vuelve a construir la entrega 2.
 - **Confirmado**: los puntos ganados en un mismo día forman una sesión/lote diario que vence 30 días después de haber sido ganado. El consumo es FIFO por antigüedad; lo consumido se resta del lote y solo vence su remanente.
+- **Confirmado**: el lote cierra a la medianoche de la zona local capturada al ganar los puntos. Si la zona cambia durante ese mismo día, el lote original permanece abierto hasta su medianoche original. La expiración ocurre a las 00:00 local del día 30 posterior.
+- **Confirmado**: si la finalización se sincroniza después, se conserva la fecha local de finalización comunicada por Android; se acepta que Firestore no pueda verificar el reloj del dispositivo. Las reglas sí deben impedir débitos antes del `expiresAt` enviado.
+- **Confirmado**: no se implementa una cola offline para cierres; el resultado se guarda cuando hay conexión. El día/zona de finalización se captura en ese cierre.
+- **Confirmado**: los canjes que requieren varias deducciones pueden quedar en estado pendiente entre transacciones; un solo canje pendiente por cuenta bloquea otros canjes y vencimientos, se reanuda al volver a la tienda y solo se muestra como completado después de registrar la recompensa. El estado pendiente se informa en la tienda, no en el historial del perfil.
+- **Confirmado**: se procesa el vencimiento al volver a usar la app (al abrir/consultar/canjear); no se requiere expiración en segundo plano. No usar Firestore TTL ni Cloud Functions.
+- **Confirmado**: en el reinicio de lanzamiento se conserva cuentas/perfiles, pero se borran saldos acumulados, movimientos, canjes e historiales de desafíos de todas las cuentas productivas; las sesiones activas se cancelan y eliminan sin dejar resultado. El reinicio se prepara con dry-run y no se ejecuta durante el desarrollo.
 - **Confirmado**: la meta semanal se configura durante el registro y puede ajustarse desde la app. No definir un valor predeterminado ni un rango hasta preguntarlo.
 - **Confirmado**: la racha se pierde cuando no se cumple; no se acumulan ni compensan días incumplidos. El criterio exacto de día cumplido y el huso horario se preguntarán antes de implementar esa función.
 - **Confirmado**: no se usarán productos Firebase que requieran pasar a un plan pago; no planificar Cloud Functions pagas. La estrategia de ejecución del vencimiento debe verificarse dentro del nivel gratuito y no puede confiar el cálculo del saldo al cliente.
 - **Pendiente para la función de rating**: la propuesta V1 define estrellas de 1 a 5 y menciona etiquetas, pero no enumera cuáles. No inventarlas; pedirlas cuando se implemente el rating.
 - **Pendiente para la función de cosméticos**: no fijar catálogo ni costos ahora. El usuario los proporcionará al comenzar esa función; la carga en base de datos será parte de ese paso.
-- **Pendiente para vencimientos**: definir el corte de cada sesión diaria (incluido huso horario) y cuándo se materializa el vencimiento si la app no está abierta. Preguntar antes de implementar.
 - Para el avatar se usarán opciones integradas o iniciales, no captura ni selección de fotos, mientras siga vigente la restricción de cámara/fotografías.
 - La apariencia puede aplicar paletas, fondos, íconos y marcos. No se infiere que temas cambien la lógica de desafíos o concedan puntos.
 - Esta especificación amplía la tercera entrega por decisión del usuario; la fase final de adaptación visual queda fuera de este plan funcional.

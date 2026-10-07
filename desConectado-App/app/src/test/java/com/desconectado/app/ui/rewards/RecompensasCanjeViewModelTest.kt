@@ -2,6 +2,7 @@ package com.desconectado.app.ui.rewards
 
 import com.desconectado.app.domain.model.Dificultad
 import com.desconectado.app.domain.model.Recompensa
+import com.desconectado.app.domain.model.PendingRedemption
 import com.desconectado.app.domain.model.Resultado
 import com.desconectado.app.domain.model.TipoRecompensa
 import com.desconectado.app.domain.model.RedeemedReward
@@ -33,6 +34,29 @@ class RecompensasCanjeViewModelTest {
         val vm = RecompensasCanjeViewModel("ana", catalog, points, connectivity)
         advanceUntilIdle()
         assertTrue(vm.estado.value is RecompensasCanjeUiState.Lista)
+    }
+
+    @Test fun alAbrirLaTienda_reanudaUnCanjePendiente() = runTest {
+        catalog.resultadoRecompensas = Resultado.Exito(listOf(reward))
+        val pending = PendingRedemption(
+            redemptionId = "r-pending",
+            rewardId = reward.id,
+            name = reward.name,
+            costPoints = reward.costPoints,
+            code = "DC-cg",
+            pointsDebited = 20,
+            lotDebits = mapOf("lot-1" to 20),
+            createdAt = Instant.now(),
+        )
+        points.pendienteResultado = Resultado.Exito(pending)
+        val redeemed = RedeemedReward("r-pending", reward.id, reward.name, reward.costPoints, "redeem-r-pending-lot-1", "DC-cg", Instant.now())
+        points.reanudarResultado = Resultado.Exito(redeemed)
+
+        val vm = RecompensasCanjeViewModel("ana", catalog, points, connectivity)
+        advanceUntilIdle()
+
+        assertEquals(RecompensasCanjeUiState.CanjeExitoso(redeemed), vm.estado.value)
+        assertEquals(listOf("ana"), points.llamadasReanudar)
     }
 
     @Test fun canjearDelegaElIdYLaRecompensa() = runTest {

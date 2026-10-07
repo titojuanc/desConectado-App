@@ -1,6 +1,7 @@
 package com.desconectado.app.domain.model
 
 import java.time.Instant
+import java.time.ZoneId
 
 data class ChallengeResult(
     val challengeRunId: String,
@@ -14,6 +15,7 @@ data class ChallengeResult(
     val offlineSeconds: Long,
     val pointsAwarded: Int,
     val durationSeconds: Int = durationMinutes * 60,
+    val timeZoneId: String = ZoneId.systemDefault().id,
 ) {
     enum class Status { COMPLETED, FAILED, CANCELLED, INVALIDATED }
 }

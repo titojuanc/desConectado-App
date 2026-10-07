@@ -179,6 +179,7 @@ class FirestoreChallengeRepository(
             measuredSocialSeconds = getLong("measuredSocialSeconds") ?: return null,
             offlineSeconds = getLong("offlineSeconds") ?: return null,
             pointsAwarded = getLong("pointsAwarded")?.toInt() ?: return null,
+            timeZoneId = getString("timeZoneId") ?: java.time.ZoneId.systemDefault().id,
         )
     } catch (_: IllegalArgumentException) {
         null
@@ -196,6 +197,7 @@ class FirestoreChallengeRepository(
         "measuredSocialSeconds" to measuredSocialSeconds,
         "offlineSeconds" to offlineSeconds,
         "pointsAwarded" to pointsAwarded,
+        "timeZoneId" to timeZoneId,
     )
 
     private suspend fun Resultado<ActiveChallenge?>.valorOrThrow(): Resultado<ActiveChallenge> = when (this) {

@@ -1,7 +1,7 @@
 # Investigación: Progreso, Recompensas y Perfil
 
 **Fecha**: 2026-10-05
-**Estado**: decisiones confirmadas y dudas técnicas/producto pendientes.
+**Estado**: decisiones de producto confirmadas; estrategia técnica limitada al plan gratuito.
 
 ## Hallazgos del repositorio
 
@@ -16,11 +16,11 @@
 
 ### Vencimiento y ledger
 
-**Confirmado por el usuario**: agrupar los puntos ganados cada día en una sesión/lote diario que vence 30 días después de haber sido ganado. Consumir en orden de antigüedad (FIFO); cada consumo reduce el remanente del lote de origen, por lo que en la fecha de vencimiento solo se debita lo que todavía queda de ese lote.
+**Confirmado por el usuario**: un lote por sesión diaria, corte a la medianoche de la zona local capturada al primer crédito. Si cambia de zona durante la sesión, el lote conserva su corte original. Vence a las 00:00 local del día 30 posterior a la fecha local de finalización. FIFO; cada consumo reduce el remanente, y solo se vence lo que quede. Se usa `finishedAt`/zona Android incluso si sincroniza tarde; el usuario acepta esa limitación de confianza en el reloj cliente.
 
-Pendiente antes de implementar: acordar el corte del día/huso horario de cada lote y cuándo se materializa un vencimiento si la app está cerrada. El proyecto debe mantenerse en productos Firebase del nivel gratuito; no incluir Cloud Functions pagas. Evaluar una operación iniciada por la app, protegida por reglas que comparen con hora de servidor, y comprobar que conserva las invariantes y cuotas gratuitas. Nunca aceptar fecha o saldo calculados únicamente por el cliente.
+La expiración se procesa al volver a usar la app (abrir/consultar/canjear), no en segundo plano. El cierre del desafío sigue requiriendo conexión; no se agrega cola offline. Firestore Rules compara `expiresAt` con `request.time`; la zona local y la fecha de finalización vienen del cliente y no se pueden demostrar con reglas. El usuario aceptó expresamente esta limitación. Rules limita escrituras a la cuenta propia y rechaza expiración anticipada/saldo inconsistente.
 
-No se elige una fecha/huso ni un disparador por inferencia. Si el vencimiento exacto en segundo plano no es posible con los servicios gratuitos, se explicará la limitación y se pedirá una decisión antes de adoptar vencimiento perezoso.
+La documentación de precios de Firestore indica que TTL no tiene cuota gratuita. Rules/Firestore sí tienen cuotas gratuitas de operaciones (sujetas a límites diarios); el cliente procesa vencimientos con `request.time`. No usar TTL, Cloud Functions ni producto que requiera billing. Si se agotan cuotas, los vencimientos pendientes se reintentan en otra consulta.
 
 ### Logros y métricas
 
@@ -46,3 +46,5 @@ El catálogo y los costos se definirán cuando comience la implementación de co
 2. Una caja sorpresa exige selección y registro atómicos, de modo que un reintento entregue el mismo premio.
 3. Los estados de semana/racha dependen de zona horaria y cambio de fecha; preguntar la política antes de implementarla y mantenerla coherente en perfil, logros y pruebas.
 4. Antes de escribir reglas, validar la operación concurrente canje-vencimiento y el límite de accesos a documentos de Firestore Rules.
+5. Reinicio solicitado para el lanzamiento: conservar documentos `users/{uid}` y Auth; restablecer `pointsBalance`, eliminar movimientos/canjes/resultados de desafíos y borrar desafíos activos sin registrar resultado. Preparar script Admin con dry-run, chunks y guardia de proyecto; no ejecutarlo durante desarrollo. Firebase Admin bypassa Rules, por eso el script debe exigir project ID y modo explícito.
+6. Firestore Rules no puede iterar/sumar una cantidad arbitraria de lotes dentro de una transacción. Decisión confirmada: permitir canjes por etapas, cada débito por lote se valida individualmente; un pending por cuenta bloquea otros débitos/expiraciones y se reanuda al volver a la tienda. El usuario acepta que el balance cambie gradualmente y que el pending se muestre solo en la tienda.

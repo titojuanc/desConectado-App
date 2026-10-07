@@ -12,6 +12,7 @@
 - `users/{uid}/challengeRatings/{runId}`: lectura del dueño; creación solo si existe resultado completado propio, stars 1..5 y etiquetas permitidas. Actualización, si se habilita, limitada al documento de valoración y a una ventana/acción definida.
 - `users/{uid}/pointLots/{lotId}`: lectura del dueño; el lote nace junto con crédito válido. Cambios de remanente solo como parte de transacción autorizada de canje o vencimiento; fechas e importe originales inmutables.
 - `users/{uid}/movements/{movementId}`: lectura del dueño y append-only. Tipos permitidos `credit`, `redeem`, `expire`; importe positivo, ID determinista y prueba de transacción con usuario/lote/recompensa relacionados.
+- `users/{uid}/pendingRedemptions/current`: lectura del dueño; como máximo un canje pendiente. Cada paso actualiza `pointsDebited` solo junto con un movimiento `redeem`, el lote FIFO y el balance. Crear la recompensa final y borrar el pending solo cuando `pointsDebited == costPoints`.
 - `users/{uid}/redeemedRewards/{redemptionId}`: lectura del dueño, creación inmutable atómica con movimiento. Un reintento usa el mismo ID; una caja sorpresa guarda el premio seleccionado en el mismo registro.
 - `users/{uid}/achievements/{achievementId}`: lectura del dueño; concesión única y ligada al criterio cumplido.
 - `users/{uid}/preferences/current`: lectura/escritura del dueño con campos permitidos; todo cosmético activo debe estar en propiedad. `weeklyGoalMinutes` se define durante el registro y se puede actualizar; no fijar rango/default sin confirmación.
@@ -19,11 +20,13 @@
 ## Operaciones atómicas
 
 1. **Crédito**: validar resultado completado, catálogo y tiempo de servidor; crear movimiento `credit-*`, lote y saldo actualizado.
-2. **Canje**: validar costo vigente, saldo suficiente y unicidad; reducir lotes en orden de vencimiento, registrar propiedad/movimiento y saldo en una sola transacción.
-3. **Vencimiento**: lote diario confirmado, con expiración 30 días después de haber ganado los puntos; validar con hora del servidor que el lote ya venció, limitar débito al remanente, reducir lote y crear `expire-{lotId}` junto con el saldo. FIFO reduce el remanente en el momento del consumo. Reintentos son idempotentes. El corte diario/huso y el momento de procesamiento deben confirmarse antes del contrato final.
+2. **Canje**: validar costo vigente, saldo suficiente y unicidad; crear un pending que bloquea otros débitos. Por cada lote FIFO, una transacción determinista reduce lote/saldo y agrega un movimiento `redeem` por la parte aplicada, actualizando `pointsDebited`. Al alcanzar el costo total, registrar `redeemedRewards/{redemptionId}` y borrar pending. Reintentos reanudan los pasos faltantes; el perfil solo lista el canje al completarse.
+3. **Vencimiento**: lote diario con fecha/zona capturadas en Android; débito diferido al abrir/consultar/canjear. Validar con `request.time` que `expiresAt` ya pasó, limitar débito al remanente, reducir lote y crear `expire-{lotId}` junto con saldo. FIFO reduce el remanente al consumir; reintentos son idempotentes. No procesar vencimientos mientras exista `pendingRedemptions/current`. El cliente aporta fecha/zona y Firestore no valida que sean auténticas; esta limitación fue aceptada.
 4. **Caja sorpresa**: seleccionar una recompensa elegible aún no poseída y registrar caja y premio como una operación idempotente.
 5. **Logro**: conceder un ID estable una sola vez; el progreso no puede conceder puntos salvo que haya movimiento de crédito definido por catálogo.
 
-## Decisión técnica pendiente
+## Límites y migración de lanzamiento
 
-No usar productos que requieran un plan pago. Comprobar si la app puede iniciar el vencimiento y validar cada débito con hora de servidor/reglas gratuitas; si el vencimiento exacto con la app cerrada no es posible sin un producto pago, explicar la limitación y pedir decisión. No asumir procesamiento perezoso ni usar Functions. El cliente nunca decide libremente el saldo, la fecha efectiva o el premio de caja.
+Usar Firestore dentro de la cuota gratuita y procesar expiraciones cuando la app vuelva a consultar saldo/canje. TTL requiere billing y no es apto porque no actualiza atómicamente balance/ledger. No usar Functions. Rules valida el tiempo mínimo y las relaciones, no la zona/reloj enviados por Android. Si se agotan cuotas, dejar expiraciones pendientes para reintento y no permitir canjes con lotes ya vencidos.
+
+Preparar un script Admin de reinicio, sin ejecutarlo durante desarrollo: conservar `users/{uid}` y Auth, dejar `pointsBalance` en cero y borrar `movements`, `redeemedRewards`, `challengeResults`, ratings y `activeChallenge`. Las sesiones activas se eliminan sin crear resultado. Requerir dry-run por defecto, `--project` explícito, chunks y confirmación inequívoca para producción. El cliente debe limpiar la sesión local en el próximo arranque y no poder acreditar un run iniciado antes del reset.

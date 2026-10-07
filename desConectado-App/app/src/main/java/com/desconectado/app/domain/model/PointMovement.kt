@@ -12,5 +12,5 @@ data class PointMovement(
     val createdAt: Instant,
     val code: String? = null,
 ) {
-    enum class Type { CREDIT, REDEEM }
+    enum class Type { CREDIT, REDEEM, EXPIRE }
 }

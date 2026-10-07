@@ -10,4 +10,5 @@ data class RedeemedReward(
     val movementId: String,
     val code: String?,
     val createdAt: Instant,
+    val movementIds: List<String> = listOf(movementId),
 )

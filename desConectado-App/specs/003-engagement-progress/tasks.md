@@ -28,7 +28,7 @@ Después de esta feature: adaptación visual de las referencias
 
 ## Phase 1: Decisiones locales (bloquean solo su función)
 
-- [ ] T001 Antes de implementar vencimientos, preguntar el corte/huso horario de los lotes diarios y cuándo se espera materializar la expiración con la app cerrada; validar una solución solo con servicios Firebase gratuitos en `specs/003-engagement-progress/research.md`.
+- [X] T001 Confirmar y registrar en `specs/003-engagement-progress/research.md` lote por sesión local, cierre a medianoche de la zona capturada al finalizar el primer desafío, vencimiento al inicio del día 30, finalización online como fecha de ganancia y procesamiento diferido; Rules valida con `request.time`, sin TTL ni Functions. Registrar el reset productivo autorizado, preparado pero no ejecutado.
 - [ ] T002 Antes de implementar rating, confirmar etiquetas y si el envío se puede posponer o editar en `specs/003-engagement-progress/spec.md`; las etiquetas no aparecen enumeradas en la documentación leída.
 - [ ] T003 Antes de implementar racha/progreso temporal, preguntar qué cuenta como día cumplido, política de zona horaria y valor/rango inicial de la meta semanal en `specs/003-engagement-progress/spec.md`.
 - [ ] T004 Antes de implementar cosméticos, pedir selección de catálogo/IDs/costos al usuario; no inferirlos de las imágenes ni sembrarlos anticipadamente.
@@ -69,11 +69,11 @@ Después de esta feature: adaptación visual de las referencias
 
 **Independent Test**: Con reloj controlado, acreditar dos lotes, canjear parcialmente y ejecutar vencimiento; reconstruir saldo desde movimientos.
 
-- [ ] T018 [P] [US3] Escribir primero pruebas de dominio y reglas con reloj controlado para límites de fecha, consumo por vencimiento, canje/vencimiento concurrentes, expiración idempotente y saldo reconstruido en `app/src/test/java/com/desconectado/app/domain/` y `firebase/tests/rules/points-expiration.test.mjs`.
-- [ ] T019 [US3] Crear `app/src/main/java/com/desconectado/app/domain/model/PointLot.kt` y extender `PointMovement.kt` con origen de lote y tipo `expire`, según política confirmada en T001.
-- [ ] T020 [US3] Extender la transacción de crédito en `app/src/main/java/com/desconectado/app/data/points/FirestorePointsRepository.kt` para crear el lote determinista junto con el movimiento y el saldo.
-- [ ] T021 [US3] Actualizar `redeem` en `app/src/main/java/com/desconectado/app/data/points/FirestorePointsRepository.kt` para consumir primero lotes con vencimiento próximo, impedir consumir lotes expirados y registrar todos los cambios atómicamente.
-- [ ] T022 [US3] Implementar `PointExpirationProcessor` en `app/src/main/java/com/desconectado/app/data/points/PointExpirationProcessor.kt` con una estrategia compatible con los servicios Firebase gratuitos aprobada en T001; usar ID idempotente, hora de servidor y débito limitado al remanente. No agregar Cloud Functions.
+- [X] T018 [P] [US3] Escribir primero pruebas de dominio y reglas con reloj/zona inyectados para apertura/cierre de sesión diaria, expiración a medianoche del día 30, cambio de zona dentro de sesión, consumo FIFO parcial, expiración idempotente, canje/vencimiento y saldo reconstruido en `app/src/test/java/com/desconectado/app/domain/` y `firebase/tests/rules/points-expiration.test.mjs`. JVM pasa; el test de reglas queda escrito y `node --check` pasa; falta ejecutarlo con el emulador Java 21.
+- [X] T019 [US3] Crear `PointLot` en `app/src/main/java/com/desconectado/app/domain/model/PointLot.kt`, funciones puras en `app/src/main/java/com/desconectado/app/domain/PointLots.kt` y añadir `PointMovement.Type.EXPIRE` en `app/src/main/java/com/desconectado/app/domain/model/PointMovement.kt`.
+- [ ] T020 [US3] Persistir `timeZoneId` al cerrar el desafío en `ChallengeResult` y extender la transacción de `app/src/main/java/com/desconectado/app/data/points/FirestorePointsRepository.kt` para reutilizar `pointLotSessions/current` y crear lote/movimiento/saldo atómicamente.
+- [ ] T021 [US3] Añadir tests de canje por etapas y luego extender `FirestorePointsRepository.redeem` con `pendingRedemptions/current`, un movimiento idempotente por lote, débitos FIFO y finalización solo al alcanzar el costo; bloquear nuevos débitos mientras pending existe.
+- [ ] T022 [US3] Implementar `PointExpirationProcessor` en `app/src/main/java/com/desconectado/app/data/points/PointExpirationProcessor.kt` como procesamiento al abrir/consultar/canjear, compatible con Firestore gratuito; usar ID idempotente, `request.time` y débito limitado al remanente. No agregar TTL ni Cloud Functions; no expirar mientras haya canje pendiente.
 - [ ] T023 [US3] Endurecer `firebase/firestore.rules` para validar creación de lotes, consumo y vencimiento por hora de servidor; conservar el saldo atómico y rechazar lote ajeno, exceso o transacción incompleta.
 - [ ] T024 [US3] Exponer saldo disponible y próximos vencimientos en `app/src/main/java/com/desconectado/app/domain/repository/PointsRepository.kt`, `app/src/main/java/com/desconectado/app/ui/points/SaldoViewModel.kt` y `app/src/main/java/com/desconectado/app/ui/points/IndicadorPuntos.kt`.
 
@@ -128,6 +128,8 @@ Después de esta feature: adaptación visual de las referencias
 - [ ] T043 Actualizar `specs/003-engagement-progress/quickstart.md` y crear `specs/003-engagement-progress/evidencia/` con resultados por requisito FR-001 a FR-017 y referencias a capturas/outputs de los escenarios nuevos.
 - [ ] T044 Ejecutar pruebas enfocadas de las historias nuevas, `npm test` y validación de seed en `firebase/`, resolver fallos introducidos por esta feature y dejar sin cambios el alcance aprobado de la entrega 2.
 - [ ] T045 Verificar manualmente en dispositivo que ratings, vencimientos, historiales, filtros, logros, cosméticos y preferencias funcionan con los estilos actuales; cerrar cada criterio de `quickstart.md` antes de iniciar la réplica visual de `reference-images/`.
+- [ ] T046 Preparar `firebase/maintenance/reset-delivery-3.mjs` para el reset de producción autorizado: dry-run por defecto, `--project` explícito, chunks y guardia de confirmación; conservar Auth/perfiles, dejar saldo en 0 y borrar movimientos, canjes, pending-redemptions, resultados/ratings y desafíos activos sin registrar resultado. Limpiar `lastMovementId` y estado local al siguiente arranque. No ejecutar hasta instrucción explícita de despliegue.
+- [ ] T046 Preparar `firebase/maintenance/reset-delivery-3.mjs` para el reset de producción autorizado: dry-run por defecto, `--project` explícito, chunks y guardia de confirmación; conservar Auth/perfiles, dejar balance en 0 y borrar movimientos, canjes, resultados/ratings y desafíos activos sin registrar resultado. Limpiar referencias `lastMovementId` y estado local al siguiente arranque. No ejecutar hasta instrucción explícita de despliegue.
 
 ## Oportunidades de paralelismo
 

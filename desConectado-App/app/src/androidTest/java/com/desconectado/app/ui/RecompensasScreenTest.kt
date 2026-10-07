@@ -3,6 +3,7 @@ package com.desconectado.app.ui
 import android.content.Context
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -11,6 +12,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.desconectado.app.R
 import com.desconectado.app.domain.model.Recompensa
+import com.desconectado.app.domain.model.PendingRedemption
 import com.desconectado.app.domain.model.TipoRecompensa
 import com.desconectado.app.ui.rewards.RecompensasScreen
 import com.desconectado.app.ui.rewards.RecompensasUiState
@@ -33,8 +35,10 @@ class RecompensasScreenTest {
     private fun texto(id: Int): String =
         ApplicationProvider.getApplicationContext<Context>().getString(id)
 
-    private fun mostrar(estado: RecompensasUiState) = compose.setContent {
-        DesConectadoTheme { RecompensasScreen(estado = estado, onReintentar = {}) }
+    private fun mostrar(estado: RecompensasUiState, pendiente: PendingRedemption? = null) = compose.setContent {
+        DesConectadoTheme {
+            RecompensasScreen(estado = estado, onReintentar = {}, onCanjear = {}, canjePendiente = pendiente)
+        }
     }
 
     @Test
@@ -80,5 +84,24 @@ class RecompensasScreenTest {
 
         compose.onNodeWithText(texto(R.string.estado_sin_conexion)).assertIsDisplayed()
         compose.onNodeWithTag("boton_reintentar").assertIsDisplayed()
+    }
+
+    @Test
+    fun muestraElCanjePendienteYDeshabilitaNuevosCanjes() {
+        val pendiente = PendingRedemption(
+            redemptionId = "r-pending",
+            rewardId = "r1",
+            name = "Primer paso",
+            costPoints = 50,
+            code = null,
+            pointsDebited = 20,
+            lotDebits = mapOf("lot-1" to 20),
+            createdAt = java.time.Instant.now(),
+        )
+        mostrar(RecompensasUiState.Lista(recompensas), pendiente)
+
+        compose.onNodeWithTag("canje_pendiente").assertIsDisplayed()
+        compose.onNodeWithText("20 de 50 puntos descontados; se va a reanudar cuando vuelvas a la tienda.").assertIsDisplayed()
+        compose.onNodeWithTag("boton_canjear_r1").assertIsNotEnabled()
     }
 }

@@ -5,7 +5,10 @@ import androidx.lifecycle.viewModelScope
 import com.desconectado.app.domain.model.ErrorApp
 import com.desconectado.app.domain.model.Recompensa
 import com.desconectado.app.domain.model.RedeemedReward
+import com.desconectado.app.domain.model.PendingRedemption
 import com.desconectado.app.domain.model.Resultado
+import com.desconectado.app.domain.model.TipoRecompensa
+import com.desconectado.app.domain.codigoCupon
 import com.desconectado.app.domain.repository.CatalogRepository
 import com.desconectado.app.domain.repository.ConnectivityMonitor
 import com.desconectado.app.domain.repository.PointsRepository
@@ -19,7 +22,11 @@ import kotlinx.coroutines.launch
 
 sealed interface RecompensasCanjeUiState {
     data object Cargando : RecompensasCanjeUiState
-    data class Lista(val recompensas: List<Recompensa>, val canjeadas: List<RedeemedReward>) : RecompensasCanjeUiState
+    data class Lista(
+        val recompensas: List<Recompensa>,
+        val canjeadas: List<RedeemedReward>,
+        val pendiente: PendingRedemption? = null,
+    ) : RecompensasCanjeUiState
     data object Error : RecompensasCanjeUiState
     data object SinConexion : RecompensasCanjeUiState
     data object SaldoInsuficiente : RecompensasCanjeUiState
@@ -48,30 +55,53 @@ class RecompensasCanjeViewModel(
         if (cargando) return
         viewModelScope.launch {
             cargando = true
-            when (val saldo = points.saldo(uid)) {
-                is Resultado.Exito -> if (saldo.valor < recompensa.costPoints) {
-                    feedbackChannel.trySend(CanjeFeedback.SaldoInsuficiente)
-                } else when (val result = points.redeem(uid, recompensa, redemptionId)) {
-                    is Resultado.Exito -> {
-                        _estado.value = RecompensasCanjeUiState.CanjeExitoso(result.valor)
-                        feedbackChannel.trySend(CanjeFeedback.Exitoso)
+            try {
+                when (val saldo = points.saldo(uid)) {
+                    is Resultado.Exito -> if (saldo.valor < recompensa.costPoints) {
+                        feedbackChannel.trySend(CanjeFeedback.SaldoInsuficiente)
+                    } else {
+                        val lista = _estado.value as? RecompensasCanjeUiState.Lista
+                        if (lista != null) {
+                            _estado.value = lista.copy(pendiente = PendingRedemption(
+                                redemptionId = redemptionId,
+                                rewardId = recompensa.id,
+                                name = recompensa.name,
+                                costPoints = recompensa.costPoints,
+                                code = if (recompensa.kind == TipoRecompensa.CUPON) codigoCupon(redemptionId) else null,
+                                pointsDebited = 0,
+                                lotDebits = emptyMap(),
+                                createdAt = java.time.Instant.now(),
+                            ))
+                        }
+                        when (val result = points.redeem(uid, recompensa, redemptionId)) {
+                            is Resultado.Exito -> {
+                                _estado.value = RecompensasCanjeUiState.CanjeExitoso(result.valor)
+                                feedbackChannel.trySend(CanjeFeedback.Exitoso)
+                            }
+                            is Resultado.Fallo -> {
+                                val pendingResult = points.pendingRedemption(uid)
+                                val currentList = _estado.value as? RecompensasCanjeUiState.Lista
+                                if (currentList != null && pendingResult is Resultado.Exito) {
+                                    _estado.value = currentList.copy(pendiente = pendingResult.valor)
+                                }
+                                feedbackChannel.trySend(when (result.error) {
+                                    ErrorApp.SinConexion -> CanjeFeedback.SinConexion
+                                    ErrorApp.SaldoInsuficiente -> CanjeFeedback.SaldoInsuficiente
+                                    ErrorApp.FirestoreNoAutorizado -> CanjeFeedback.FirestoreNoAutorizado
+                                    else -> CanjeFeedback.Error
+                                })
+                            }
+                        }
                     }
-                    is Resultado.Fallo -> feedbackChannel.trySend(
-                        when (result.error) {
-                            ErrorApp.SinConexion -> CanjeFeedback.SinConexion
-                            ErrorApp.SaldoInsuficiente -> CanjeFeedback.SaldoInsuficiente
-                            ErrorApp.FirestoreNoAutorizado -> CanjeFeedback.FirestoreNoAutorizado
-                            else -> CanjeFeedback.Error
-                        },
-                    )
+                    is Resultado.Fallo -> feedbackChannel.trySend(when (saldo.error) {
+                        ErrorApp.SinConexion -> CanjeFeedback.SinConexion
+                        ErrorApp.FirestoreNoAutorizado -> CanjeFeedback.FirestoreNoAutorizado
+                        else -> CanjeFeedback.Error
+                    })
                 }
-                is Resultado.Fallo -> feedbackChannel.trySend(when (saldo.error) {
-                    ErrorApp.SinConexion -> CanjeFeedback.SinConexion
-                    ErrorApp.FirestoreNoAutorizado -> CanjeFeedback.FirestoreNoAutorizado
-                    else -> CanjeFeedback.Error
-                })
+            } finally {
+                cargando = false
             }
-            cargando = false
         }
     }
 
@@ -84,11 +114,37 @@ class RecompensasCanjeViewModel(
             _estado.value = RecompensasCanjeUiState.Cargando
             val catalogo = catalog.recompensas()
             val canjeadas = points.recompensasCanjeadas(uid)
+            val pendiente = points.pendingRedemption(uid)
             _estado.value = when {
-                catalogo is Resultado.Exito && canjeadas is Resultado.Exito ->
-                    RecompensasCanjeUiState.Lista(catalogo.valor.sortedBy { it.order }, canjeadas.valor)
+                catalogo is Resultado.Exito && canjeadas is Resultado.Exito && pendiente is Resultado.Exito -> {
+                    val lista = RecompensasCanjeUiState.Lista(
+                        catalogo.valor.sortedBy { it.order },
+                        canjeadas.valor,
+                        pendiente.valor,
+                    )
+                    _estado.value = lista
+                    if (pendiente.valor != null) {
+                        when (val reanudado = points.resumePendingRedemption(uid)) {
+                            is Resultado.Exito -> reanudado.valor?.let {
+                                feedbackChannel.trySend(CanjeFeedback.Exitoso)
+                                RecompensasCanjeUiState.CanjeExitoso(it)
+                            } ?: lista.copy(pendiente = null)
+                            is Resultado.Fallo -> {
+                                feedbackChannel.trySend(if (reanudado.error == ErrorApp.SinConexion) {
+                                    CanjeFeedback.SinConexion
+                                } else {
+                                    CanjeFeedback.Error
+                                })
+                                lista
+                            }
+                        }
+                    } else {
+                        lista
+                    }
+                }
                 catalogo is Resultado.Fallo && catalogo.error == ErrorApp.SinConexion -> RecompensasCanjeUiState.SinConexion
                 canjeadas is Resultado.Fallo && canjeadas.error == ErrorApp.SinConexion -> RecompensasCanjeUiState.SinConexion
+                pendiente is Resultado.Fallo && pendiente.error == ErrorApp.SinConexion -> RecompensasCanjeUiState.SinConexion
                 else -> RecompensasCanjeUiState.Error
             }
         }

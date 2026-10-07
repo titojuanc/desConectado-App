@@ -27,6 +27,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.desconectado.app.R
 import com.desconectado.app.domain.model.Recompensa
+import com.desconectado.app.domain.model.PendingRedemption
 import com.desconectado.app.ui.components.PantallaCargando
 import com.desconectado.app.ui.components.PantallaError
 import com.desconectado.app.ui.components.PantallaSinConexion
@@ -39,6 +40,7 @@ fun RecompensasScreen(
     onReintentar: () -> Unit,
     onCanjear: ((Recompensa) -> Unit)? = null,
     feedbackEvents: Flow<CanjeFeedback>? = null,
+    canjePendiente: PendingRedemption? = null,
     modifier: Modifier = Modifier,
 ) {
     val snackbar = remember { SnackbarHostState() }
@@ -64,14 +66,24 @@ fun RecompensasScreen(
             RecompensasUiState.Cargando -> PantallaCargando(Modifier.fillMaxSize())
             RecompensasUiState.Error -> PantallaError(onReintentar, Modifier.fillMaxSize())
             RecompensasUiState.SinConexion -> PantallaSinConexion(onReintentar, Modifier.fillMaxSize())
-            is RecompensasUiState.Lista -> ListaRecompensas(estado.recompensas, onCanjear, Modifier.fillMaxSize())
+            is RecompensasUiState.Lista -> ListaRecompensas(
+                estado.recompensas,
+                onCanjear,
+                canjePendiente,
+                Modifier.fillMaxSize(),
+            )
         }
         SnackbarHost(hostState = snackbar, modifier = Modifier.align(Alignment.BottomCenter))
     }
 }
 
 @Composable
-private fun ListaRecompensas(recompensas: List<Recompensa>, onCanjear: ((Recompensa) -> Unit)?, modifier: Modifier = Modifier) {
+private fun ListaRecompensas(
+    recompensas: List<Recompensa>,
+    onCanjear: ((Recompensa) -> Unit)?,
+    canjePendiente: PendingRedemption?,
+    modifier: Modifier = Modifier,
+) {
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -87,12 +99,39 @@ private fun ListaRecompensas(recompensas: List<Recompensa>, onCanjear: ((Recompe
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        items(recompensas, key = { it.id }) { recompensa -> TarjetaRecompensa(recompensa, onCanjear) }
+        if (canjePendiente != null) {
+            item { CanjePendiente(canjePendiente) }
+        }
+        items(recompensas, key = { it.id }) { recompensa ->
+            TarjetaRecompensa(recompensa, onCanjear, canjePendiente != null)
+        }
     }
 }
 
 @Composable
-private fun TarjetaRecompensa(recompensa: Recompensa, onCanjear: ((Recompensa) -> Unit)?) {
+private fun CanjePendiente(pendiente: PendingRedemption) {
+    Card(modifier = Modifier.fillMaxWidth().testTag("canje_pendiente")) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(text = stringResource(R.string.canje_pendiente_titulo), style = MaterialTheme.typography.titleMedium)
+            Text(text = pendiente.name, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = stringResource(
+                    R.string.canje_pendiente_detalle,
+                    pendiente.pointsDebited,
+                    pendiente.costPoints,
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+    }
+}
+
+@Composable
+private fun TarjetaRecompensa(
+    recompensa: Recompensa,
+    onCanjear: ((Recompensa) -> Unit)?,
+    canjePendiente: Boolean,
+) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(text = recompensa.name, style = MaterialTheme.typography.titleMedium)
@@ -105,6 +144,7 @@ private fun TarjetaRecompensa(recompensa: Recompensa, onCanjear: ((Recompensa) -
             if (onCanjear != null) {
                 Button(
                     onClick = { onCanjear(recompensa) },
+                    enabled = !canjePendiente,
                     modifier = Modifier.testTag("boton_canjear_${recompensa.id}"),
                 ) {
                     Text(stringResource(R.string.canje_confirmar_accion))
