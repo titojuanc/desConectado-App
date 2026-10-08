@@ -13,9 +13,11 @@ import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.desconectado.app.domain.model.DesafioHecho
 import com.desconectado.app.domain.model.Perfil
+import com.desconectado.app.domain.model.UpcomingPointExpiry
 import com.desconectado.app.ui.profile.DesafiosHechosUiState
 import com.desconectado.app.ui.profile.PerfilScreen
 import com.desconectado.app.ui.profile.PerfilUiState
+import com.desconectado.app.ui.profile.ProximoVencimientoUiState
 import com.desconectado.app.ui.theme.DesConectadoTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -42,6 +44,7 @@ class PerfilScreenTest {
         onCerrarSesion: () -> Unit = {},
         desafios: DesafiosHechosUiState = DesafiosHechosUiState.Lista(emptyList()),
         onReintentarPuntos: () -> Unit = {},
+        proximo: ProximoVencimientoUiState = ProximoVencimientoUiState.SinVencimientos,
     ) = compose.setContent {
         DesConectadoTheme {
             PerfilScreen(
@@ -50,6 +53,7 @@ class PerfilScreenTest {
                 onCerrarSesion = onCerrarSesion,
                 desafiosHechos = desafios,
                 onReintentarPuntos = onReintentarPuntos,
+                proximoVencimiento = proximo,
             )
         }
     }
@@ -99,6 +103,18 @@ class PerfilScreenTest {
         mostrar(estado = PerfilUiState.Datos(perfil.copy(puntos = 1250)))
 
         compose.onNodeWithTag("puntos_perfil").assertIsDisplayed().assertTextEquals("1.250")
+    }
+
+    @Test
+    fun muestraPuntosYDiasDelProximoVencimientoDebajoDelSaldo() {
+        val vencimiento = UpcomingPointExpiry(35, Instant.parse("2026-11-04T07:00:00Z"), 29)
+        mostrar(proximo = ProximoVencimientoUiState.Proximo(vencimiento))
+
+        compose.onNodeWithTag("puntos_perfil").assertIsDisplayed()
+        compose.onNodeWithTag("proximo_vencimiento")
+            .assertIsDisplayed()
+            .assertTextEquals("35 puntos están por vencer en 29 días.")
+        assertTrue(arriba("proximo_vencimiento") > arriba("puntos_perfil") && arriba("proximo_vencimiento") < arriba("Historial de desafíos"))
     }
 
     @Test

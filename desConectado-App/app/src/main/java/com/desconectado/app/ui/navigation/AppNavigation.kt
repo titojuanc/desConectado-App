@@ -72,7 +72,7 @@ private fun ShellConSesion(container: AppContainer, conectividad: Conectividad) 
     val saldoViewModel: SaldoViewModel = viewModel(
         factory = viewModelFactory {
             initializer {
-                SaldoViewModel(container.authRepository, container.perfilRepository, container.connectivityMonitor)
+                SaldoViewModel(container.authRepository, container.pointsRepository, container.connectivityMonitor)
             }
         },
     )
@@ -102,6 +102,7 @@ private fun DesafiosRoute(container: AppContainer) {
             estado = estado,
             onReintentar = viewModel::reintentar,
             onIniciar = { desafioSeleccionado = it },
+            onCategoriaSeleccionada = viewModel::seleccionarCategoria,
         )
     } else {
         val activoViewModel: DesafioActivoViewModel = viewModel(
@@ -128,6 +129,8 @@ private fun DesafiosRoute(container: AppContainer) {
             onActualizar = activoViewModel::actualizar,
             onFinalizar = activoViewModel::finalizar,
             onCancelar = activoViewModel::cancelar,
+            onSeleccionarCalificacion = activoViewModel::seleccionarCalificacion,
+            onCalificar = activoViewModel::calificar,
             onVolverCatalogo = { desafioSeleccionado = null },
         )
         androidx.compose.runtime.LaunchedEffect(seleccionado) {
@@ -186,13 +189,16 @@ private fun PerfilRoute(container: AppContainer) {
     val estado by viewModel.estado.collectAsStateWithLifecycle()
     val desafiosHechos by viewModel.desafiosHechos.collectAsStateWithLifecycle()
     val canjes by viewModel.canjes.collectAsStateWithLifecycle()
+    val proximoVencimiento by viewModel.proximoVencimiento.collectAsStateWithLifecycle()
     PerfilScreen(
         estado = estado,
         desafiosHechos = desafiosHechos,
         canjes = canjes,
+        proximoVencimiento = proximoVencimiento,
         onReintentar = viewModel::reintentar,
         onReintentarPuntos = viewModel::reintentarHistorial,
         onReintentarCanjes = viewModel::reintentarCanjes,
+        onReintentarVencimiento = viewModel::reintentarVencimiento,
         onCerrarSesion = viewModel::cerrarSesion,
     )
 }

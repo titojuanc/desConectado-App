@@ -28,11 +28,11 @@ La meta semanal se configura en el registro y puede cambiarse después; no hay v
 
 ### Catálogos
 
-Agregar categorías y disponibilidad sin borrar documentos históricos. Mantener los puntos existentes para IDs previos, porque los movimientos y reglas consultan catálogos; pedir los puntos de desafíos nuevos antes de sembrarlos. Mantener separado `achievement` automático de `reward` comprable. No determinar cosméticos/costos todavía; se definen cuando se implemente esa función.
+Agregar las 28 propuestas en cuatro categorías con Todos como vista inicial. Puntos confirmados: `10 × duraciónMinutos / 30 × multiplicadorDificultad`, multiplicadores fácil `1`, normal `1.25`, difícil `1.5`; redondear al múltiplo de 5 más cercano con empate hacia arriba. Se aplica también a los seis desafíos actuales; preservar tres IDs coincidentes y archivar los retirados sin borrarlos. Mantener separado `achievement` automático de `reward` comprable. No determinar cosméticos/costos todavía; se definen cuando se implemente esa función.
 
 ### Feedback y preferencias
 
-Una valoración por resultado exitoso, con estrellas de 1 a 5. La propuesta menciona etiquetas, pero no las enumera; pedir su definición al comenzar la función. No inferir si se puede posponer o editar. Actualizar únicamente el recurso de valoración, no reabrir el resultado financiero/inmutable.
+Una valoración inmutable por resultado exitoso, con estrellas de 1 a 5, obligatoria antes de volver al catálogo y sin etiquetas. Guardar rating en un recurso separado; no reabrir el resultado financiero/inmutable.
 
 Preferencias cosméticas y meta se sincronizan en Firestore; permisos del sistema siguen bajo control Android. La meta se recoge durante el registro y es editable luego. Usar avatar de catálogo/iniciales, sin fotos.
 
@@ -47,4 +47,4 @@ El catálogo y los costos se definirán cuando comience la implementación de co
 3. Los estados de semana/racha dependen de zona horaria y cambio de fecha; preguntar la política antes de implementarla y mantenerla coherente en perfil, logros y pruebas.
 4. Antes de escribir reglas, validar la operación concurrente canje-vencimiento y el límite de accesos a documentos de Firestore Rules.
 5. Reinicio solicitado para el lanzamiento: conservar documentos `users/{uid}` y Auth; restablecer `pointsBalance`, eliminar movimientos/canjes/resultados de desafíos y borrar desafíos activos sin registrar resultado. Preparar script Admin con dry-run, chunks y guardia de proyecto; no ejecutarlo durante desarrollo. Firebase Admin bypassa Rules, por eso el script debe exigir project ID y modo explícito.
-6. Firestore Rules no puede iterar/sumar una cantidad arbitraria de lotes dentro de una transacción. Decisión confirmada: permitir canjes por etapas, cada débito por lote se valida individualmente; un pending por cuenta bloquea otros débitos/expiraciones y se reanuda al volver a la tienda. El usuario acepta que el balance cambie gradualmente y que el pending se muestre solo en la tienda.
+6. Firestore Rules no puede iterar/sumar una cantidad arbitraria de lotes dentro de una transacción ni probar que el cliente no omitió un lote más antiguo. Decisión confirmada: Android selecciona FIFO; Rules valida saldo de cada lote, delta de balance, idempotencia y pending. Un pending por cuenta bloquea otros débitos/expiraciones y se reanuda al volver a la tienda. El usuario acepta esta confianza en el cliente y que el pending se muestre solo en la tienda.

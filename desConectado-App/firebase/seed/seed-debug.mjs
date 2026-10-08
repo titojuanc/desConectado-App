@@ -21,6 +21,8 @@ const desafio = {
   difficulty: 'easy',
   points: 1,
   order: 0,
+  category: 'move',
+  active: false,
 };
 const recompensa = {
   name: 'Cupón de prueba (1 punto)',

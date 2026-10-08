@@ -5,6 +5,7 @@ import com.desconectado.app.domain.model.ChallengeResult
 import com.desconectado.app.domain.model.Recompensa
 import com.desconectado.app.domain.model.RedeemedReward
 import com.desconectado.app.domain.model.PendingRedemption
+import com.desconectado.app.domain.model.UpcomingPointExpiry
 import com.desconectado.app.domain.model.Resultado
 
 /**
@@ -23,6 +24,9 @@ interface PointsRepository {
         Resultado.Fallo(com.desconectado.app.domain.model.ErrorApp.Desconocido)
 
     suspend fun saldo(uid: String): Resultado<Int> =
+        Resultado.Fallo(com.desconectado.app.domain.model.ErrorApp.Desconocido)
+
+    suspend fun proximoVencimiento(uid: String): Resultado<UpcomingPointExpiry?> =
         Resultado.Fallo(com.desconectado.app.domain.model.ErrorApp.Desconocido)
 
     suspend fun recompensasCanjeadas(uid: String): Resultado<List<RedeemedReward>> =

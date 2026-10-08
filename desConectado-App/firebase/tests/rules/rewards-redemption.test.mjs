@@ -27,14 +27,14 @@ describe('reglas de canje de recompensas', () => {
     });
   }
 
-  it('acepta el canje atómico del cupón debug y descuenta un punto', async () => {
+  it('rechaza el canje atómico legacy sin lote y pending', async () => {
     await seed(1, 1);
     const db = ana();
     const user = doc(db, `users/${UID}`);
     const redemption = doc(db, `users/${UID}/redeemedRewards/${redemptionId}`);
     const movement = doc(db, `users/${UID}/movements/redeem-${redemptionId}`);
 
-    await assertSucceeds(runTransaction(db, async (transaction) => {
+    await assertFails(runTransaction(db, async (transaction) => {
       const snapshot = await transaction.get(user);
       const balance = snapshot.data().pointsBalance;
       transaction.set(redemption, {

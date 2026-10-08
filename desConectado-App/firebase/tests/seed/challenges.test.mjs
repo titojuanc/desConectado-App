@@ -9,30 +9,29 @@ const aqui = dirname(fileURLToPath(import.meta.url));
 const catalogo = JSON.parse(readFileSync(resolve(aqui, '../../seed/catalog.json'), 'utf8'));
 const desafios = catalogo.challenges;
 
-// FR-013 a FR-016: catálogo de 6 desafíos con nombres de actividades, que se cumplen sin usar redes.
+const CATEGORIAS = ['move', 'focus', 'social', 'rest'];
+const puntosEsperados = ({ durationMinutes, difficulty }) => {
+  const multiplicador = { easy: 1, normal: 1.25, hard: 1.5 }[difficulty];
+  return Math.floor((10 * durationMinutes / 30 * multiplicador) / 5 + 0.5) * 5;
+};
+
+// El catálogo funcional incluye las 28 propuestas, siete por categoría.
 describe('catálogo de desafíos sembrado (catalog.json)', () => {
   it('cumple todas las invariantes del validador', () => {
     assert.deepEqual(validarDesafios(desafios), []);
   });
 
-  it('tiene exactamente 6 desafíos, 2 por cada dificultad', () => {
-    assert.equal(desafios.length, 6);
-    for (const dificultad of DIFICULTADES) {
-      const cantidad = desafios.filter((d) => d.difficulty === dificultad).length;
-      assert.equal(cantidad, 2, `${dificultad} tiene ${cantidad} desafíos`);
+  it('tiene exactamente 28 desafíos, 7 por cada categoría', () => {
+    assert.equal(desafios.length, 28);
+    for (const categoria of CATEGORIAS) {
+      const cantidad = desafios.filter((d) => d.category === categoria).length;
+      assert.equal(cantidad, 7, `${categoria} tiene ${cantidad} desafíos`);
     }
   });
 
-  it('un desafío de mayor dificultad dura más y otorga más puntos que cualquiera de menor dificultad', () => {
-    for (let i = 0; i < DIFICULTADES.length - 1; i++) {
-      const menores = desafios.filter((d) => d.difficulty === DIFICULTADES[i]);
-      const mayores = desafios.filter((d) => d.difficulty === DIFICULTADES[i + 1]);
-      const maxDuracion = Math.max(...menores.map((d) => d.durationMinutes));
-      const maxPuntos = Math.max(...menores.map((d) => d.points));
-      for (const d of mayores) {
-        assert.ok(d.durationMinutes > maxDuracion, `${d.id}: duración no supera a ${DIFICULTADES[i]}`);
-        assert.ok(d.points > maxPuntos, `${d.id}: puntos no superan a ${DIFICULTADES[i]}`);
-      }
+  it('calcula puntos por duración y dificultad con redondeo al múltiplo de 5, empate arriba', () => {
+    for (const desafio of desafios) {
+      assert.equal(desafio.points, puntosEsperados(desafio), `${desafio.id}: points`);
     }
   });
 
@@ -45,33 +44,22 @@ describe('catálogo de desafíos sembrado (catalog.json)', () => {
     assert.equal(new Set(titulos).size, titulos.length, 'hay títulos repetidos');
   });
 
-  it('cada descripción deja claro que la condición es no usar redes', () => {
+  it('cada desafío tiene categoría, descripción, duración, dificultad y puntos válidos', () => {
     for (const d of desafios) {
-      assert.match(d.description, /redes/i, `${d.id}: la descripción no menciona las redes`);
-    }
-  });
-
-  it('cada desafío tiene descripción no vacía, duración y puntos enteros mayores que 0', () => {
-    for (const d of desafios) {
+      assert.ok(CATEGORIAS.includes(d.category), `${d.id}: category`);
       assert.ok(typeof d.description === 'string' && d.description.trim().length > 0, `${d.id}: descripción`);
       assert.ok(Number.isInteger(d.durationMinutes) && d.durationMinutes > 0, `${d.id}: durationMinutes`);
       assert.ok(Number.isInteger(d.points) && d.points > 0, `${d.id}: points`);
       assert.ok(DIFICULTADES.includes(d.difficulty), `${d.id}: difficulty`);
+      assert.equal(typeof d.active, 'boolean', `${d.id}: active`);
     }
   });
 
-  it('contiene los 6 valores iniciales del spec', () => {
-    const resumen = [...desafios]
-      .sort((a, b) => a.order - b.order)
-      .map((d) => [d.durationMinutes, d.difficulty, d.points]);
-    assert.deepEqual(resumen, [
-      [30, 'easy', 10],
-      [60, 'easy', 20],
-      [120, 'normal', 50],
-      [240, 'normal', 100],
-      [480, 'hard', 200],
-      [720, 'hard', 320],
-    ]);
+  it('preserva los IDs de las tres propuestas existentes exactas', () => {
+    const porId = new Map(desafios.map((d) => [d.id, d]));
+    assert.equal(porId.get('facil-30-minutos')?.title, 'Salir a caminar');
+    assert.equal(porId.get('facil-1-hora')?.title, 'Andar en bici');
+    assert.equal(porId.get('normal-4-horas')?.title, 'Juntarse con amigos');
   });
 });
 
@@ -86,18 +74,10 @@ describe('formatearDuracion', () => {
 
 // El validador debe detectar de verdad los datos inválidos (si no, las pruebas de arriba no valdrían).
 // Catálogo válido de 6 desafíos; si se pasan más o menos títulos, cambia la cantidad (los extra son 'hard').
-const catalogoDe = (titulos) => {
-  const plantilla = [
-    [30, 'easy', 10], [60, 'easy', 20], [120, 'normal', 50], [240, 'normal', 100], [480, 'hard', 200], [720, 'hard', 320],
-  ];
-  return titulos.map((title, i) => {
-    const [durationMinutes, difficulty, points] = plantilla[Math.min(i, plantilla.length - 1)];
-    return {
-      id: `d${i}`, title, description: 'Sin redes.', durationMinutes: durationMinutes + Math.max(0, i - 5), difficulty,
-      points: points + Math.max(0, i - 5), order: i + 1,
-    };
-  });
-};
+const catalogoDe = (titulos) => titulos.map((title, i) => ({
+  id: `d${i}`, title, description: 'Descripción de prueba.', durationMinutes: 30,
+  difficulty: 'easy', points: 10, category: CATEGORIAS[i % CATEGORIAS.length], active: true, order: i + 1,
+}));
 
 describe('validarDesafios detecta datos inválidos', () => {
   const base = (extra = {}) => ({
@@ -111,20 +91,10 @@ describe('validarDesafios detecta datos inválidos', () => {
     ...extra,
   });
 
-  it('rechaza un catálogo con menos de 2 desafíos por dificultad', () => {
-    assert.ok(validarDesafios([base()]).length > 0);
-  });
-
-  it('rechaza una dificultad mayor que no dura más o no da más puntos', () => {
-    const datos = [
-      base({ id: 'a', order: 1 }),
-      base({ id: 'b', order: 2, durationMinutes: 60, title: 'Andar en bici', points: 20 }),
-      base({ id: 'c', order: 3, difficulty: 'normal', durationMinutes: 45, title: 'Salir a trotar', points: 50 }),
-      base({ id: 'd', order: 4, difficulty: 'normal', durationMinutes: 120, title: 'Juntarse con amigos', points: 60 }),
-      base({ id: 'e', order: 5, difficulty: 'hard', durationMinutes: 480, title: 'Excursión al aire libre', points: 200 }),
-      base({ id: 'f', order: 6, difficulty: 'hard', durationMinutes: 720, title: 'Escapada a la naturaleza', points: 320 }),
-    ];
-    assert.ok(validarDesafios(datos).some((e) => e.includes('normal')));
+  it('rechaza una distribución que no tenga 7 desafíos en una categoría', () => {
+    const datos = catalogoDe(Array.from({ length: 28 }, (_, i) => `D${i}`));
+    datos[27].category = 'move';
+    assert.ok(validarDesafios(datos).some((e) => e.includes('categoría')));
   });
 
   it('rechaza campos inválidos', () => {
@@ -135,14 +105,21 @@ describe('validarDesafios detecta datos inválidos', () => {
     assert.ok(validarDesafios([base({ title: '  ' })]).length > 0);
   });
 
-  it('rechaza el formato anterior de título, títulos repetidos y descripciones sin mención a las redes', () => {
+  it('rechaza el formato anterior de título y títulos repetidos', () => {
     assert.ok(validarDesafios([base({ title: 'No uses redes sociales por 30 minutos' })]).some((e) => e.includes('title')));
     assert.ok(validarDesafios(catalogoDe(['Salir a caminar', 'Salir a caminar'])).some((e) => e.includes('repetido')));
-    assert.ok(validarDesafios([base({ description: 'Salí a caminar un rato.' })]).some((e) => e.includes('redes')));
   });
 
-  it('rechaza un catálogo que no tiene exactamente 6 desafíos y 2 por dificultad', () => {
-    assert.ok(validarDesafios(catalogoDe(['A', 'B', 'C', 'D', 'E', 'F', 'G'])).some((e) => e.includes('6')));
-    assert.ok(validarDesafios(catalogoDe(['A', 'B', 'C', 'D', 'E', 'F']).slice(0, 5)).length > 0);
+  it('rechaza cantidad o distribución por categoría incorrectas', () => {
+    assert.ok(validarDesafios(catalogoDe(Array.from({ length: 27 }, (_, i) => `D${i}`))).some((e) => e.includes('28')));
+    const malDistribuido = catalogoDe(Array.from({ length: 28 }, (_, i) => `D${i}`));
+    malDistribuido[27].category = 'move';
+    assert.ok(validarDesafios(malDistribuido).some((e) => e.includes('categoría')));
+  });
+
+  it('rechaza puntos que no coinciden con la fórmula acordada', () => {
+    const datos = catalogoDe(Array.from({ length: 28 }, (_, i) => `D${i}`));
+    datos[0].points = 15;
+    assert.ok(validarDesafios(datos).some((e) => e.includes('points')));
   });
 });

@@ -2,6 +2,11 @@
 <resources>
     <string name="desafios_titulo">Desafíos</string>
     <string name="desafios_duracion">Duración: %1$s</string>
+    <string name="desafios_categoria_todos">Todos</string>
+    <string name="desafios_categoria_moverme">Moverme</string>
+    <string name="desafios_categoria_enfocarme">Enfocarme</string>
+    <string name="desafios_categoria_socializar">Socializar</string>
+    <string name="desafios_categoria_descansar">Descansar</string>
 
     <plurals name="puntos">
         <item quantity="one">%d punto</item>

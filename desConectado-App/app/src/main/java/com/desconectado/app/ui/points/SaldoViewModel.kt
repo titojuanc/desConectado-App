@@ -8,7 +8,7 @@ import com.desconectado.app.domain.model.EstadoSesion
 import com.desconectado.app.domain.model.Resultado
 import com.desconectado.app.domain.repository.AuthRepository
 import com.desconectado.app.domain.repository.ConnectivityMonitor
-import com.desconectado.app.domain.repository.ProfileRepository
+import com.desconectado.app.domain.repository.PointsRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,7 +39,7 @@ sealed interface SaldoUiState {
  */
 class SaldoViewModel(
     private val auth: AuthRepository,
-    private val perfiles: ProfileRepository,
+    private val puntos: PointsRepository,
     conectividad: ConnectivityMonitor,
     private val reintentoMs: Long = 2_000,
 ) : ViewModel() {
@@ -88,9 +88,9 @@ class SaldoViewModel(
         carga = viewModelScope.launch {
             var reintentos = 0
             while (true) {
-                when (val resultado = perfiles.perfil(uidActual)) {
+                when (val resultado = puntos.saldo(uidActual)) {
                     is Resultado.Exito -> {
-                        _estado.value = SaldoUiState.Disponible(resultado.valor.puntos)
+                        _estado.value = SaldoUiState.Disponible(resultado.valor)
                         return@launch
                     }
                     is Resultado.Fallo -> {

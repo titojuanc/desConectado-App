@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.desconectado.app.domain.model.Conectividad
 import com.desconectado.app.domain.model.Desafio
+import com.desconectado.app.domain.model.CategoriaDesafio
 import com.desconectado.app.domain.model.ErrorApp
 import com.desconectado.app.domain.model.Resultado
 import com.desconectado.app.domain.repository.CatalogRepository
@@ -16,7 +17,10 @@ import kotlinx.coroutines.launch
 
 sealed interface DesafiosUiState {
     data object Cargando : DesafiosUiState
-    data class Lista(val desafios: List<Desafio>) : DesafiosUiState
+    data class Lista(
+        val desafios: List<Desafio>,
+        val categoriaSeleccionada: CategoriaDesafio? = null,
+    ) : DesafiosUiState
     data object Error : DesafiosUiState
     data object SinConexion : DesafiosUiState
 }
@@ -31,6 +35,15 @@ class DesafiosViewModel(
 
     private var conectado = true
     private var carga: Job? = null
+    private var catalogoCompleto: List<Desafio> = emptyList()
+
+    fun seleccionarCategoria(categoria: CategoriaDesafio?) {
+        val lista = _estado.value as? DesafiosUiState.Lista ?: return
+        _estado.value = lista.copy(
+            desafios = filtrar(catalogoCompleto, categoria),
+            categoriaSeleccionada = categoria,
+        )
+    }
 
     init {
         viewModelScope.launch {
@@ -54,10 +67,16 @@ class DesafiosViewModel(
         _estado.value = DesafiosUiState.Cargando
         carga = viewModelScope.launch {
             _estado.value = when (val resultado = catalogo.desafios()) {
-                is Resultado.Exito -> DesafiosUiState.Lista(resultado.valor.sortedBy { it.order })
+                is Resultado.Exito -> {
+                    catalogoCompleto = resultado.valor.filter { it.active }.sortedBy { it.order }
+                    DesafiosUiState.Lista(catalogoCompleto)
+                }
                 is Resultado.Fallo ->
                     if (resultado.error == ErrorApp.SinConexion) DesafiosUiState.SinConexion else DesafiosUiState.Error
             }
         }
     }
+
+    private fun filtrar(desafios: List<Desafio>, categoria: CategoriaDesafio?): List<Desafio> =
+        desafios.filter { categoria == null || it.category == categoria }
 }

@@ -43,6 +43,8 @@ fun PerfilScreen(
     onReintentarPuntos: () -> Unit = {},
     canjes: CanjesPerfilUiState = CanjesPerfilUiState.Lista(emptyList()),
     onReintentarCanjes: () -> Unit = {},
+    proximoVencimiento: ProximoVencimientoUiState = ProximoVencimientoUiState.SinVencimientos,
+    onReintentarVencimiento: () -> Unit = {},
 ) {
     Column(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.weight(1f)) {
@@ -56,6 +58,8 @@ fun PerfilScreen(
                     onReintentarPuntos,
                     canjes,
                     onReintentarCanjes,
+                    proximoVencimiento,
+                    onReintentarVencimiento,
                 )
             }
         }
@@ -78,6 +82,8 @@ private fun DatosPerfil(
     onReintentarPuntos: () -> Unit,
     canjes: CanjesPerfilUiState,
     onReintentarCanjes: () -> Unit,
+    proximoVencimiento: ProximoVencimientoUiState,
+    onReintentarVencimiento: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -102,8 +108,40 @@ private fun DatosPerfil(
             valor = formatearPuntos(perfil.puntos),
             etiquetaPrueba = "puntos_perfil",
         )
+        ProximoVencimiento(proximoVencimiento, onReintentarVencimiento)
         DesafiosHechos(desafiosHechos, onReintentarPuntos)
         CanjesRealizados(canjes, onReintentarCanjes)
+    }
+}
+
+@Composable
+private fun ProximoVencimiento(estado: ProximoVencimientoUiState, onReintentar: () -> Unit) {
+    when (estado) {
+        ProximoVencimientoUiState.Cargando -> CircularProgressIndicator(modifier = Modifier.testTag("cargando_vencimiento"))
+        is ProximoVencimientoUiState.Proximo -> Text(
+            text = stringResource(
+                R.string.perfil_proximo_vencimiento,
+                formatearPuntos(estado.vencimiento.points),
+                estado.vencimiento.daysRemaining,
+            ),
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.testTag("proximo_vencimiento"),
+        )
+        ProximoVencimientoUiState.SinVencimientos -> Text(
+            text = stringResource(R.string.perfil_sin_puntos_por_vencer),
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.testTag("sin_puntos_por_vencer"),
+        )
+        ProximoVencimientoUiState.Error -> ErrorPuntos(
+            stringResource(R.string.perfil_error_vencimiento),
+            onReintentar,
+            "boton_reintentar_vencimiento",
+        )
+        ProximoVencimientoUiState.SinConexion -> ErrorPuntos(
+            stringResource(R.string.estado_sin_conexion),
+            onReintentar,
+            "boton_reintentar_vencimiento",
+        )
     }
 }
 

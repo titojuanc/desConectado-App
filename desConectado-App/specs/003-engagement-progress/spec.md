@@ -15,15 +15,15 @@ Las referencias de alcance son `documentos de referencia/Desafios_desconectado.d
 
 ### User Story 1 - Calificar un desafío (Priority: P1)
 
-Después de completar un desafío, la persona puede valorar la experiencia para que quede asociada al resultado y pueda consultarla luego.
+Después de completar un desafío, la persona debe calificar la experiencia con estrellas de 1 a 5 antes de volver al catálogo. La calificación queda asociada al resultado y no se puede editar.
 
 **Why this priority**: La calificación figura en la tercera entrega y el flujo de feedback está descrito en la propuesta funcional.
-**Independent Test**: Completar un desafío, registrar una valoración, reabrir el historial y verificar la misma valoración; cancelar o fallar un desafío no debe solicitarla.
+**Independent Test**: Completar un desafío, enviar estrellas y verificar la valoración asociada al resultado; cancelar o fallar un desafío no debe solicitarla.
 
 **Acceptance Scenarios**:
-1. **Given** un desafío completado sin calificación, **When** la persona envía una valoración de 1 a 5 estrellas y etiquetas elegidas, **Then** queda guardada una sola valoración para ese resultado.
+1. **Given** un desafío completado sin calificación, **When** la persona envía una valoración de 1 a 5 estrellas, **Then** queda guardada una sola valoración para ese resultado y se habilita volver al catálogo.
 2. **Given** un desafío cancelado, fallido o invalidado, **When** termina, **Then** no se solicita una valoración post-desafío.
-3. **Given** una valoración ya guardada, **When** se reintenta el envío, **Then** no se duplica ni se altera sin una acción explícita de edición.
+3. **Given** una valoración ya guardada, **When** se reintenta el envío, **Then** no se duplica ni se modifica.
 
 ### User Story 2 - Consultar historiales completos (Priority: P1)
 
@@ -114,13 +114,13 @@ La persona edita los datos de perfil permitidos, consulta privacidad y configura
 
 ### Functional Requirements
 
-- **FR-001**: La app MUST permitir valorar de 1 a 5 cada desafío completado y asociar etiquetas de feedback configuradas; el resultado solo admite una valoración activa.
+- **FR-001**: La app MUST exigir una puntuación inmutable de 1 a 5 estrellas para cada desafío completado antes de volver al catálogo; no incluye etiquetas de feedback. Cada resultado solo admite una valoración.
 - **FR-002**: La app MUST conservar los resultados de todos los estados del desafío y permitir consultar el historial completo ordenado por fecha descendente.
 - **FR-003**: La app MUST mostrar el historial completo de canjes, incluyendo recompensa, costo, fecha y código cuando corresponda.
 - **FR-004**: La app MUST agrupar los puntos ganados durante una sesión diaria en un lote que vence a la medianoche local del día 30 posterior a la fecha local de finalización; conservará la zona del lote al crearlo, consumirá puntos en orden FIFO y restará cada consumo del remanente de su lote.
-- **FR-005**: La app MUST informar saldo disponible y puntos con vencimiento próximo usando una política visible y consistente.
-- **FR-006**: La app MUST asignar cada desafío a una de cuatro categorías: Moverme, Enfocarme, Socializar o Descansar, además de permitir la vista Todos.
-- **FR-007**: El catálogo MUST incluir las 28 propuestas de `Desafios_desconectado.docx`, conservando categorías, títulos, descripciones, duraciones y dificultades; puntos y orden deben configurarse en el catálogo, no inferirse del diseño.
+- **FR-005**: La app MUST mostrar bajo el saldo del perfil los puntos que vencen en el siguiente vencimiento; agrupar lotes con el mismo `expiresAt` y calcular los días calendario en la zona horaria capturada por el lote.
+- **FR-006**: La app MUST asignar cada desafío a una de cuatro categorías: Moverme, Enfocarme, Socializar o Descansar, además de permitir la vista Todos; Todos MUST ser el filtro inicial al abrir el catálogo.
+- **FR-007**: El catálogo MUST incluir las 28 propuestas de `Desafios_desconectado.docx`, conservando categorías, títulos, descripciones, duraciones y dificultades. Los puntos MUST calcularse como `10 × duraciónMinutos / 30 × multiplicadorDificultad`, usando fácil `1`, normal `1.25` y difícil `1.5`, redondeando al múltiplo de 5 más cercano y los empates hacia arriba. La fórmula se aplica también a los seis desafíos actuales.
 - **FR-008**: La app MUST derivar tiempo desconectado, cantidad de desafíos completados, racha y avance semanal únicamente de resultados completados válidos.
 - **FR-009**: La app MUST conceder logros automáticamente, de forma idempotente, para: Primer paso; En marcha (5 desafíos); Modo presente (5 horas); Sin apuro (un desafío de 3 horas o más); Aire libre, Foco total, Más cerca y Tiempo para mí (5 desafíos de cada categoría); Explorador (al menos uno por categoría); 100 horas presentes.
 - **FR-010**: La app MUST mostrar progreso parcial de los logros cuantificables y distinguir desbloqueados de pendientes.
@@ -160,11 +160,15 @@ La persona edita los datos de perfil permitidos, consulta privacidad y configura
 - **Confirmado**: no se implementa una cola offline para cierres; el resultado se guarda cuando hay conexión. El día/zona de finalización se captura en ese cierre.
 - **Confirmado**: los canjes que requieren varias deducciones pueden quedar en estado pendiente entre transacciones; un solo canje pendiente por cuenta bloquea otros canjes y vencimientos, se reanuda al volver a la tienda y solo se muestra como completado después de registrar la recompensa. El estado pendiente se informa en la tienda, no en el historial del perfil.
 - **Confirmado**: se procesa el vencimiento al volver a usar la app (al abrir/consultar/canjear); no se requiere expiración en segundo plano. No usar Firestore TTL ni Cloud Functions.
+- **Confirmado**: el perfil muestra siempre el próximo vencimiento debajo del saldo, como “X puntos están por vencer en Y días”; agrupar lotes que vencen en el mismo instante y calcular Y con días calendario de la zona original del lote.
 - **Confirmado**: en el reinicio de lanzamiento se conserva cuentas/perfiles, pero se borran saldos acumulados, movimientos, canjes e historiales de desafíos de todas las cuentas productivas; las sesiones activas se cancelan y eliminan sin dejar resultado. El reinicio se prepara con dry-run y no se ejecuta durante el desarrollo.
 - **Confirmado**: la meta semanal se configura durante el registro y puede ajustarse desde la app. No definir un valor predeterminado ni un rango hasta preguntarlo.
 - **Confirmado**: la racha se pierde cuando no se cumple; no se acumulan ni compensan días incumplidos. El criterio exacto de día cumplido y el huso horario se preguntarán antes de implementar esa función.
 - **Confirmado**: no se usarán productos Firebase que requieran pasar a un plan pago; no planificar Cloud Functions pagas. La estrategia de ejecución del vencimiento debe verificarse dentro del nivel gratuito y no puede confiar el cálculo del saldo al cliente.
-- **Pendiente para la función de rating**: la propuesta V1 define estrellas de 1 a 5 y menciona etiquetas, pero no enumera cuáles. No inventarlas; pedirlas cuando se implemente el rating.
+- **Confirmado**: el rating usa solo estrellas de 1 a 5, es obligatorio al completar, no ofrece etiquetas y no puede editarse.
+- **Confirmado**: asignación de puntos para las 28 propuestas y los seis desafíos actuales: `10 × duraciónMinutos / 30 × multiplicadorDificultad`; multiplicadores fácil `1`, normal `1.25`, difícil `1.5`; redondeo al múltiplo de 5 más cercano, empates hacia arriba.
+- **Confirmado**: el catálogo final tiene las 28 propuestas; preservar los tres IDs actuales de caminar 30 min, bici 1 h y juntarse con amigos 4 h. Los desafíos retirados se archivan y no aparecen en el catálogo activo.
+- **Confirmado**: al abrir el catálogo se muestra Todos; seleccionar una categoría solo filtra durante la sesión actual.
 - **Pendiente para la función de cosméticos**: no fijar catálogo ni costos ahora. El usuario los proporcionará al comenzar esa función; la carga en base de datos será parte de ese paso.
 - Para el avatar se usarán opciones integradas o iniciales, no captura ni selección de fotos, mientras siga vigente la restricción de cámara/fotografías.
 - La apariencia puede aplicar paletas, fondos, íconos y marcos. No se infiere que temas cambien la lógica de desafíos o concedan puntos.

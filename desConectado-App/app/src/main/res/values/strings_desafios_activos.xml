@@ -26,4 +26,9 @@
     <string name="desafio_error_firestore_permiso">Firebase rechazó el acceso a los datos. Revisá la sesión y las reglas de Firestore.</string>
     <string name="desafio_error_dato">No encontramos el desafío en el catálogo de Firebase.</string>
     <string name="desafio_requiere_conexion">Necesitás conexión para sincronizar el desafío.</string>
+    <string name="desafio_rating_titulo">Calificá este desafío</string>
+    <string name="desafio_rating_estrella_desc">%1$d estrellas</string>
+    <string name="desafio_rating_guardar">Guardar calificación</string>
+    <string name="desafio_rating_guardada">Calificación guardada: %1$d estrellas.</string>
+    <string name="desafio_rating_error">No pudimos guardar la calificación. Probá de nuevo.</string>
 </resources>

@@ -13,7 +13,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -27,6 +29,7 @@ import com.desconectado.app.R
 import com.desconectado.app.domain.etiquetaDificultad
 import com.desconectado.app.domain.formatearDuracion
 import com.desconectado.app.domain.model.Desafio
+import com.desconectado.app.domain.model.CategoriaDesafio
 import com.desconectado.app.domain.model.Dificultad
 import com.desconectado.app.ui.components.PantallaCargando
 import com.desconectado.app.ui.components.PantallaError
@@ -41,26 +44,57 @@ fun DesafiosScreen(
     estado: DesafiosUiState,
     onReintentar: () -> Unit,
     onIniciar: ((Desafio) -> Unit)? = null,
+    onCategoriaSeleccionada: (CategoriaDesafio?) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     when (estado) {
         DesafiosUiState.Cargando -> PantallaCargando(modifier)
         DesafiosUiState.Error -> PantallaError(onReintentar, modifier)
         DesafiosUiState.SinConexion -> PantallaSinConexion(onReintentar, modifier)
-        is DesafiosUiState.Lista -> ListaDesafios(estado.desafios, onIniciar, modifier)
+        is DesafiosUiState.Lista -> ListaDesafios(estado, onIniciar, onCategoriaSeleccionada, modifier)
     }
 }
 
 @Composable
-private fun ListaDesafios(desafios: List<Desafio>, onIniciar: ((Desafio) -> Unit)?, modifier: Modifier = Modifier) {
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .testTag("lista_desafios"),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        items(desafios, key = { it.id }) { desafio -> TarjetaDesafio(desafio, onIniciar) }
+private fun ListaDesafios(
+    estado: DesafiosUiState.Lista,
+    onIniciar: ((Desafio) -> Unit)?,
+    onCategoriaSeleccionada: (CategoriaDesafio?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val categorias = listOf(null) + CategoriaDesafio.entries
+    val etiquetas = listOf(
+        R.string.desafios_categoria_todos,
+        R.string.desafios_categoria_moverme,
+        R.string.desafios_categoria_enfocarme,
+        R.string.desafios_categoria_socializar,
+        R.string.desafios_categoria_descansar,
+    )
+    Column(modifier = modifier.fillMaxSize()) {
+        ScrollableTabRow(
+            selectedTabIndex = categorias.indexOf(estado.categoriaSeleccionada),
+            edgePadding = 8.dp,
+        ) {
+            categorias.forEachIndexed { index, categoria ->
+                val testTag = categoria?.let { "filtro_${it.valorAlmacen}" } ?: "filtro_todos"
+                Tab(
+                    selected = estado.categoriaSeleccionada == categoria,
+                    onClick = { onCategoriaSeleccionada(categoria) },
+                    modifier = Modifier.testTag(testTag),
+                    text = { Text(stringResource(etiquetas[index])) },
+                )
+            }
+        }
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .testTag("lista_desafios"),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            items(estado.desafios, key = { it.id }) { desafio -> TarjetaDesafio(desafio, onIniciar) }
+        }
     }
 }
 

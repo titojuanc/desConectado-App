@@ -16,6 +16,9 @@
     <string name="perfil_resultado_cancelado">Cancelado</string>
     <string name="perfil_resultado_invalidado">Invalidado</string>
     <string name="perfil_historial_puntos">%1$s puntos</string>
+    <string name="perfil_proximo_vencimiento">%1$s puntos están por vencer en %2$d días.</string>
+    <string name="perfil_sin_puntos_por_vencer">No tenés puntos por vencer.</string>
+    <string name="perfil_error_vencimiento">No pudimos consultar el próximo vencimiento. Probá de nuevo.</string>
     <string name="perfil_canjes_titulo">Historial de canjes</string>
     <string name="perfil_sin_canjes">Todavía no canjeaste recompensas.</string>
     <string name="perfil_error_canjes">No pudimos cargar tus canjes. Probá de nuevo.</string>

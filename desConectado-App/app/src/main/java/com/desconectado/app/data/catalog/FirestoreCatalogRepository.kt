@@ -23,7 +23,7 @@ class FirestoreCatalogRepository(private val firestore: FirebaseFirestore) : Cat
     override suspend fun desafios(): Resultado<List<Desafio>> = try {
         val consulta = firestore.collection("challenges").orderBy("order", Query.Direction.ASCENDING)
         val documentos = consulta.get(Source.SERVER).await().documents
-        Resultado.Exito(documentos.mapNotNull { it.aDesafio() })
+        Resultado.Exito(documentos.mapNotNull { it.aDesafio() }.filter { it.active })
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
@@ -63,6 +63,9 @@ class FirestoreCatalogRepository(private val firestore: FirebaseFirestore) : Cat
         val duracion = getLong("durationMinutes")?.toInt() ?: return null
         val duracionSegundos = getLong("durationSeconds")?.toInt()
         val dificultad = Dificultad.desdeAlmacen(getString("difficulty")) ?: return null
+        val categoriaAlmacenada = getString("category")
+        val categoria = if (categoriaAlmacenada == null) null
+        else com.desconectado.app.domain.model.CategoriaDesafio.desdeAlmacen(categoriaAlmacenada) ?: return null
         val puntos = getLong("points")?.toInt() ?: return null
         val orden = getLong("order")?.toInt() ?: return null
         return Desafio(
@@ -74,6 +77,8 @@ class FirestoreCatalogRepository(private val firestore: FirebaseFirestore) : Cat
             points = puntos,
             order = orden,
             durationSeconds = duracionSegundos,
+            category = categoria,
+            active = getBoolean("active") ?: true,
         )
     }
 }

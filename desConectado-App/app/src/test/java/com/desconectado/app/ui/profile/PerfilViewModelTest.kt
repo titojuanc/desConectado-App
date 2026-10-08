@@ -6,6 +6,7 @@ import com.desconectado.app.domain.model.ErrorApp
 import com.desconectado.app.domain.model.EstadoSesion
 import com.desconectado.app.domain.model.Perfil
 import com.desconectado.app.domain.model.RedeemedReward
+import com.desconectado.app.domain.model.UpcomingPointExpiry
 import com.desconectado.app.domain.model.Resultado
 import com.desconectado.app.fakes.FakeAuthRepository
 import com.desconectado.app.fakes.FakeConnectivityMonitor
@@ -171,6 +172,26 @@ class PerfilViewModelTest {
         val vm = crearViewModel()
 
         assertEquals(CanjesPerfilUiState.Lista(listOf(canjeDePrueba)), vm.canjes.value)
+    }
+
+    @Test
+    fun cargaElProximoVencimientoDeLaSesionActual() = runTest {
+        val proximo = UpcomingPointExpiry(35, Instant.parse("2026-11-04T07:00:00Z"), 29)
+        puntos.proximoVencimientoResultado = Resultado.Exito(proximo)
+
+        val vm = crearViewModel()
+
+        assertEquals(ProximoVencimientoUiState.Proximo(proximo), vm.proximoVencimiento.value)
+        assertEquals(listOf("uid-1"), puntos.llamadasVencimiento)
+    }
+
+    @Test
+    fun sinLotesActivos_noHayAvisoDeProximoVencimiento() = runTest {
+        puntos.proximoVencimientoResultado = Resultado.Exito(null)
+
+        val vm = crearViewModel()
+
+        assertEquals(ProximoVencimientoUiState.SinVencimientos, vm.proximoVencimiento.value)
     }
 
     @Test

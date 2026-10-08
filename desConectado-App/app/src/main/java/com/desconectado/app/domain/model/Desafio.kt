@@ -12,6 +12,18 @@ enum class Dificultad(val valorAlmacen: String) {
     }
 }
 
+enum class CategoriaDesafio(val valorAlmacen: String) {
+    MOVERME("move"),
+    ENFOCARME("focus"),
+    SOCIALIZAR("social"),
+    DESCANSAR("rest"),
+    ;
+
+    companion object {
+        fun desdeAlmacen(valor: String?): CategoriaDesafio? = entries.firstOrNull { it.valorAlmacen == valor }
+    }
+}
+
 /**
  * Propuesta predefinida de hacer una actividad (por ejemplo "Salir a trotar") sin usar redes
  * sociales durante un tiempo, provista por la plataforma.
@@ -27,4 +39,6 @@ data class Desafio(
     val points: Int,
     val order: Int,
     val durationSeconds: Int? = null,
+    val category: CategoriaDesafio? = null,
+    val active: Boolean = true,
 )

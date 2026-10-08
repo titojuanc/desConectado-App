@@ -10,6 +10,7 @@ import com.desconectado.app.domain.TimeSource
 import com.desconectado.app.domain.evaluarCumplimiento
 import com.desconectado.app.domain.model.ActiveChallenge
 import com.desconectado.app.domain.model.ChallengeResult
+import com.desconectado.app.domain.model.ChallengeRating
 import com.desconectado.app.domain.model.Conectividad
 import com.desconectado.app.domain.model.Desafio
 import com.desconectado.app.domain.model.ErrorApp
@@ -29,7 +30,13 @@ sealed interface DesafioActivoUiState {
     data object Cargando : DesafioActivoUiState
     data object SinPermiso : DesafioActivoUiState
     data class Activo(val desafio: ActiveChallenge, val usoSocialSeconds: Long = 0) : DesafioActivoUiState
-    data class Terminado(val resultado: ChallengeResult) : DesafioActivoUiState
+    data class Terminado(
+        val resultado: ChallengeResult,
+        val ratingStars: Int? = null,
+        val ratingSeleccionado: Int = 0,
+        val ratingGuardando: Boolean = false,
+        val ratingError: Boolean = false,
+    ) : DesafioActivoUiState
     data object SinConexion : DesafioActivoUiState
     data class Error(val causa: ErrorApp) : DesafioActivoUiState
 }
@@ -150,6 +157,32 @@ class DesafioActivoViewModel(
         }
     }
 
+    fun seleccionarCalificacion(stars: Int) {
+        val terminal = _estado.value as? DesafioActivoUiState.Terminado ?: return
+        if (terminal.resultado.status != ChallengeResult.Status.COMPLETED || terminal.ratingStars != null) return
+        if (stars !in ChallengeRating.MIN_STARS..ChallengeRating.MAX_STARS) return
+        _estado.value = terminal.copy(ratingSeleccionado = stars, ratingError = false)
+    }
+
+    fun calificar() {
+        val terminal = _estado.value as? DesafioActivoUiState.Terminado ?: return
+        if (terminal.resultado.status != ChallengeResult.Status.COMPLETED || terminal.ratingStars != null) return
+        if (terminal.ratingSeleccionado !in ChallengeRating.MIN_STARS..ChallengeRating.MAX_STARS || terminal.ratingGuardando) return
+        val rating = ChallengeRating(terminal.resultado.challengeRunId, terminal.ratingSeleccionado, time.now())
+        _estado.value = terminal.copy(ratingGuardando = true, ratingError = false)
+        viewModelScope.launch {
+            when (challenges.rate(uid, rating)) {
+                is Resultado.Exito -> _estado.value = terminal.copy(
+                    ratingStars = rating.stars,
+                    ratingSeleccionado = rating.stars,
+                    ratingGuardando = false,
+                    ratingError = false,
+                )
+                is Resultado.Fallo -> _estado.value = terminal.copy(ratingGuardando = false, ratingError = true)
+            }
+        }
+    }
+
     private fun invalidar(actual: ActiveChallenge, reason: String) {
         viewModelScope.launch {
             val resultado = challenges.invalidate(uid, runId(actual), reason)
@@ -172,12 +205,27 @@ class DesafioActivoViewModel(
                 if (acreditacion is Resultado.Exito) {
                     store.clear()
                     notifications.desafioTerminado(finalResult.status == ChallengeResult.Status.COMPLETED, finalResult.pointsAwarded)
-                    _estado.value = DesafioActivoUiState.Terminado(finalResult)
+                    mostrarResultadoTerminal(finalResult)
                 } else if (acreditacion is Resultado.Fallo) {
                     _estado.value = DesafioActivoUiState.Error(acreditacion.error)
                 }
             }
             is Resultado.Fallo -> _estado.value = if (guardado.error == ErrorApp.SinConexion) DesafioActivoUiState.SinConexion else DesafioActivoUiState.Error(guardado.error)
+        }
+    }
+
+    private suspend fun mostrarResultadoTerminal(resultado: ChallengeResult) {
+        if (resultado.status != ChallengeResult.Status.COMPLETED) {
+            _estado.value = DesafioActivoUiState.Terminado(resultado)
+            return
+        }
+        _estado.value = when (val rating = challenges.rating(uid, resultado.challengeRunId)) {
+            is Resultado.Exito -> DesafioActivoUiState.Terminado(
+                resultado = resultado,
+                ratingStars = rating.valor?.stars,
+                ratingSeleccionado = rating.valor?.stars ?: 0,
+            )
+            is Resultado.Fallo -> DesafioActivoUiState.Terminado(resultado, ratingError = true)
         }
     }
 

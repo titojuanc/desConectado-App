@@ -4,6 +4,7 @@ import com.desconectado.app.data.aErrorApp
 import com.desconectado.app.data.aErrorFirestore
 import com.desconectado.app.domain.model.ActiveChallenge
 import com.desconectado.app.domain.model.ChallengeResult
+import com.desconectado.app.domain.model.ChallengeRating
 import com.desconectado.app.domain.model.Dificultad
 import com.desconectado.app.domain.model.Desafio
 import com.desconectado.app.domain.model.DesafioHecho
@@ -23,6 +24,42 @@ class FirestoreChallengeRepository(
     private val firestore: FirebaseFirestore,
     private val store: ActiveChallengeStore? = null,
 ) : ChallengeRepository {
+    override suspend fun rating(uid: String, runId: String): Resultado<ChallengeRating?> = try {
+        val snapshot = firestore.collection("users").document(uid).collection("challengeRatings")
+            .document(runId).get(Source.SERVER).await()
+        Resultado.Exito(snapshot.toChallengeRating())
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Resultado.Fallo(e.aErrorApp())
+    }
+
+    override suspend fun rate(uid: String, rating: ChallengeRating): Resultado<Unit> = try {
+        val user = firestore.collection("users").document(uid)
+        val result = user.collection("challengeResults").document(rating.challengeRunId)
+        val ratingRef = user.collection("challengeRatings").document(rating.challengeRunId)
+        firestore.runTransaction { transaction ->
+            val existing = transaction.get(ratingRef)
+            if (existing.exists()) {
+                require(existing.getLong("stars") == rating.stars.toLong())
+                return@runTransaction Unit
+            }
+            val resultSnapshot = transaction.get(result)
+            require(resultSnapshot.exists() && resultSnapshot.getString("status") == ChallengeResult.Status.COMPLETED.name)
+            transaction.set(ratingRef, mapOf(
+                "challengeRunId" to rating.challengeRunId,
+                "stars" to rating.stars,
+                "createdAt" to FieldValue.serverTimestamp(),
+            ))
+            Unit
+        }.await()
+        Resultado.Exito(Unit)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Resultado.Fallo(e.aErrorApp())
+    }
+
     override suspend fun history(uid: String): Resultado<List<DesafioHecho>> = try {
         val documents = firestore.collection("users").document(uid).collection("challengeResults")
             .orderBy("finishedAt", Query.Direction.DESCENDING)
@@ -164,6 +201,18 @@ class FirestoreChallengeRepository(
         val puntos = getLong("pointsAwarded")?.takeIf { it >= 0L && it <= Int.MAX_VALUE }?.toInt() ?: return null
         val fecha = getTimestamp("finishedAt")?.toDate()?.toInstant() ?: return null
         return DesafioHecho(titulo, puntos, fecha, estado)
+    }
+
+    private fun com.google.firebase.firestore.DocumentSnapshot.toChallengeRating(): ChallengeRating? {
+        if (!exists()) return null
+        val stars = getLong("stars")?.toInt() ?: return null
+        return runCatching {
+            ChallengeRating(
+                challengeRunId = getString("challengeRunId") ?: id,
+                stars = stars,
+                createdAt = getTimestamp("createdAt")?.toDate()?.toInstant(),
+            )
+        }.getOrNull()
     }
 
     private fun com.google.firebase.firestore.DocumentSnapshot.toChallengeResult(): ChallengeResult? = try {

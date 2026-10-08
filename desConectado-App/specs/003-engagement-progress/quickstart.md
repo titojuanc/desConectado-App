@@ -11,10 +11,10 @@ Este documento cubre solo las funciones nuevas de `003-engagement-progress`. Los
 
 ## Escenarios
 
-1. **Valoración**: completar un desafío; guardar estrellas y etiquetas; reabrirlo desde el historial. Reintentar el mismo envío no crea otra valoración; un resultado cancelado no ofrece calificación.
+1. **Valoración**: completar un desafío; seleccionar y guardar estrellas de 1 a 5 antes de volver al catálogo. Confirmar que no hay etiquetas ni opción para omitir/editar; un resultado cancelado no ofrece calificación.
 2. **Historial de desafíos**: crear resultados completados, fallidos, cancelados e invalidados en varias fechas; verificar que aparecen todos, con puntos correctos y orden descendente.
 3. **Historial de canjes**: canjear elementos distintos y un cupón; verificar costo, fecha, propiedad/código y que un usuario distinto no puede leerlos.
-4. **Vencimiento**: crear dos lotes con vencimientos distintos; comprobar saldo antes/después, consumo primero del lote más próximo, expiración única, reintento idempotente y rechazo de débito prematuro o excesivo.
+4. **Vencimiento**: crear dos lotes con vencimientos distintos; comprobar saldo antes/después, consumo primero del lote más próximo, expiración única, reintento idempotente y rechazo de débito prematuro o excesivo. En perfil, comprobar que se muestra bajo el saldo la suma del lote que vence antes y sus días calendario en la zona original.
 5. **Categorías**: comprobar Todos y cada una de las cuatro categorías; verificar los 28 datos editoriales y que los IDs históricos no desaparecen.
 6. **Logros/progreso**: alcanzar umbrales por cantidad, tiempo y categoría; repetir la última operación; comprobar concesión única, progreso parcial, total acumulado, racha y semana.
 7. **Cosméticos**: canjear un tema/fondo/pack/marco; activarlo; reiniciar app; verificar persistencia. Probar falta de saldo, elemento no poseído y caja sorpresa sin premios repetidos.

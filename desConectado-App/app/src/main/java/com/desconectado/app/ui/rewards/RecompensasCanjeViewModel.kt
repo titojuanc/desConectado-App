@@ -135,7 +135,10 @@ class RecompensasCanjeViewModel(
                                 } else {
                                     CanjeFeedback.Error
                                 })
-                                lista
+                                when (val refreshed = points.pendingRedemption(uid)) {
+                                    is Resultado.Exito -> lista.copy(pendiente = refreshed.valor)
+                                    is Resultado.Fallo -> lista
+                                }
                             }
                         }
                     } else {

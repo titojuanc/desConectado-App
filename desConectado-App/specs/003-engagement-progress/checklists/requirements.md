@@ -23,7 +23,7 @@
 - [x] Historias ordenadas por prioridad.
 - [x] Entrega 2 aprobada tratada como dependencia existente, no como trabajo por repetir.
 - [x] Implementación de funciones separada de adaptación visual.
-- [ ] Antes de cada función dependiente, preguntar solo lo que sigue sin decidir: corte/huso y disparador de vencimiento; criterio de día de racha y valor/rango de meta; etiquetas y posposición/edición de rating; catálogo/costos cosméticos.
+- [ ] Antes de cada función dependiente, preguntar solo lo que sigue sin decidir: criterio de día de racha y valor/rango de meta; puntos de desafíos nuevos; catálogo/costos cosméticos.
 
 ## Notas
 

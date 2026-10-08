@@ -2,9 +2,15 @@ package com.desconectado.app.ui.challenges
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -32,6 +38,8 @@ fun DesafioActivoScreen(
     onActualizar: () -> Unit,
     onFinalizar: () -> Unit,
     onCancelar: () -> Unit,
+    onSeleccionarCalificacion: (Int) -> Unit,
+    onCalificar: () -> Unit,
     onVolverCatalogo: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -90,12 +98,47 @@ fun DesafioActivoScreen(
             }
             is DesafioActivoUiState.Terminado -> {
                 Text(mensajeResultado(estado.resultado))
-                Button(onClick = onVolverCatalogo, modifier = Modifier.testTag("boton_volver_catalogo")) {
-                    Text(stringResource(R.string.desafio_volver_catalogo))
+                if (estado.resultado.status == ChallengeResult.Status.COMPLETED && estado.ratingStars == null) {
+                    Text(stringResource(R.string.desafio_rating_titulo))
+                    FilaEstrellas(estado.ratingSeleccionado, onSeleccionarCalificacion)
+                    if (estado.ratingError) Text(stringResource(R.string.desafio_rating_error))
+                    Button(
+                        onClick = onCalificar,
+                        enabled = estado.ratingSeleccionado in 1..5 && !estado.ratingGuardando,
+                        modifier = Modifier.testTag("boton_confirmar_calificacion"),
+                    ) {
+                        Text(stringResource(R.string.desafio_rating_guardar))
+                    }
+                } else if (estado.ratingStars != null) {
+                    Text(stringResource(R.string.desafio_rating_guardada, estado.ratingStars))
+                }
+                if (estado.resultado.status != ChallengeResult.Status.COMPLETED || estado.ratingStars != null) {
+                    Button(onClick = onVolverCatalogo, modifier = Modifier.testTag("boton_volver_catalogo")) {
+                        Text(stringResource(R.string.desafio_volver_catalogo))
+                    }
                 }
             }
             DesafioActivoUiState.SinConexion -> Text(stringResource(R.string.desafio_requiere_conexion))
             is DesafioActivoUiState.Error -> Text(mensajeError(estado.causa))
+        }
+    }
+}
+
+@Composable
+private fun FilaEstrellas(seleccionadas: Int, onSeleccionar: (Int) -> Unit) {
+    Row(modifier = Modifier.testTag("rating_estrellas")) {
+        (1..5).forEach { estrella ->
+            IconButton(
+                onClick = { onSeleccionar(estrella) },
+                modifier = Modifier.testTag("boton_rating_$estrella"),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Star,
+                    contentDescription = stringResource(R.string.desafio_rating_estrella_desc, estrella),
+                    tint = if (estrella <= seleccionadas) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }

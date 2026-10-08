@@ -8,6 +8,7 @@ import com.desconectado.app.domain.model.ErrorApp
 import com.desconectado.app.domain.model.EstadoSesion
 import com.desconectado.app.domain.model.Perfil
 import com.desconectado.app.domain.model.RedeemedReward
+import com.desconectado.app.domain.model.UpcomingPointExpiry
 import com.desconectado.app.domain.model.Resultado
 import com.desconectado.app.domain.repository.AuthRepository
 import com.desconectado.app.domain.repository.ConnectivityMonitor
@@ -46,6 +47,14 @@ sealed interface CanjesPerfilUiState {
     data object SinConexion : CanjesPerfilUiState
 }
 
+sealed interface ProximoVencimientoUiState {
+    data object Cargando : ProximoVencimientoUiState
+    data class Proximo(val vencimiento: UpcomingPointExpiry) : ProximoVencimientoUiState
+    data object SinVencimientos : ProximoVencimientoUiState
+    data object Error : ProximoVencimientoUiState
+    data object SinConexion : ProximoVencimientoUiState
+}
+
 class PerfilViewModel(
     private val auth: AuthRepository,
     private val perfiles: ProfileRepository,
@@ -63,11 +72,15 @@ class PerfilViewModel(
     private val _canjes = MutableStateFlow<CanjesPerfilUiState>(CanjesPerfilUiState.Cargando)
     val canjes: StateFlow<CanjesPerfilUiState> = _canjes.asStateFlow()
 
+    private val _proximoVencimiento = MutableStateFlow<ProximoVencimientoUiState>(ProximoVencimientoUiState.Cargando)
+    val proximoVencimiento: StateFlow<ProximoVencimientoUiState> = _proximoVencimiento.asStateFlow()
+
     private var uid: String? = null
     private var conectado = true
     private var carga: Job? = null
     private var cargaDesafios: Job? = null
     private var cargaCanjes: Job? = null
+    private var cargaVencimiento: Job? = null
 
     init {
         viewModelScope.launch {
@@ -83,16 +96,19 @@ class PerfilViewModel(
                             _estado.value is PerfilUiState.Error || _estado.value is PerfilUiState.SinConexion -> cargar()
                             _desafiosHechos.value.necesitaReintento() -> cargarDesafiosHechos()
                             _canjes.value.necesitaReintento() -> cargarCanjes()
+                            _proximoVencimiento.value.necesitaReintento() -> cargarProximoVencimiento()
                         }
                         // Al cerrar sesión no queda ningún dato de la persona anterior.
                         EstadoSesion.SinSesion -> {
                             carga?.cancel()
                             cargaDesafios?.cancel()
                             cargaCanjes?.cancel()
+                            cargaVencimiento?.cancel()
                             uid = null
                             _estado.value = PerfilUiState.Cargando
                             _desafiosHechos.value = DesafiosHechosUiState.Cargando
                             _canjes.value = CanjesPerfilUiState.Cargando
+                            _proximoVencimiento.value = ProximoVencimientoUiState.Cargando
                         }
                         EstadoSesion.Cargando -> Unit
                     }
@@ -106,6 +122,8 @@ class PerfilViewModel(
 
     fun reintentarCanjes() = cargarCanjes()
 
+    fun reintentarVencimiento() = cargarProximoVencimiento()
+
     fun cerrarSesion() = auth.cerrarSesion()
 
     private fun DesafiosHechosUiState.necesitaReintento() =
@@ -113,6 +131,9 @@ class PerfilViewModel(
 
     private fun CanjesPerfilUiState.necesitaReintento() =
         this is CanjesPerfilUiState.Error || this is CanjesPerfilUiState.SinConexion
+
+    private fun ProximoVencimientoUiState.necesitaReintento() =
+        this is ProximoVencimientoUiState.Error || this is ProximoVencimientoUiState.SinConexion
 
     private fun cargarDesafiosHechos() {
         val uidActual = uid ?: return
@@ -148,11 +169,33 @@ class PerfilViewModel(
         }
     }
 
+    private fun cargarProximoVencimiento() {
+        val uidActual = uid ?: return
+        cargaVencimiento?.cancel()
+        if (!conectado) {
+            _proximoVencimiento.value = ProximoVencimientoUiState.SinConexion
+            return
+        }
+        _proximoVencimiento.value = ProximoVencimientoUiState.Cargando
+        cargaVencimiento = viewModelScope.launch {
+            _proximoVencimiento.value = when (val resultado = puntos.proximoVencimiento(uidActual)) {
+                is Resultado.Exito -> resultado.valor?.let(ProximoVencimientoUiState::Proximo)
+                    ?: ProximoVencimientoUiState.SinVencimientos
+                is Resultado.Fallo -> if (resultado.error == ErrorApp.SinConexion) {
+                    ProximoVencimientoUiState.SinConexion
+                } else {
+                    ProximoVencimientoUiState.Error
+                }
+            }
+        }
+    }
+
     private fun cargar() {
         val uidActual = uid ?: return
         carga?.cancel()
         cargarDesafiosHechos()
         cargarCanjes()
+        cargarProximoVencimiento()
         if (!conectado) {
             _estado.value = PerfilUiState.SinConexion
             return

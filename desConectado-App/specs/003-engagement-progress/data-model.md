@@ -8,13 +8,15 @@ Extiende el catálogo existente con `category` (`move`, `focus`, `social`, `rest
 
 El resultado existente conserva `challengeRunId`, `challengeId`, título, inicio/fin, duración, estado, tiempo medido, offline y puntos. El historial incluye todos los estados y lee por fecha de finalización descendente.
 
-`ChallengeRating`: `challengeRunId`, `stars` (1..5), `tags` (IDs permitidos), `createdAt`, `updatedAt`. Solo resultados `COMPLETED`; un documento por `challengeRunId`. El resultado económico permanece inmutable; la valoración tiene su propia regla de escritura limitada.
+`ChallengeRating`: `challengeRunId`, `stars` (1..5), `createdAt`. Solo resultados `COMPLETED`; un documento inmutable por `challengeRunId`, sin etiquetas ni edición. El resultado económico permanece inmutable.
 
 ## Lote de puntos
 
 `PointLot`: `lotId` determinista por sesión diaria, `localDate`, `timeZoneId`, `windowEndsAt`, `issuedPoints > 0`, `remainingPoints` entre 0 e `issuedPoints`, `earnedAt` basado en finalización y `expiresAt` a medianoche local del día 30 posterior. Captura el huso al abrir el primer crédito diario; los créditos siguientes se agregan hasta `windowEndsAt`, aunque cambie el huso del dispositivo. El cliente procesa vencimientos al abrir/consultar/canjear; Rules valida que `expiresAt <= request.time`, pero no verifica zona/reloj del dispositivo, limitación aceptada. FIFO reduce el remanente; solo vence lo restante.
 
 `PointMovement`: mantiene `credit` y `redeem`; agrega `expire` con `sourceId` del lote, importe positivo, timestamp de servidor e ID determinista `expire-{lotId}`. Ningún movimiento confirmado se edita ni se borra. Los consumos y vencimientos no pueden retirar más que el remanente.
+
+`UpcomingPointExpiry`: proyección de lectura con la suma de puntos restantes que comparten el siguiente `expiresAt` y días calendario restantes calculados en la zona capturada por ese lote; no se persiste como fuente independiente.
 
 ## Logro y progreso
 

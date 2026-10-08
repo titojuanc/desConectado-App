@@ -19,7 +19,7 @@ description: "Plan de implementación funcional para la entrega 3 ampliada"
 US2 Historial de desafíos (puede comenzar ahora, usa resultados persistidos)
 US1 Rating (preguntar T002 al comenzar)
 US3 Vencimiento (preguntar T001 al comenzar)
-US4 Catálogo (preguntar puntos al comenzar) -> US5 Logros/métricas (preguntar T003)
+US4 Catálogo (fórmula de puntos aprobada) -> US5 Logros/métricas (preguntar T003)
 US6 Cosméticos (preguntar catálogo/costos T004)
 US7 Perfil/meta semanal (preguntar valor/rango T003)
 Historias implementadas -> Integración funcional
@@ -29,27 +29,27 @@ Después de esta feature: adaptación visual de las referencias
 ## Phase 1: Decisiones locales (bloquean solo su función)
 
 - [X] T001 Confirmar y registrar en `specs/003-engagement-progress/research.md` lote por sesión local, cierre a medianoche de la zona capturada al finalizar el primer desafío, vencimiento al inicio del día 30, finalización online como fecha de ganancia y procesamiento diferido; Rules valida con `request.time`, sin TTL ni Functions. Registrar el reset productivo autorizado, preparado pero no ejecutado.
-- [ ] T002 Antes de implementar rating, confirmar etiquetas y si el envío se puede posponer o editar en `specs/003-engagement-progress/spec.md`; las etiquetas no aparecen enumeradas en la documentación leída.
+- [X] T002 Confirmar que rating usa solo 1-5 estrellas, es obligatorio antes de volver al catálogo, no incluye etiquetas y es inmutable; registrar en `specs/003-engagement-progress/spec.md`.
 - [ ] T003 Antes de implementar racha/progreso temporal, preguntar qué cuenta como día cumplido, política de zona horaria y valor/rango inicial de la meta semanal en `specs/003-engagement-progress/spec.md`.
 - [ ] T004 Antes de implementar cosméticos, pedir selección de catálogo/IDs/costos al usuario; no inferirlos de las imágenes ni sembrarlos anticipadamente.
 
 ## Phase 2: Foundational (bloquea las historias)
 
-- [ ] T005 Extender `app/src/main/java/com/desconectado/app/domain/model/Desafio.kt` con categoría/estado de disponibilidad y `Recompensa.kt` con tipos cosméticos extensibles, manteniendo compatibilidad de lectura con documentos actuales.
-- [ ] T006 Extender `firebase/seed/validate.mjs` y `firebase/seed/seed.mjs` para validar los nuevos campos y conservar IDs históricos inactivos en vez de borrar desafíos/recompensas referenciados por movimientos existentes.
-- [ ] T007 Actualizar `firebase/firestore.rules` y `specs/003-engagement-progress/contracts/firestore-data.md` con las rutas/campos nuevos y acceso de propietario, sin relajar las reglas existentes de saldo, historial ni inmutabilidad.
+- [X] T005 Extender `app/src/main/java/com/desconectado/app/domain/model/Desafio.kt` con categoría/estado de disponibilidad, manteniendo compatibilidad de lectura con documentos actuales. La extensión de `Recompensa.kt` queda para cosméticos.
+- [X] T006 Extender `firebase/seed/validate.mjs` y `firebase/seed/seed.mjs` para validar los 28 campos nuevos y archivar desafíos históricos inactivos en vez de borrarlos.
+- [X] T007 Actualizar `firebase/firestore.rules` y `specs/003-engagement-progress/contracts/firestore-data.md` con las rutas/campos nuevos y acceso de propietario, sin relajar las reglas existentes de saldo, historial ni inmutabilidad. Suite completa de Rules pasa.
 
 ## Phase 3: User Story 1 - Calificar un desafío (Priority: P1)
 
-**Goal**: Capturar una valoración idempotente después de un resultado exitoso.
+**Goal**: Exigir una valoración de 1..5 estrellas al completar con éxito, sin etiquetas ni edición.
 
-**Independent Test**: Completar un desafío, guardar estrellas/etiquetas y consultarlas luego; verificar que no se solicita rating para otros estados.
+**Independent Test**: Completar un desafío, guardar estrellas y verificar que no se puede volver al catálogo antes; confirmar que otros estados no solicitan rating.
 
-- [ ] T008 [P] [US1] Escribir primero pruebas de dominio/repositorio y reglas para límites 1/5, etiquetas inválidas, estados no exitosos, dueño ajeno y reintento en `app/src/test/java/com/desconectado/app/domain/` y `firebase/tests/rules/challenge-rating.test.mjs`.
-- [ ] T009 [US1] Crear `app/src/main/java/com/desconectado/app/domain/model/ChallengeRating.kt` y validaciones de puntuación/etiquetas permitidas para un resultado `COMPLETED`.
-- [ ] T010 [US1] Añadir lectura/escritura de rating por `challengeRunId` en `app/src/main/java/com/desconectado/app/domain/repository/ChallengeRepository.kt` y `app/src/main/java/com/desconectado/app/data/challenges/FirestoreChallengeRepository.kt`; no modificar el resultado ni sus puntos.
-- [ ] T011 [US1] Extender `firebase/firestore.rules` para permitir una única valoración del dueño solo sobre un resultado completado y aceptar únicamente campos/etiquetas permitidos.
-- [ ] T012 [US1] Añadir el flujo funcional de valoración post-éxito en `app/src/main/java/com/desconectado/app/ui/challenges/DesafioActivoViewModel.kt` y `DesafioActivoScreen.kt`, con opción posponer según T002 y estados de error/reintento sin duplicar envío.
+- [X] T008 [P] [US1] Añadir pruebas de dominio en `app/src/test/java/com/desconectado/app/domain/ChallengeRatingTest.kt`, de Compose en `app/src/androidTest/java/com/desconectado/app/ui/DesafioActivoScreenTest.kt` y de Rules en `firebase/tests/rules/challenge-rating.test.mjs` para límites, obligatoriedad, estados, propietario e inmutabilidad. JVM/Rules pasan; Compose compila, sin dispositivo para ejecutarlo.
+- [X] T009 [US1] Crear `ChallengeRating` en `app/src/main/java/com/desconectado/app/domain/model/ChallengeRating.kt` con validación de estrellas 1..5 para `COMPLETED`, sin etiquetas.
+- [X] T010 [US1] Añadir lectura/escritura de rating por `challengeRunId` en `ChallengeRepository.kt` y `FirestoreChallengeRepository.kt`; no modificar resultado ni puntos.
+- [X] T011 [US1] Extender `firebase/firestore.rules` para permitir una sola valoración del dueño únicamente sobre resultado completado; estrellas 1..5; sin actualización ni borrado. Rules test pasa.
+- [X] T012 [US1] Añadir rating obligatorio tras éxito en `DesafioActivoViewModel.kt` y `DesafioActivoScreen.kt`; impedir retorno hasta guardar y permitir reintentar sin duplicar.
 
 ## Phase 4: User Story 2 - Consultar historiales completos (Priority: P1)
 
@@ -69,13 +69,13 @@ Después de esta feature: adaptación visual de las referencias
 
 **Independent Test**: Con reloj controlado, acreditar dos lotes, canjear parcialmente y ejecutar vencimiento; reconstruir saldo desde movimientos.
 
-- [X] T018 [P] [US3] Escribir primero pruebas de dominio y reglas con reloj/zona inyectados para apertura/cierre de sesión diaria, expiración a medianoche del día 30, cambio de zona dentro de sesión, consumo FIFO parcial, expiración idempotente, canje/vencimiento y saldo reconstruido en `app/src/test/java/com/desconectado/app/domain/` y `firebase/tests/rules/points-expiration.test.mjs`. JVM pasa; el test de reglas queda escrito y `node --check` pasa; falta ejecutarlo con el emulador Java 21.
+- [X] T018 [P] [US3] Escribir primero pruebas de dominio y reglas con reloj/zona inyectados para apertura/cierre de sesión diaria, expiración a medianoche del día 30, cambio de zona dentro de sesión, consumo FIFO parcial, expiración idempotente, canje/vencimiento y saldo reconstruido en `app/src/test/java/com/desconectado/app/domain/` y `firebase/tests/rules/points-expiration.test.mjs`; JVM y Firestore Emulator pasan.
 - [X] T019 [US3] Crear `PointLot` en `app/src/main/java/com/desconectado/app/domain/model/PointLot.kt`, funciones puras en `app/src/main/java/com/desconectado/app/domain/PointLots.kt` y añadir `PointMovement.Type.EXPIRE` en `app/src/main/java/com/desconectado/app/domain/model/PointMovement.kt`.
-- [ ] T020 [US3] Persistir `timeZoneId` al cerrar el desafío en `ChallengeResult` y extender la transacción de `app/src/main/java/com/desconectado/app/data/points/FirestorePointsRepository.kt` para reutilizar `pointLotSessions/current` y crear lote/movimiento/saldo atómicamente.
-- [ ] T021 [US3] Añadir tests de canje por etapas y luego extender `FirestorePointsRepository.redeem` con `pendingRedemptions/current`, un movimiento idempotente por lote, débitos FIFO y finalización solo al alcanzar el costo; bloquear nuevos débitos mientras pending existe.
-- [ ] T022 [US3] Implementar `PointExpirationProcessor` en `app/src/main/java/com/desconectado/app/data/points/PointExpirationProcessor.kt` como procesamiento al abrir/consultar/canjear, compatible con Firestore gratuito; usar ID idempotente, `request.time` y débito limitado al remanente. No agregar TTL ni Cloud Functions; no expirar mientras haya canje pendiente.
-- [ ] T023 [US3] Endurecer `firebase/firestore.rules` para validar creación de lotes, consumo y vencimiento por hora de servidor; conservar el saldo atómico y rechazar lote ajeno, exceso o transacción incompleta.
-- [ ] T024 [US3] Exponer saldo disponible y próximos vencimientos en `app/src/main/java/com/desconectado/app/domain/repository/PointsRepository.kt`, `app/src/main/java/com/desconectado/app/ui/points/SaldoViewModel.kt` y `app/src/main/java/com/desconectado/app/ui/points/IndicadorPuntos.kt`.
+- [X] T020 [US3] Persistir `timeZoneId` en `ChallengeResult` y extender la transacción de `FirestorePointsRepository.acreditar` para reutilizar `pointLotSessions/current`, creando lote/movimiento/saldo atómicamente.
+- [X] T021 [US3] Extender `FirestorePointsRepository.redeem` con `pendingRedemptions/current`, débitos FIFO idempotentes por lote y finalización solo al alcanzar el costo; bloquear otros débitos mientras pending existe. Tests JVM de modelo/ViewModel y Rules de emulador pasan.
+- [X] T022 [US3] Implementar `PointExpirationProcessor` como procesamiento al abrir/consultar/canjear, compatible con Firestore gratuito; usar ID idempotente, `request.time` y débito limitado al remanente. No usar TTL ni Cloud Functions; suspender expiraciones mientras hay pending.
+- [X] T023 [US3] Endurecer `firebase/firestore.rules` para lotes, pending, canjes por etapas y vencimiento; suite completa `npm test` pasa con JDK 21 (64 tests).
+- [X] T024 [US3] Consultar/procesar saldo desde `PointsRepository` en `SaldoViewModel` al abrir/recargar; exponer `proximoVencimiento` desde `FirestorePointsRepository` y mostrar bajo el saldo del perfil la suma de lotes del siguiente `expiresAt` en días calendario de la zona guardada.
 
 ## Phase 6: User Story 4 - Catálogo categorizado (Priority: P2)
 
@@ -83,10 +83,10 @@ Después de esta feature: adaptación visual de las referencias
 
 **Independent Test**: Validar el catálogo sembrado, consultar Todos y cada categoría y comparar los campos con el documento de desafíos.
 
-- [ ] T025 [US4] Incorporar las 28 propuestas de `documentos de referencia/Desafios_desconectado.docx` en `firebase/seed/catalog.json` con IDs estables, categoría, duración, dificultad, descripción, puntos aprobados y orden; conservar referencias a IDs anteriores.
-- [ ] T026 [US4] Mapear categoría y disponibilidad en `app/src/main/java/com/desconectado/app/data/catalog/FirestoreCatalogRepository.kt` y `app/src/main/java/com/desconectado/app/domain/model/Desafio.kt`.
-- [ ] T027 [US4] Implementar selección funcional de Todos/Moverme/Enfocarme/Socializar/Descansar en `app/src/main/java/com/desconectado/app/ui/challenges/DesafiosViewModel.kt` y `DesafiosScreen.kt` con el estilo vigente.
-- [ ] T028 [P] [US4] Añadir validación automatizada del seed y pruebas de filtros/cobertura de las 28 propuestas en `firebase/tests/seed/challenges.test.mjs` y `app/src/test/java/com/desconectado/app/ui/challenges/`.
+- [X] T025 [US4] Incorporar las 28 propuestas en `firebase/seed/catalog.json` con categorías/datos editoriales y puntos FR-007; preservar tres IDs coincidentes y archivar los retirados con `active=false`.
+- [X] T026 [US4] Mapear categoría y disponibilidad en `FirestoreCatalogRepository.kt` y `Desafio.kt`; excluir archivados de la lista activa.
+- [X] T027 [US4] Implementar selección funcional de Todos/Moverme/Enfocarme/Socializar/Descansar, con Todos inicial, en `DesafiosViewModel.kt` y `DesafiosScreen.kt` usando el estilo vigente.
+- [X] T028 [P] [US4] Validar catálogo y fórmula en `firebase/tests/seed/challenges.test.mjs` (24/24); el test JVM de filtros pasa y la prueba Compose se compila correctamente. No se ejecutó instrumentación por no haber dispositivo conectado.
 
 ## Phase 7: User Story 5 - Logros y progreso (Priority: P2)
 
@@ -129,7 +129,6 @@ Después de esta feature: adaptación visual de las referencias
 - [ ] T044 Ejecutar pruebas enfocadas de las historias nuevas, `npm test` y validación de seed en `firebase/`, resolver fallos introducidos por esta feature y dejar sin cambios el alcance aprobado de la entrega 2.
 - [ ] T045 Verificar manualmente en dispositivo que ratings, vencimientos, historiales, filtros, logros, cosméticos y preferencias funcionan con los estilos actuales; cerrar cada criterio de `quickstart.md` antes de iniciar la réplica visual de `reference-images/`.
 - [ ] T046 Preparar `firebase/maintenance/reset-delivery-3.mjs` para el reset de producción autorizado: dry-run por defecto, `--project` explícito, chunks y guardia de confirmación; conservar Auth/perfiles, dejar saldo en 0 y borrar movimientos, canjes, pending-redemptions, resultados/ratings y desafíos activos sin registrar resultado. Limpiar `lastMovementId` y estado local al siguiente arranque. No ejecutar hasta instrucción explícita de despliegue.
-- [ ] T046 Preparar `firebase/maintenance/reset-delivery-3.mjs` para el reset de producción autorizado: dry-run por defecto, `--project` explícito, chunks y guardia de confirmación; conservar Auth/perfiles, dejar balance en 0 y borrar movimientos, canjes, resultados/ratings y desafíos activos sin registrar resultado. Limpiar referencias `lastMovementId` y estado local al siguiente arranque. No ejecutar hasta instrucción explícita de despliegue.
 
 ## Oportunidades de paralelismo
 

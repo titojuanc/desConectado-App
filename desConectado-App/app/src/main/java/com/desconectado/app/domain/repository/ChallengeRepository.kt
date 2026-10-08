@@ -2,11 +2,14 @@ package com.desconectado.app.domain.repository
 
 import com.desconectado.app.domain.model.ActiveChallenge
 import com.desconectado.app.domain.model.ChallengeResult
+import com.desconectado.app.domain.model.ChallengeRating
 import com.desconectado.app.domain.model.DesafioHecho
 import com.desconectado.app.domain.model.Resultado
 
 interface ChallengeRepository {
     suspend fun history(uid: String): Resultado<List<DesafioHecho>>
+    suspend fun rating(uid: String, runId: String): Resultado<ChallengeRating?>
+    suspend fun rate(uid: String, rating: ChallengeRating): Resultado<Unit>
     suspend fun active(uid: String): Resultado<ActiveChallenge?>
     suspend fun start(uid: String, challengeId: String): Resultado<ActiveChallenge>
     suspend fun updateOffline(uid: String, runId: String, seconds: Long): Resultado<Unit>

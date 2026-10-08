@@ -3,6 +3,7 @@
 
 /** Dificultades de menor a mayor. Los valores son los que se guardan en Firestore. */
 export const DIFICULTADES = ['easy', 'normal', 'hard'];
+export const CATEGORIAS_DESAFIO = ['move', 'focus', 'social', 'rest'];
 
 /** Tipos de recompensa admitidos. */
 export const TIPOS_RECOMPENSA = ['badge', 'theme', 'coupon'];
@@ -10,16 +11,20 @@ export const TIPOS_RECOMPENSA = ['badge', 'theme', 'coupon'];
 /** Palabras que sugieren un beneficio fuera de la app (FR-019); no deben aparecer en los cupones. */
 export const REFERENCIAS_EXTERNAS = /\b(comercios?|locales?|tiendas? f[ií]sicas?|descuentos? reales?)\b/i;
 
-const CANTIDAD_DESAFIOS = 6;
-const DESAFIOS_POR_DIFICULTAD = 2;
+const CANTIDAD_DESAFIOS = 28;
+const DESAFIOS_POR_CATEGORIA = 7;
 const MIN_RECOMPENSAS = 5;
 // Formato anterior del título; el título ahora es el nombre de una actividad (FR-013).
 const TITULO_FORMATO_ANTERIOR = /^No uses redes/i;
-// La descripción debe dejar claro que la condición es no usar redes (FR-014).
-const MENCIONA_REDES = /redes/i;
+const MULTIPLICADOR_DIFICULTAD = { easy: 1, normal: 1.25, hard: 1.5 };
 
 const esTextoNoVacio = (valor) => typeof valor === 'string' && valor.trim().length > 0;
 const esEnteroPositivo = (valor) => Number.isInteger(valor) && valor > 0;
+
+export function puntosEsperadosDesafio({ durationMinutes, difficulty }) {
+  const rawPoints = 10 * durationMinutes / 30 * MULTIPLICADOR_DIFICULTAD[difficulty];
+  return Math.floor(rawPoints / 5 + 0.5) * 5;
+}
 
 /** Duración legible, igual que en la app: "30 minutos", "1 hora", "2 horas", "1 hora 30 minutos". */
 export function formatearDuracion(minutos) {
@@ -57,38 +62,23 @@ export function validarDesafios(desafios) {
       if (titulos.has(d.title.trim())) errores.push(`${nombre}: title repetido`);
       titulos.add(d.title.trim());
     }
-    if (!esTextoNoVacio(d?.description)) {
-      errores.push(`${nombre}: description vacía`);
-    } else if (!MENCIONA_REDES.test(d.description)) {
-      errores.push(`${nombre}: description debe mencionar que la condición es no usar redes`);
-    }
+    if (!esTextoNoVacio(d?.description)) errores.push(`${nombre}: description vacía`);
     if (!esEnteroPositivo(d?.durationMinutes)) errores.push(`${nombre}: durationMinutes debe ser un entero mayor que 0`);
     if (!esEnteroPositivo(d?.points)) errores.push(`${nombre}: points debe ser un entero mayor que 0`);
     if (!DIFICULTADES.includes(d?.difficulty)) errores.push(`${nombre}: difficulty debe ser easy, normal o hard`);
-    if (!Number.isInteger(d?.order)) errores.push(`${nombre}: order debe ser un entero`);
-  }
-
-  for (const dificultad of DIFICULTADES) {
-    const cantidad = desafios.filter((d) => d?.difficulty === dificultad).length;
-    if (cantidad !== DESAFIOS_POR_DIFICULTAD) {
-      errores.push(`${dificultad}: hay ${cantidad} desafíos y debe haber exactamente ${DESAFIOS_POR_DIFICULTAD}`);
+    if (esEnteroPositivo(d?.durationMinutes) && DIFICULTADES.includes(d?.difficulty)
+      && d?.points !== puntosEsperadosDesafio(d)) {
+      errores.push(`${nombre}: points debe ser ${puntosEsperadosDesafio(d)} según duración y dificultad`);
     }
+    if (!CATEGORIAS_DESAFIO.includes(d?.category)) errores.push(`${nombre}: category debe ser move, focus, social o rest`);
+    if (typeof d?.active !== 'boolean') errores.push(`${nombre}: active debe ser boolean`);
+    if (!Number.isInteger(d?.order) || d.order < 1) errores.push(`${nombre}: order debe ser un entero positivo`);
   }
 
-  // Cualquier desafío de una dificultad mayor dura más y otorga más puntos que cualquiera de una menor.
-  for (let i = 0; i < DIFICULTADES.length - 1; i++) {
-    const menores = desafios.filter((d) => d?.difficulty === DIFICULTADES[i]);
-    const mayores = desafios.filter((d) => d?.difficulty === DIFICULTADES[i + 1]);
-    if (menores.length === 0 || mayores.length === 0) continue;
-    const maxDuracion = Math.max(...menores.map((d) => d.durationMinutes));
-    const maxPuntos = Math.max(...menores.map((d) => d.points));
-    for (const d of mayores) {
-      if (!(d.durationMinutes > maxDuracion)) {
-        errores.push(`${DIFICULTADES[i + 1]}: ${d.id} no dura más que los desafíos ${DIFICULTADES[i]}`);
-      }
-      if (!(d.points > maxPuntos)) {
-        errores.push(`${DIFICULTADES[i + 1]}: ${d.id} no otorga más puntos que los desafíos ${DIFICULTADES[i]}`);
-      }
+  for (const categoria of CATEGORIAS_DESAFIO) {
+    const cantidad = desafios.filter((d) => d?.category === categoria).length;
+    if (cantidad !== DESAFIOS_POR_CATEGORIA) {
+      errores.push(`categoría ${categoria}: hay ${cantidad} desafíos y debe haber exactamente ${DESAFIOS_POR_CATEGORIA}`);
     }
   }
   return errores;

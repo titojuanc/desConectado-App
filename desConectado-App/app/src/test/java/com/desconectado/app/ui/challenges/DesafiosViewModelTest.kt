@@ -2,6 +2,7 @@ package com.desconectado.app.ui.challenges
 
 import com.desconectado.app.domain.model.Conectividad
 import com.desconectado.app.domain.model.Desafio
+import com.desconectado.app.domain.model.CategoriaDesafio
 import com.desconectado.app.domain.model.Dificultad
 import com.desconectado.app.domain.model.ErrorApp
 import com.desconectado.app.domain.model.Resultado
@@ -23,8 +24,8 @@ class DesafiosViewModelTest {
     private val conectividad = FakeConnectivityMonitor()
 
     private val desafios = listOf(
-        Desafio("d2", "Andar en bici", "Una hora sin redes.", 60, Dificultad.FACIL, 20, order = 2),
-        Desafio("d1", "Salir a caminar", "Media hora sin redes.", 30, Dificultad.FACIL, 10, order = 1),
+        Desafio("d2", "Andar en bici", "Una hora sin redes.", 60, Dificultad.FACIL, 20, order = 2, category = CategoriaDesafio.MOVERME),
+        Desafio("d1", "Leer un rato", "Leé sin interrupciones.", 30, Dificultad.FACIL, 10, order = 1, category = CategoriaDesafio.ENFOCARME),
     )
 
     private fun crearViewModel() = DesafiosViewModel(catalogo, conectividad)
@@ -104,5 +105,18 @@ class DesafiosViewModelTest {
         conectividad.establecer(Conectividad.SIN_CONEXION)
 
         assertEquals(DesafiosUiState.Lista(desafios.sortedBy { it.order }), vm.estado.value)
+    }
+
+    @Test
+    fun iniciaEnTodosYFiltraPorCategoriaSinAlterarElCatalogo() = runTest {
+        catalogo.resultadoDesafios = Resultado.Exito(desafios)
+        val vm = crearViewModel()
+        assertEquals(DesafiosUiState.Lista(desafios.sortedBy { it.order }), vm.estado.value)
+
+        vm.seleccionarCategoria(CategoriaDesafio.MOVERME)
+
+        val lista = vm.estado.value as DesafiosUiState.Lista
+        assertEquals(listOf(desafios.first()), lista.desafios.filter { it.category == CategoriaDesafio.MOVERME })
+        assertEquals(CategoriaDesafio.MOVERME, lista.categoriaSeleccionada)
     }
 }

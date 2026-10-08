@@ -42,7 +42,7 @@ function comoDocumentos(lista) {
   return lista.map(({ id, ...datos }) => [id, datos]);
 }
 
-async function sincronizarColeccion(db, nombre, documentos) {
+async function sincronizarColeccion(db, nombre, documentos, { archivarSobrantes = false } = {}) {
   const coleccion = db.collection(nombre);
   const existentes = await coleccion.listDocuments();
   const idsNuevos = new Set(documentos.map(([id]) => id));
@@ -50,10 +50,13 @@ async function sincronizarColeccion(db, nombre, documentos) {
   const lote = db.batch();
   for (const [id, datos] of documentos) lote.set(coleccion.doc(id), datos);
   const sobrantes = existentes.filter((ref) => !idsNuevos.has(ref.id));
-  for (const ref of sobrantes) lote.delete(ref);
+  for (const ref of sobrantes) {
+    if (archivarSobrantes) lote.set(ref, { active: false }, { merge: true });
+    else lote.delete(ref);
+  }
   await lote.commit();
 
-  console.log(`  ${nombre}: ${documentos.length} escritos, ${sobrantes.length} eliminados`);
+  console.log(`  ${nombre}: ${documentos.length} escritos, ${archivarSobrantes ? `${sobrantes.length} archivados` : `${sobrantes.length} eliminados`}`);
 }
 
 async function main() {
@@ -90,7 +93,7 @@ async function main() {
 
   console.log(`Sembrando el proyecto ${proyecto}${opciones.emulador ? ' (emulador)' : ''}:`);
   const db = getFirestore();
-  await sincronizarColeccion(db, 'challenges', desafios);
+  await sincronizarColeccion(db, 'challenges', desafios, { archivarSobrantes: true });
   await sincronizarColeccion(db, 'rewards', recompensas);
   console.log('Listo.');
 }

@@ -7,9 +7,11 @@ import com.desconectado.app.domain.model.Recompensa
 import com.desconectado.app.domain.model.RedeemedReward
 import com.desconectado.app.domain.model.PointLot
 import com.desconectado.app.domain.model.PendingRedemption
+import com.desconectado.app.domain.model.UpcomingPointExpiry
 import com.desconectado.app.domain.model.Resultado
 import com.desconectado.app.domain.model.TipoRecompensa
 import com.desconectado.app.domain.codigoCupon
+import com.desconectado.app.domain.proximoVencimiento
 import com.desconectado.app.domain.repository.PointsRepository
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
@@ -56,6 +58,22 @@ class FirestorePointsRepository(private val firestore: FirebaseFirestore) : Poin
         throw e
     } catch (e: Exception) {
         Log.e(TAG, "No se pudo acreditar el desafío", e)
+        Resultado.Fallo(e.aErrorFirestore())
+    }
+
+    override suspend fun proximoVencimiento(uid: String): Resultado<UpcomingPointExpiry?> = try {
+        expirationProcessor.process(uid)
+        val documents = firestore.collection("users").document(uid).collection("pointLots")
+            .whereGreaterThan("remainingPoints", 0)
+            .orderBy("remainingPoints", Query.Direction.ASCENDING)
+            .orderBy("expiresAt", Query.Direction.ASCENDING)
+            .get(Source.SERVER)
+            .await()
+            .documents
+        Resultado.Exito(proximoVencimiento(documents.mapNotNull { it.toPointLot() }, java.time.Instant.now()))
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
         Resultado.Fallo(e.aErrorFirestore())
     }
 
@@ -204,11 +222,13 @@ class FirestorePointsRepository(private val firestore: FirebaseFirestore) : Poin
                 .sortedBy { it.earnedAt }
             val lot = candidates.firstOrNull() ?: throw SaldoInsuficienteException()
             pending = debitarLote(uid, pending, lot.lotId)
+                ?: return cargarCanjeFinalizado(uid, pending.redemptionId)
+                ?: throw IllegalStateException("pending redemption disappeared before finalization")
         }
         return finalizarCanje(uid, pending)
     }
 
-    private suspend fun debitarLote(uid: String, pending: PendingRedemption, lotId: String): PendingRedemption {
+    private suspend fun debitarLote(uid: String, pending: PendingRedemption, lotId: String): PendingRedemption? {
         val user = firestore.collection("users").document(uid)
         val lot = user.collection("pointLots").document(lotId)
         val pendingRef = user.collection("pendingRedemptions").document("current")
@@ -216,6 +236,7 @@ class FirestorePointsRepository(private val firestore: FirebaseFirestore) : Poin
         return firestore.runTransaction { transaction ->
             val movementSnapshot = transaction.get(movement)
             val pendingSnapshot = transaction.get(pendingRef)
+            if (!pendingSnapshot.exists()) return@runTransaction null
             val lotSnapshot = transaction.get(lot)
             val userSnapshot = transaction.get(user)
             val currentPending = pendingSnapshot.toPendingRedemption()
@@ -294,6 +315,10 @@ class FirestorePointsRepository(private val firestore: FirebaseFirestore) : Poin
             )
         }.await()
     }
+
+    private suspend fun cargarCanjeFinalizado(uid: String, redemptionId: String): RedeemedReward? =
+        firestore.collection("users").document(uid).collection("redeemedRewards")
+            .document(redemptionId).get(Source.SERVER).await().toRedeemedReward()
 
     /** Un movimiento incompleto o con valores fuera de rango se descarta en vez de romper la lista. */
     private fun DocumentSnapshot.aDesafioHecho(): DesafioHecho? {

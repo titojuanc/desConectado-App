@@ -59,3 +59,9 @@ data class PointLot(
         }
     }
 }
+
+data class UpcomingPointExpiry(
+    val points: Int,
+    val expiresAt: Instant,
+    val daysRemaining: Long,
+)

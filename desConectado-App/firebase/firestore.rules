@@ -57,7 +57,16 @@ service cloud.firestore {
           ||
           (getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(request.resource.data.lastMovementId)).data.type == 'redeem'
             && request.resource.data.pointsBalance == resource.data.get('pointsBalance', 0)
-              - getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(request.resource.data.lastMovementId)).data.amount)
+              - getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(request.resource.data.lastMovementId)).data.amount
+            && (
+              (existsAfter(/databases/$(database)/documents/users/$(uid)/redeemedRewards/$(getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(request.resource.data.lastMovementId)).data.sourceId))
+                && getAfter(/databases/$(database)/documents/users/$(uid)/redeemedRewards/$(getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(request.resource.data.lastMovementId)).data.sourceId)).data.costPoints == getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(request.resource.data.lastMovementId)).data.amount)
+              ||
+              (exists(/databases/$(database)/documents/users/$(uid)/pendingRedemptions/current)
+                && get(/databases/$(database)/documents/users/$(uid)/pendingRedemptions/current).data.redemptionId == getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(request.resource.data.lastMovementId)).data.redemptionId
+                && getAfter(/databases/$(database)/documents/users/$(uid)/pendingRedemptions/current).data.pointsDebited == get(/databases/$(database)/documents/users/$(uid)/pendingRedemptions/current).data.pointsDebited
+                  + getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(request.resource.data.lastMovementId)).data.amount))
+            )
           ||
           (getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(request.resource.data.lastMovementId)).data.type == 'expire'
             && request.resource.data.pointsBalance == resource.data.get('pointsBalance', 0)
@@ -86,9 +95,71 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    match /users/{uid}/challengeRatings/{runId} {
+      allow read: if esDueno(uid);
+      allow create: if esDueno(uid)
+        && request.resource.data.keys().hasOnly(['challengeRunId', 'stars', 'createdAt'])
+        && request.resource.data.challengeRunId == runId
+        && request.resource.data.stars is int
+        && request.resource.data.stars >= 1
+        && request.resource.data.stars <= 5
+        && request.resource.data.createdAt == request.time
+        && !exists(/databases/$(database)/documents/users/$(uid)/challengeRatings/$(runId))
+        && get(/databases/$(database)/documents/users/$(uid)/challengeResults/$(runId)).data.status == 'COMPLETED';
+      allow update, delete: if false;
+    }
+
+    match /users/{uid}/pendingRedemptions/{pendingId} {
+      allow read: if esDueno(uid);
+      allow create: if esDueno(uid)
+        && pendingId == 'current'
+        && !exists(/databases/$(database)/documents/users/$(uid)/pendingRedemptions/current)
+        && request.resource.data.keys().hasOnly(['redemptionId', 'rewardId', 'name', 'costPoints', 'code', 'pointsDebited', 'lotDebits', 'createdAt', 'updatedAt'])
+        && request.resource.data.redemptionId is string
+        && request.resource.data.rewardId is string
+        && request.resource.data.name is string
+        && request.resource.data.costPoints is int
+        && request.resource.data.costPoints > 0
+        && (request.resource.data.code == null
+          || (request.resource.data.code is string && request.resource.data.code.size() > 3))
+        && request.resource.data.pointsDebited == 0
+        && request.resource.data.lotDebits is map
+        && request.resource.data.lotDebits.keys().size() == 0
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && get(/databases/$(database)/documents/rewards/$(request.resource.data.rewardId)).data.costPoints == request.resource.data.costPoints
+        && get(/databases/$(database)/documents/users/$(uid)).data.pointsBalance >= request.resource.data.costPoints;
+      allow update: if esDueno(uid)
+        && pendingId == 'current'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pointsDebited', 'lotDebits', 'updatedAt'])
+        && request.resource.data.redemptionId == resource.data.redemptionId
+        && request.resource.data.rewardId == resource.data.rewardId
+        && request.resource.data.costPoints == resource.data.costPoints
+        && request.resource.data.pointsDebited is int
+        && request.resource.data.pointsDebited > resource.data.pointsDebited
+        && request.resource.data.pointsDebited <= resource.data.costPoints
+        && request.resource.data.updatedAt == request.time
+        && getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(ultimoMovimientoId(uid))).data.type == 'redeem'
+        && getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(ultimoMovimientoId(uid))).data.redemptionId == resource.data.redemptionId
+        && request.resource.data.pointsDebited == resource.data.pointsDebited
+          + getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(ultimoMovimientoId(uid))).data.amount
+        && request.resource.data.lotDebits.diff(resource.data.lotDebits).affectedKeys()
+          .hasOnly([getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(ultimoMovimientoId(uid))).data.lotId])
+        && !resource.data.lotDebits.keys().hasAny([getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(ultimoMovimientoId(uid))).data.lotId])
+        && request.resource.data.lotDebits[getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(ultimoMovimientoId(uid))).data.lotId]
+          == getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(ultimoMovimientoId(uid))).data.amount;
+      allow delete: if esDueno(uid)
+        && pendingId == 'current'
+        && resource.data.pointsDebited == resource.data.costPoints
+        && existsAfter(/databases/$(database)/documents/users/$(uid)/redeemedRewards/$(resource.data.redemptionId))
+        && getAfter(/databases/$(database)/documents/users/$(uid)/redeemedRewards/$(resource.data.redemptionId)).data.rewardId == resource.data.rewardId
+        && getAfter(/databases/$(database)/documents/users/$(uid)/redeemedRewards/$(resource.data.redemptionId)).data.costPoints == resource.data.costPoints;
+    }
+
     match /users/{uid}/pointLots/{lotId} {
       allow read: if esDueno(uid);
       allow create: if esDueno(uid)
+        && !exists(/databases/$(database)/documents/users/$(uid)/pointLots/$(lotId))
         && request.resource.data.keys().hasOnly(['lotId', 'localDate', 'timeZoneId', 'windowStartsAt', 'windowEndsAt', 'earnedAt', 'expiresAt', 'issuedPoints', 'remainingPoints'])
         && request.resource.data.lotId == lotId
         && request.resource.data.issuedPoints is int
@@ -117,12 +188,14 @@ service cloud.firestore {
           ||
           (getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(ultimoMovimientoId(uid))).data.type == 'expire'
             && request.time >= resource.data.expiresAt
+            && !exists(/databases/$(database)/documents/users/$(uid)/pendingRedemptions/current)
             && getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(ultimoMovimientoId(uid))).data.amount == resource.data.remainingPoints
             && request.resource.data.remainingPoints == 0
             && request.resource.data.issuedPoints == resource.data.issuedPoints)
           ||
           (getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(ultimoMovimientoId(uid))).data.type == 'redeem'
             && getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(ultimoMovimientoId(uid))).data.amount == resource.data.remainingPoints - request.resource.data.remainingPoints
+            && get(/databases/$(database)/documents/users/$(uid)/pendingRedemptions/current).data.createdAt < resource.data.expiresAt
             && request.resource.data.remainingPoints >= 0
             && request.resource.data.issuedPoints == resource.data.issuedPoints)
         );
@@ -167,18 +240,31 @@ service cloud.firestore {
           (request.resource.data.type == 'redeem'
             && request.resource.data.rewardId is string
             && request.resource.data.get('challengeId', null) == null
-            && get(/databases/$(database)/documents/rewards/$(request.resource.data.rewardId)).data.costPoints == request.resource.data.amount
-            && getAfter(/databases/$(database)/documents/users/$(uid)/redeemedRewards/$(request.resource.data.sourceId)).data.rewardId == request.resource.data.rewardId
-            && getAfter(/databases/$(database)/documents/users/$(uid)/redeemedRewards/$(request.resource.data.sourceId)).data.costPoints == request.resource.data.amount
-            && getAfter(/databases/$(database)/documents/users/$(uid)/redeemedRewards/$(request.resource.data.sourceId)).data.movementId == movementId
-            && getAfter(/databases/$(database)/documents/users/$(uid)/redeemedRewards/$(request.resource.data.sourceId)).data.createdAt == request.time
-            && request.resource.data.code is string
-            && request.resource.data.code.size() > 0)
+            && request.resource.data.redemptionId is string
+                && request.resource.data.lotId is string
+                && movementId == 'redeem-' + request.resource.data.redemptionId + '-' + request.resource.data.lotId
+                && request.resource.data.sourceId == request.resource.data.redemptionId
+                && get(/databases/$(database)/documents/users/$(uid)/pendingRedemptions/current).data.redemptionId == request.resource.data.redemptionId
+                && get(/databases/$(database)/documents/users/$(uid)/pendingRedemptions/current).data.rewardId == request.resource.data.rewardId
+                && !get(/databases/$(database)/documents/users/$(uid)/pendingRedemptions/current).data.lotDebits.keys().hasAny([request.resource.data.lotId])
+                && request.resource.data.amount <= get(/databases/$(database)/documents/users/$(uid)/pendingRedemptions/current).data.costPoints
+                  - get(/databases/$(database)/documents/users/$(uid)/pendingRedemptions/current).data.pointsDebited
+                && get(/databases/$(database)/documents/users/$(uid)/pendingRedemptions/current).data.createdAt
+                  < get(/databases/$(database)/documents/users/$(uid)/pointLots/$(request.resource.data.lotId)).data.expiresAt
+                && getAfter(/databases/$(database)/documents/users/$(uid)/pendingRedemptions/current).data.pointsDebited == get(/databases/$(database)/documents/users/$(uid)/pendingRedemptions/current).data.pointsDebited + request.resource.data.amount
+                && getAfter(/databases/$(database)/documents/users/$(uid)/pendingRedemptions/current).data.lotDebits.keys().size()
+                  == get(/databases/$(database)/documents/users/$(uid)/pendingRedemptions/current).data.lotDebits.keys().size() + 1
+                && getAfter(/databases/$(database)/documents/users/$(uid)/pendingRedemptions/current).data.lotDebits[request.resource.data.lotId] == request.resource.data.amount
+                && get(/databases/$(database)/documents/users/$(uid)/pointLots/$(request.resource.data.lotId)).data.remainingPoints >= request.resource.data.amount
+                && getAfter(/databases/$(database)/documents/users/$(uid)/pointLots/$(request.resource.data.lotId)).data.remainingPoints == get(/databases/$(database)/documents/users/$(uid)/pointLots/$(request.resource.data.lotId)).data.remainingPoints - request.resource.data.amount
+                && request.resource.data.code == get(/databases/$(database)/documents/users/$(uid)/pendingRedemptions/current).data.code
+                && request.resource.data.createdAt == request.time)
           ||
           (request.resource.data.type == 'expire'
             && movementId == 'expire-' + request.resource.data.sourceId
             && request.resource.data.lotId == request.resource.data.sourceId
             && request.resource.data.get('challengeId', null) == null
+            && !exists(/databases/$(database)/documents/users/$(uid)/pendingRedemptions/current)
             && get(/databases/$(database)/documents/users/$(uid)/pointLots/$(request.resource.data.lotId)).data.remainingPoints == request.resource.data.amount
             && request.time >= get(/databases/$(database)/documents/users/$(uid)/pointLots/$(request.resource.data.lotId)).data.expiresAt
             && getAfter(/databases/$(database)/documents/users/$(uid)/pointLots/$(request.resource.data.lotId)).data.remainingPoints == 0)
@@ -195,11 +281,14 @@ service cloud.firestore {
         && request.resource.data.costPoints is int
         && request.resource.data.costPoints > 0
         && request.resource.data.createdAt == request.time
-        && request.resource.data.movementId == 'redeem-' + redemptionId
-        && get(/databases/$(database)/documents/rewards/$(request.resource.data.rewardId)).data.costPoints == request.resource.data.costPoints
-        && getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(request.resource.data.movementId)).data.type == 'redeem'
-        && getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(request.resource.data.movementId)).data.amount == request.resource.data.costPoints
-        && getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(request.resource.data.movementId)).data.sourceId == redemptionId
+        && exists(/databases/$(database)/documents/users/$(uid)/pendingRedemptions/current)
+        && get(/databases/$(database)/documents/users/$(uid)/pendingRedemptions/current).data.redemptionId == redemptionId
+        && get(/databases/$(database)/documents/users/$(uid)/pendingRedemptions/current).data.rewardId == request.resource.data.rewardId
+        && get(/databases/$(database)/documents/users/$(uid)/pendingRedemptions/current).data.costPoints == request.resource.data.costPoints
+        && get(/databases/$(database)/documents/users/$(uid)/pendingRedemptions/current).data.pointsDebited == request.resource.data.costPoints
+        && get(/databases/$(database)/documents/users/$(uid)/pendingRedemptions/current).data.code == request.resource.data.code
+        && request.resource.data.movementIds is list
+        && request.resource.data.movementIds.size() > 0
         && (request.resource.data.code == null
           || (request.resource.data.code is string && request.resource.data.code.size() > 3));
       allow update, delete: if false;

@@ -3,7 +3,6 @@ package com.desconectado.app.ui.points
 import com.desconectado.app.domain.model.Conectividad
 import com.desconectado.app.domain.model.ErrorApp
 import com.desconectado.app.domain.model.EstadoSesion
-import com.desconectado.app.domain.model.Perfil
 import com.desconectado.app.domain.model.Resultado
 import com.desconectado.app.fakes.FakeAuthRepository
 import com.desconectado.app.fakes.FakeConnectivityMonitor
@@ -26,26 +25,24 @@ class SaldoViewModelTest {
 
     private val auth = FakeAuthRepository(EstadoSesion.ConSesion("uid-1"))
     private val perfiles = FakeProfileRepository()
+    private val puntos = FakePointsRepository()
     private val conectividad = FakeConnectivityMonitor()
 
-    private fun perfilConPuntos(puntos: Int) =
-        Perfil(username = "Ana Prueba", email = "ana@mail.com", puntos = puntos)
-
-    private fun crearViewModel() = SaldoViewModel(auth, perfiles, conectividad)
+    private fun crearViewModel() = SaldoViewModel(auth, puntos, conectividad)
 
     @Test
-    fun cargaElSaldoDelPerfilDeLaSesion() = runTest {
-        perfiles.resultadoPerfil = Resultado.Exito(perfilConPuntos(120))
+    fun cargaElSaldoProcesadoDeLaSesion() = runTest {
+        puntos.saldoResultado = Resultado.Exito(120)
 
         val vm = crearViewModel()
 
         assertEquals(SaldoUiState.Disponible(120), vm.estado.value)
-        assertEquals(listOf("uid-1"), perfiles.llamadasPerfil)
+        assertEquals(listOf("uid-1"), puntos.llamadasSaldo)
     }
 
     @Test
     fun unaCuentaNuevaMuestraSaldo0() = runTest {
-        perfiles.resultadoPerfil = Resultado.Exito(perfilConPuntos(0))
+        puntos.saldoResultado = Resultado.Exito(0)
 
         val vm = crearViewModel()
 
@@ -54,10 +51,10 @@ class SaldoViewModelTest {
 
     @Test
     fun unFalloOSinConexionDelRepositorio_noMuestraUn0Inventado() = runTest {
-        perfiles.resultadoPerfil = Resultado.Fallo(ErrorApp.Desconocido)
+        puntos.saldoResultado = Resultado.Fallo(ErrorApp.Desconocido)
         assertEquals(SaldoUiState.NoDisponible, crearViewModel().estado.value)
 
-        perfiles.resultadoPerfil = Resultado.Fallo(ErrorApp.SinConexion)
+        puntos.saldoResultado = Resultado.Fallo(ErrorApp.SinConexion)
         assertEquals(SaldoUiState.NoDisponible, crearViewModel().estado.value)
     }
 
@@ -68,13 +65,13 @@ class SaldoViewModelTest {
         val vm = crearViewModel()
 
         assertEquals(SaldoUiState.NoDisponible, vm.estado.value)
-        assertEquals(emptyList<String>(), perfiles.llamadasPerfil)
+        assertEquals(emptyList<String>(), puntos.llamadasSaldo)
     }
 
     @Test
     fun alVolverLaConexion_cargaSolo() = runTest {
         conectividad.establecer(Conectividad.SIN_CONEXION)
-        perfiles.resultadoPerfil = Resultado.Exito(perfilConPuntos(70))
+        puntos.saldoResultado = Resultado.Exito(70)
         val vm = crearViewModel()
 
         conectividad.establecer(Conectividad.CONECTADO)
@@ -84,20 +81,20 @@ class SaldoViewModelTest {
 
     @Test
     fun recargar_vuelveAPedirElSaldo() = runTest {
-        perfiles.resultadoPerfil = Resultado.Fallo(ErrorApp.Desconocido)
+        puntos.saldoResultado = Resultado.Fallo(ErrorApp.Desconocido)
         val vm = crearViewModel()
         assertEquals(SaldoUiState.NoDisponible, vm.estado.value)
 
-        perfiles.resultadoPerfil = Resultado.Exito(perfilConPuntos(30))
+        puntos.saldoResultado = Resultado.Exito(30)
         vm.recargar()
 
-        assertEquals(2, perfiles.llamadasPerfil.size)
+        assertEquals(2, puntos.llamadasSaldo.size)
         assertEquals(SaldoUiState.Disponible(30), vm.estado.value)
     }
 
     @Test
     fun alCerrarSesion_noQuedaElSaldoDeLaPersonaAnterior() = runTest {
-        perfiles.resultadoPerfil = Resultado.Exito(perfilConPuntos(500))
+        puntos.saldoResultado = Resultado.Exito(500)
         val vm = crearViewModel()
         assertEquals(SaldoUiState.Disponible(500), vm.estado.value)
 
@@ -109,11 +106,11 @@ class SaldoViewModelTest {
     @Test
     fun unFalloQueNoEsDeConexion_seReintentaSoloParaNoDejarElGuion() = runTest {
         // Primer ingreso con Google: la sesión empieza antes de que exista el perfil.
-        perfiles.resultadoPerfil = Resultado.Fallo(ErrorApp.Desconocido)
+        puntos.saldoResultado = Resultado.Fallo(ErrorApp.Desconocido)
         val vm = crearViewModel()
         assertEquals(SaldoUiState.NoDisponible, vm.estado.value)
 
-        perfiles.resultadoPerfil = Resultado.Exito(perfilConPuntos(0))
+        puntos.saldoResultado = Resultado.Exito(0)
         mainDispatcherRule.dispatcher.scheduler.advanceTimeBy(2_500)
         mainDispatcherRule.dispatcher.scheduler.runCurrent()
 
@@ -122,37 +119,38 @@ class SaldoViewModelTest {
 
     @Test
     fun elReintentoAutomaticoEstaAcotado() = runTest {
-        perfiles.resultadoPerfil = Resultado.Fallo(ErrorApp.Desconocido)
+        puntos.saldoResultado = Resultado.Fallo(ErrorApp.Desconocido)
         val vm = crearViewModel()
 
         mainDispatcherRule.dispatcher.scheduler.advanceTimeBy(60_000)
         mainDispatcherRule.dispatcher.scheduler.runCurrent()
 
-        assertEquals(3, perfiles.llamadasPerfil.size) // el intento inicial y 2 reintentos
+        assertEquals(3, puntos.llamadasSaldo.size) // el intento inicial y 2 reintentos
         assertEquals(SaldoUiState.NoDisponible, vm.estado.value)
     }
 
     @Test
     fun sinConexionNoSeReintentaSolo() = runTest {
-        perfiles.resultadoPerfil = Resultado.Fallo(ErrorApp.SinConexion)
+        puntos.saldoResultado = Resultado.Fallo(ErrorApp.SinConexion)
         crearViewModel()
 
         mainDispatcherRule.dispatcher.scheduler.advanceTimeBy(60_000)
         mainDispatcherRule.dispatcher.scheduler.runCurrent()
 
-        assertEquals(1, perfiles.llamadasPerfil.size)
+        assertEquals(1, puntos.llamadasSaldo.size)
     }
 
     @Test
     fun elSaldoDelIndicadorCoincideConElDelPerfil() = runTest {
-        perfiles.resultadoPerfil = Resultado.Exito(perfilConPuntos(340))
+        perfiles.resultadoPerfil = Resultado.Exito(com.desconectado.app.domain.model.Perfil(username = "Ana", email = "ana@mail.com", puntos = 340))
+        puntos.saldoResultado = Resultado.Exito(340)
 
         val saldo = crearViewModel()
         val perfil = PerfilViewModel(
             auth,
             perfiles,
             com.desconectado.app.fakes.FakeChallengeRepository(),
-            FakePointsRepository(),
+            puntos,
             conectividad,
         )
 
