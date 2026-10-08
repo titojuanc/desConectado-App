@@ -33,7 +33,7 @@ class FirestoreCatalogRepository(private val firestore: FirebaseFirestore) : Cat
     override suspend fun recompensas(): Resultado<List<Recompensa>> = try {
         val consulta = firestore.collection("rewards").orderBy("order", Query.Direction.ASCENDING)
         val documentos = consulta.get(Source.SERVER).await().documents
-        Resultado.Exito(documentos.mapNotNull { it.aRecompensa() })
+        Resultado.Exito(documentos.mapNotNull { it.aRecompensa() }.filter { it.active })
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
@@ -53,6 +53,7 @@ class FirestoreCatalogRepository(private val firestore: FirebaseFirestore) : Cat
             costPoints = costo,
             kind = tipo,
             order = orden,
+            active = getBoolean("active") ?: true,
         )
     }
 

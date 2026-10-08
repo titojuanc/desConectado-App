@@ -23,4 +23,5 @@ data class Recompensa(
     val costPoints: Int,
     val kind: TipoRecompensa,
     val order: Int,
+    val active: Boolean = true,
 )

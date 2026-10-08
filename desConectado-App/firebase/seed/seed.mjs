@@ -94,7 +94,7 @@ async function main() {
   console.log(`Sembrando el proyecto ${proyecto}${opciones.emulador ? ' (emulador)' : ''}:`);
   const db = getFirestore();
   await sincronizarColeccion(db, 'challenges', desafios, { archivarSobrantes: true });
-  await sincronizarColeccion(db, 'rewards', recompensas);
+  await sincronizarColeccion(db, 'rewards', recompensas, { archivarSobrantes: true });
   console.log('Listo.');
 }
 
