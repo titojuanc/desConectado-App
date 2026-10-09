@@ -28,6 +28,10 @@ import androidx.compose.ui.unit.dp
 import com.desconectado.app.R
 import com.desconectado.app.domain.model.Recompensa
 import com.desconectado.app.domain.model.PendingRedemption
+import com.desconectado.app.domain.model.CosmeticOwnership
+import com.desconectado.app.domain.model.CosmeticPreferences
+import com.desconectado.app.domain.model.TipoRecompensa
+import com.desconectado.app.domain.esCosmetico
 import com.desconectado.app.ui.components.PantallaCargando
 import com.desconectado.app.ui.components.PantallaError
 import com.desconectado.app.ui.components.PantallaSinConexion
@@ -41,10 +45,15 @@ fun RecompensasScreen(
     onCanjear: ((Recompensa) -> Unit)? = null,
     feedbackEvents: Flow<CanjeFeedback>? = null,
     canjePendiente: PendingRedemption? = null,
+    propiedad: List<CosmeticOwnership> = emptyList(),
+    preferencias: CosmeticPreferences = CosmeticPreferences(),
+    onAplicarCosmetico: ((String) -> Unit)? = null,
+    onQuitarCosmetico: ((TipoRecompensa) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val snackbar = remember { SnackbarHostState() }
     val mensajeInsuficiente = stringResource(R.string.canje_saldo_insuficiente)
+    val mensajeSinPremios = stringResource(R.string.canje_caja_sin_premios)
     val mensajeExito = stringResource(R.string.canje_exitoso)
     val mensajeSinConexion = stringResource(R.string.desafio_requiere_conexion)
     val mensajeReglas = stringResource(R.string.canje_reglas_denegadas)
@@ -53,6 +62,7 @@ fun RecompensasScreen(
         feedbackEvents?.collect { evento ->
             val mensaje = when (evento) {
                 CanjeFeedback.SaldoInsuficiente -> mensajeInsuficiente
+                CanjeFeedback.RecompensaNoDisponible -> mensajeSinPremios
                 CanjeFeedback.Exitoso -> mensajeExito
                 CanjeFeedback.SinConexion -> mensajeSinConexion
                 CanjeFeedback.FirestoreNoAutorizado -> mensajeReglas
@@ -70,6 +80,10 @@ fun RecompensasScreen(
                 estado.recompensas,
                 onCanjear,
                 canjePendiente,
+                propiedad,
+                preferencias,
+                onAplicarCosmetico,
+                onQuitarCosmetico,
                 Modifier.fillMaxSize(),
             )
         }
@@ -82,8 +96,14 @@ private fun ListaRecompensas(
     recompensas: List<Recompensa>,
     onCanjear: ((Recompensa) -> Unit)?,
     canjePendiente: PendingRedemption?,
+    propiedad: List<CosmeticOwnership>,
+    preferencias: CosmeticPreferences,
+    onAplicarCosmetico: ((String) -> Unit)?,
+    onQuitarCosmetico: ((TipoRecompensa) -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
+    val ownedIds = propiedad.mapTo(mutableSetOf()) { it.rewardId }
+    val hayPremiosParaCaja = recompensas.any { it.kind.esCosmetico() && it.id !in ownedIds }
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -103,7 +123,22 @@ private fun ListaRecompensas(
             item { CanjePendiente(canjePendiente) }
         }
         items(recompensas, key = { it.id }) { recompensa ->
-            TarjetaRecompensa(recompensa, onCanjear, canjePendiente != null)
+            TarjetaRecompensa(
+                recompensa = recompensa,
+                onCanjear = onCanjear,
+                canjePendiente = canjePendiente != null,
+                poseida = recompensa.id in ownedIds,
+                hayPremiosParaCaja = hayPremiosParaCaja,
+            )
+        }
+        item {
+            Text(text = stringResource(R.string.recompensas_mis_cosmeticos), style = MaterialTheme.typography.titleMedium)
+            if (propiedad.isEmpty()) {
+                Text(text = stringResource(R.string.recompensas_sin_cosmeticos), modifier = Modifier.testTag("cosmeticos_vacios"))
+            }
+        }
+        items(propiedad, key = { it.rewardId }) { cosmetico ->
+            TarjetaCosmetico(cosmetico, preferencias, onAplicarCosmetico, onQuitarCosmetico)
         }
     }
 }
@@ -131,6 +166,8 @@ private fun TarjetaRecompensa(
     recompensa: Recompensa,
     onCanjear: ((Recompensa) -> Unit)?,
     canjePendiente: Boolean,
+    poseida: Boolean,
+    hayPremiosParaCaja: Boolean,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -141,13 +178,43 @@ private fun TarjetaRecompensa(
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary,
             )
-            if (onCanjear != null) {
+            if (poseida) {
+                Text(text = stringResource(R.string.recompensas_ya_poseida))
+            } else if (onCanjear != null) {
                 Button(
                     onClick = { onCanjear(recompensa) },
-                    enabled = !canjePendiente,
+                    enabled = !canjePendiente && (recompensa.kind != TipoRecompensa.CAJA_SORPRESA || hayPremiosParaCaja),
                     modifier = Modifier.testTag("boton_canjear_${recompensa.id}"),
                 ) {
-                    Text(stringResource(R.string.canje_confirmar_accion))
+                    Text(if (recompensa.kind == TipoRecompensa.CAJA_SORPRESA && !hayPremiosParaCaja) {
+                        stringResource(R.string.recompensas_caja_agotada)
+                    } else {
+                        stringResource(R.string.canje_confirmar_accion)
+                    })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TarjetaCosmetico(
+    cosmetico: CosmeticOwnership,
+    preferencias: CosmeticPreferences,
+    onAplicar: ((String) -> Unit)?,
+    onQuitar: ((TipoRecompensa) -> Unit)?,
+) {
+    val activo = preferencias.activeCosmetics[cosmetico.kind] == cosmetico.rewardId
+    Card(modifier = Modifier.fillMaxWidth().testTag("cosmetico_${cosmetico.rewardId}")) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(text = cosmetico.name, style = MaterialTheme.typography.titleMedium)
+            Text(text = cosmetico.kind.valorAlmacen, style = MaterialTheme.typography.bodySmall)
+            if (onAplicar != null && onQuitar != null) {
+                Button(
+                    onClick = { if (activo) onQuitar(cosmetico.kind) else onAplicar(cosmetico.rewardId) },
+                    modifier = Modifier.testTag("boton_${if (activo) "quitar" else "aplicar"}_${cosmetico.rewardId}"),
+                ) {
+                    Text(stringResource(if (activo) R.string.recompensas_quitar else R.string.recompensas_aplicar))
                 }
             }
         }

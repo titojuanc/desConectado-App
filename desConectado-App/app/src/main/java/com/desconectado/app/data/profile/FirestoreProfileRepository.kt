@@ -48,6 +48,17 @@ class FirestoreProfileRepository(private val firestore: FirebaseFirestore) : Pro
         Resultado.Fallo(e.aErrorApp())
     }
 
+    override suspend fun actualizarUsername(uid: String, username: String): Resultado<Unit> = try {
+        val nombre = username.trim()
+        require(nombre.length in 1..30)
+        documento(uid).update("username", nombre).await()
+        Resultado.Exito(Unit)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Resultado.Fallo(e.aErrorApp())
+    }
+
     private suspend fun crear(ref: DocumentReference, nombre: String?, email: String) {
         val correo = normalizarCorreo(email)
         val datos = mapOf(

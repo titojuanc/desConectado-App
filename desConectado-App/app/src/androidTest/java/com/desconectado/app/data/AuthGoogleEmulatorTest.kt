@@ -93,7 +93,7 @@ class AuthGoogleEmulatorTest {
 
     @Test
     fun conElCorreoDeUnaCuentaDeContrasena_noCreaUnaCuentaDuplicada() = runBlocking {
-        auth.registrar("Ana", "ana@mail.com", "Secreto123")
+        auth.registrar("Ana", "ana@mail.com", "Secreto123", 120)
         val uidContrasena = uidActual()
         auth.cerrarSesion()
 

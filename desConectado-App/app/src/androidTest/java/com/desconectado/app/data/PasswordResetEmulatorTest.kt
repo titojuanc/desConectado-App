@@ -40,7 +40,7 @@ class PasswordResetEmulatorTest {
 
     @Test
     fun restablecerYIngresarConLaContrasenaNueva() = runBlocking {
-        auth.registrar("Ana", "ana@mail.com", "Original123")
+        auth.registrar("Ana", "ana@mail.com", "Original123", 120)
         auth.cerrarSesion()
 
         val resultado = auth.restablecerPassword("  Ana@Mail.COM ")

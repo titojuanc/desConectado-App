@@ -5,6 +5,13 @@ enum class TipoRecompensa(val valorAlmacen: String) {
     INSIGNIA("badge"),
     TEMA("theme"),
     CUPON("coupon"),
+    FONDO_ENFOQUE("focus-background"),
+    PACK_ICONOS("icon-pack"),
+    MARCO_PERFIL("profile-frame"),
+    ICONO_PUNTOS("point-icon"),
+    ANIMACION_COMPLETADO("completion-animation"),
+    SONIDO_COMPLETADO("completion-sound"),
+    CAJA_SORPRESA("surprise-box"),
     ;
 
     companion object {
@@ -24,4 +31,5 @@ data class Recompensa(
     val kind: TipoRecompensa,
     val order: Int,
     val active: Boolean = true,
+    val config: Map<String, String> = emptyMap(),
 )

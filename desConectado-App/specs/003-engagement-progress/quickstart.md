@@ -16,9 +16,9 @@ Este documento cubre solo las funciones nuevas de `003-engagement-progress`. Los
 3. **Historial de canjes**: canjear elementos distintos y un cupón; verificar costo, fecha, propiedad/código y que un usuario distinto no puede leerlos.
 4. **Vencimiento**: crear dos lotes con vencimientos distintos; comprobar saldo antes/después, consumo primero del lote más próximo, expiración única, reintento idempotente y rechazo de débito prematuro o excesivo. En perfil, comprobar que se muestra bajo el saldo la suma del lote que vence antes y sus días calendario en la zona original.
 5. **Categorías**: comprobar Todos y cada una de las cuatro categorías; verificar los 28 datos editoriales y que los IDs históricos no desaparecen.
-6. **Logros/progreso**: alcanzar umbrales por cantidad, tiempo y categoría; repetir la última operación; comprobar concesión única, progreso parcial, total acumulado, racha y semana.
-7. **Cosméticos**: canjear un tema/fondo/pack/marco; activarlo; reiniciar app; verificar persistencia. Probar falta de saldo, elemento no poseído y caja sorpresa sin premios repetidos.
-8. **Perfil/preferencias**: editar nombre visible; cambiar preferencias; verificar persistencia, aislamiento de cuentas y que el correo/auth no se altera.
+6. **Logros/progreso**: alcanzar umbrales por cantidad, tiempo y categoría; repetir la última operación; comprobar concesión única, progreso parcial, total acumulado, racha y semana de lunes a domingo. El día de racha usa la zona del resultado completado; la racha de ayer se conserva durante hoy. La app calcula umbrales desde resultados; Rules protege propiedad/monotonicidad, pero no puede verificar el conteo completo.
+7. **Cosméticos**: canjear tema/fondo/pack/marco/ícono/animación/sonido; activarlo y reiniciar app; verificar persistencia. Probar falta de saldo, elemento no poseído, caja sorpresa con grant único y caja agotada sin débito.
+8. **Perfil/preferencias**: elegir meta en Registro; editar username y meta; cambiar toggle de notificaciones y apariencia; verificar persistencia/aislamiento y que correo/Auth no se altera.
 9. **Privacidad/notificaciones**: revisar explicación y acceso a Ajustes de Android; denegar/revocar permiso; desactivar notificaciones y verificar que no se solicita cámara ni acceso de accesibilidad.
 
 ## Criterio de aceptación

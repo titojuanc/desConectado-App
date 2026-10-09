@@ -111,3 +111,16 @@ la navegación visual antes de cerrar los contratos de comportamiento.
 |-----------|------------|-------------------------------------|
 | Sin violaciones aprobadas | N/A | La ampliación del alcance fue solicitada para la tercera entrega; las decisiones de economía permanecen bloqueadas hasta cerrar las invariantes de Firestore. |
 | [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+
+## Validación de Producción
+
+La validación productiva apunta exclusivamente al proyecto `des-conectado` y comienza con cambios committeados/pusheados. Orden obligatorio:
+
+1. Desplegar solo `firestore:rules` con `--project des-conectado`; no desplegar Functions ni productos que requieran billing.
+2. Ejecutar el seed de desafíos/recompensas/logros con `GOOGLE_APPLICATION_CREDENTIALS` ignorado por Git y `--project des-conectado`; revisar primero el dry-run. No ejecutar `reset-delivery-3.mjs`.
+3. Construir variante debug con `USE_FIREBASE_EMULATOR=false`, instalar en el AVD local y confirmar proyecto `des-conectado` antes de iniciar sesión.
+4. Usar únicamente una cuenta de smoke desechable, sin leer/modificar perfiles existentes. Limpiar solo esa cuenta de prueba tras registrar resultados; nunca ejecutar borrado masivo.
+5. Seguir `quickstart-produccion.md`, corregir fallos de conexión/reglas y repetir las pruebas automatizadas y smoke afectadas.
+6. Entregar `quickstart-produccion.md` para el teléfono real. La adaptación visual final espera la confirmación manual T045 y el feedback del usuario.
+
+La prueba de producción del cliente no equivale a Rules Emulator: verifica acceso desde Firebase SDK/Android. Los caminos largos que requieren permiso, 15 minutos o saldo de prueba se registran como limitación/manual y no se simulan como concesiones reales.

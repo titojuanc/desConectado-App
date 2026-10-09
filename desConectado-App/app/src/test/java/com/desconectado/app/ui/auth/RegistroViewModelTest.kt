@@ -30,10 +30,12 @@ class RegistroViewModelTest {
         username: String = "Ana",
         email: String = "ana@mail.com",
         password: String = "Secreto123",
+        metaSemanal: Int? = 120,
     ) {
         onUsernameChange(username)
         onEmailChange(email)
         onPasswordChange(password)
+        metaSemanal?.let(::onMetaSemanalChange)
     }
 
     @Test
@@ -60,6 +62,41 @@ class RegistroViewModelTest {
         assertEquals(listOf(Triple("Ana", "ana@mail.com", "Secreto123")), auth.llamadasRegistrar)
         assertFalse(vm.uiState.value.enviando)
         assertNull(vm.uiState.value.errorEnvio)
+    }
+
+    @Test
+    fun sinMetaSemanalSeleccionada_noCreaLaCuenta() = runTest {
+        val vm = crearViewModel()
+        vm.completar(metaSemanal = null)
+
+        vm.registrar()
+
+        assertTrue(auth.llamadasRegistrar.isEmpty())
+        assertEquals(true, vm.uiState.value.errorMetaSemanal)
+    }
+
+    @Test
+    fun metaSemanalValida_sePasaAlRegistro() = runTest {
+        val vm = crearViewModel()
+        vm.completar(metaSemanal = null)
+        vm.onMetaSemanalChange(180)
+
+        vm.registrar()
+
+        assertEquals(listOf(Triple("Ana", "ana@mail.com", "Secreto123") to 180), auth.llamadasRegistrarConMeta)
+        assertFalse(vm.uiState.value.errorMetaSemanal)
+    }
+
+    @Test
+    fun metaSemanalFueraDeRango_noLlamaAlRepositorio() = runTest {
+        val vm = crearViewModel()
+        vm.completar(metaSemanal = null)
+        vm.onMetaSemanalChange(45)
+
+        vm.registrar()
+
+        assertTrue(auth.llamadasRegistrar.isEmpty())
+        assertEquals(true, vm.uiState.value.errorMetaSemanal)
     }
 
     @Test

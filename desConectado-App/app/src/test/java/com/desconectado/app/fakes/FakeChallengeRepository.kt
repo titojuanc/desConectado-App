@@ -8,6 +8,8 @@ import com.desconectado.app.domain.model.Resultado
 import com.desconectado.app.domain.repository.ChallengeRepository
 
 class FakeChallengeRepository : ChallengeRepository {
+    var resultsResult: Resultado<List<ChallengeResult>> = Resultado.Exito(emptyList())
+    val resultsCalls = mutableListOf<String>()
     var historyResult: Resultado<List<DesafioHecho>> = Resultado.Exito(emptyList())
     val historyCalls = mutableListOf<String>()
     var ratingResult: Resultado<ChallengeRating?> = Resultado.Exito(null)
@@ -21,6 +23,10 @@ class FakeChallengeRepository : ChallengeRepository {
     override suspend fun rate(uid: String, rating: ChallengeRating): Resultado<Unit> {
         rateCalls += uid to rating
         return rateResult
+    }
+    override suspend fun results(uid: String): Resultado<List<ChallengeResult>> {
+        resultsCalls += uid
+        return resultsResult
     }
     var activeResult: Resultado<ActiveChallenge?> = Resultado.Exito(null)
     var startResult: Resultado<ActiveChallenge> = Resultado.Fallo(com.desconectado.app.domain.model.ErrorApp.Desconocido)

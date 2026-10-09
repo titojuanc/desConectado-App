@@ -18,6 +18,7 @@ sealed interface ErrorApp {
     data object CredencialesInvalidas : ErrorApp
 
     data object SaldoInsuficiente : ErrorApp
+    data object RecompensaNoDisponible : ErrorApp
 
     data object AccesoUsoDenegado : ErrorApp
     data object FirestoreNoAutorizado : ErrorApp

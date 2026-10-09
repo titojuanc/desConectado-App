@@ -8,9 +8,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Park
+import androidx.compose.material.icons.outlined.CheckCircleOutline
+import androidx.compose.material.icons.outlined.Forum
+import androidx.compose.material.icons.outlined.PersonOutline
+import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -60,6 +67,7 @@ fun MainShell(
     desafios: @Composable () -> Unit = {},
     recompensas: @Composable () -> Unit = {},
     perfil: @Composable () -> Unit = {},
+    iconPackId: String? = null,
 ) {
     var destino by rememberSaveable { mutableStateOf(Destino.DESAFIOS) }
     LaunchedEffect(destino) { onDestinoCambiado() }
@@ -83,7 +91,7 @@ fun MainShell(
                     NavigationBarItem(
                         selected = destino == item,
                         onClick = { destino = item },
-                        icon = { Icon(item.icono, contentDescription = null) },
+                        icon = { Icon(item.icono(iconPackId), contentDescription = null) },
                         label = { Text(stringResource(item.etiqueta)) },
                         modifier = Modifier.testTag(item.etiquetaPrueba),
                     )
@@ -100,4 +108,18 @@ fun MainShell(
             }
         }
     }
+}
+
+private fun Destino.icono(iconPackId: String?): ImageVector = when (iconPackId) {
+    "icon-pack-minimal" -> when (this) {
+        Destino.DESAFIOS -> Icons.Outlined.CheckCircleOutline
+        Destino.RECOMPENSAS -> Icons.Outlined.StarBorder
+        Destino.PERFIL -> Icons.Outlined.PersonOutline
+    }
+    "icon-pack-naturaleza" -> when (this) {
+        Destino.DESAFIOS -> Icons.AutoMirrored.Filled.DirectionsWalk
+        Destino.RECOMPENSAS -> Icons.Filled.Park
+        Destino.PERFIL -> Icons.Filled.Person
+    }
+    else -> icono
 }

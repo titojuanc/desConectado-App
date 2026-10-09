@@ -12,7 +12,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { applicationDefault, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import { validarCatalogo } from './validate.mjs';
+import { validarCatalogo, validarLogros } from './validate.mjs';
 
 const aqui = dirname(fileURLToPath(import.meta.url));
 // La app de depuración usa el proyecto real (`des-conectado`); para las pruebas instrumentadas hay que
@@ -62,8 +62,9 @@ async function sincronizarColeccion(db, nombre, documentos, { archivarSobrantes 
 async function main() {
   const opciones = leerArgumentos(process.argv.slice(2));
   const catalogo = JSON.parse(readFileSync(resolve(aqui, 'catalog.json'), 'utf8'));
+  const logros = JSON.parse(readFileSync(resolve(aqui, 'achievements.json'), 'utf8'));
 
-  const errores = validarCatalogo(catalogo);
+  const errores = [...validarCatalogo(catalogo), ...validarLogros(logros)];
   if (errores.length > 0) {
     console.error('El catálogo no es válido; no se escribió nada:');
     for (const error of errores) console.error(`  - ${error}`);
@@ -72,9 +73,10 @@ async function main() {
 
   const desafios = comoDocumentos(catalogo.challenges);
   const recompensas = comoDocumentos(catalogo.rewards);
+  const definicionesLogros = comoDocumentos(logros);
 
   if (opciones.dryRun) {
-    console.log(`Catálogo válido: ${desafios.length} desafíos y ${recompensas.length} recompensas (sin escribir).`);
+    console.log(`Catálogo válido: ${desafios.length} desafíos, ${recompensas.length} recompensas y ${definicionesLogros.length} logros (sin escribir).`);
     return;
   }
 
@@ -95,6 +97,7 @@ async function main() {
   const db = getFirestore();
   await sincronizarColeccion(db, 'challenges', desafios, { archivarSobrantes: true });
   await sincronizarColeccion(db, 'rewards', recompensas, { archivarSobrantes: true });
+  await sincronizarColeccion(db, 'achievements', definicionesLogros, { archivarSobrantes: true });
   console.log('Listo.');
 }
 

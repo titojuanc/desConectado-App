@@ -10,13 +10,13 @@ interface AuthRepository {
     val authState: Flow<EstadoSesion>
 
     /** Crea la cuenta y el perfil, y deja la sesión iniciada. El correo se normaliza (FR-009). */
-    suspend fun registrar(username: String, email: String, password: String): Resultado<Unit>
+    suspend fun registrar(username: String, email: String, password: String, weeklyGoalMinutes: Int): Resultado<Unit>
 
     /** Ingresa con correo y contraseña. El correo se normaliza igual que en `registrar`. */
     suspend fun ingresar(email: String, password: String): Resultado<Unit>
 
     /** Ingresa con el token de identidad de Google; crea el perfil si no existe (FR-007). */
-    suspend fun ingresarConGoogle(idToken: String): Resultado<Unit>
+    suspend fun ingresarConGoogle(idToken: String, weeklyGoalMinutes: Int? = null): Resultado<Unit>
 
     /** Vincula Google a la cuenta ya autenticada; solo tras `CuentaExistenteConOtroProveedor`. */
     suspend fun vincularGoogle(idToken: String): Resultado<Unit>

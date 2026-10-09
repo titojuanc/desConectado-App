@@ -2,6 +2,7 @@ package com.desconectado.app.fakes
 
 import com.desconectado.app.domain.model.EstadoSesion
 import com.desconectado.app.domain.model.Resultado
+import com.desconectado.app.domain.model.UserPreferences
 import com.desconectado.app.domain.repository.AuthRepository
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
@@ -27,8 +28,10 @@ class FakeAuthRepository(estadoInicial: EstadoSesion = EstadoSesion.SinSesion) :
     var compuerta: CompletableDeferred<Unit>? = null
 
     val llamadasRegistrar = mutableListOf<Triple<String, String, String>>()
+    val llamadasRegistrarConMeta = mutableListOf<Pair<Triple<String, String, String>, Int>>()
     val llamadasIngresar = mutableListOf<Pair<String, String>>()
     val llamadasIngresarConGoogle = mutableListOf<String>()
+    val llamadasIngresarConGoogleYMeta = mutableListOf<Pair<String, Int?>>()
     val llamadasVincularGoogle = mutableListOf<String>()
     val llamadasRestablecer = mutableListOf<String>()
     var cierresDeSesion = 0
@@ -40,8 +43,9 @@ class FakeAuthRepository(estadoInicial: EstadoSesion = EstadoSesion.SinSesion) :
         estado.value = nuevo
     }
 
-    override suspend fun registrar(username: String, email: String, password: String): Resultado<Unit> {
+    override suspend fun registrar(username: String, email: String, password: String, weeklyGoalMinutes: Int): Resultado<Unit> {
         llamadasRegistrar += Triple(username, email, password)
+        llamadasRegistrarConMeta += Triple(username, email, password) to weeklyGoalMinutes
         compuerta?.await()
         return resultadoRegistrar
     }
@@ -52,8 +56,9 @@ class FakeAuthRepository(estadoInicial: EstadoSesion = EstadoSesion.SinSesion) :
         return resultadoIngresar
     }
 
-    override suspend fun ingresarConGoogle(idToken: String): Resultado<Unit> {
+    override suspend fun ingresarConGoogle(idToken: String, weeklyGoalMinutes: Int?): Resultado<Unit> {
         llamadasIngresarConGoogle += idToken
+        llamadasIngresarConGoogleYMeta += idToken to weeklyGoalMinutes
         compuerta?.await()
         return resultadoIngresarConGoogle
     }

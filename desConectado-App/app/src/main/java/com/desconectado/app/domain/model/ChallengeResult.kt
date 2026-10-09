@@ -16,6 +16,7 @@ data class ChallengeResult(
     val pointsAwarded: Int,
     val durationSeconds: Int = durationMinutes * 60,
     val timeZoneId: String = ZoneId.systemDefault().id,
+    val category: CategoriaDesafio? = null,
 ) {
     enum class Status { COMPLETED, FAILED, CANCELLED, INVALIDATED }
 }

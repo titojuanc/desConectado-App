@@ -7,7 +7,8 @@
   "scripts": {
     "emulators": "firebase emulators:start --only auth,firestore --project demo-desconectado",
     "test": "firebase emulators:exec --only firestore --project demo-desconectado \"node --test --test-concurrency=1 tests/rules/*.test.mjs\"",
-    "test:seed": "node --test tests/seed/*.test.mjs"
+    "test:seed": "node --test tests/seed/*.test.mjs",
+    "test:maintenance": "node --test tests/maintenance/*.test.mjs"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.2",

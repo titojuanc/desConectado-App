@@ -123,9 +123,14 @@ describe('reglas de users/{uid}', () => {
   });
 
   describe('modificar y borrar', () => {
-    it('ni el dueño puede actualizar su perfil', async () => {
+    it('el dueño solo puede actualizar un username válido', async () => {
       await sembrarPerfil();
-      await assertFails(updateDoc(doc(ana(), 'users', UID), { username: 'Otro nombre' }));
+      const profile = doc(ana(), 'users', UID);
+      await assertSucceeds(updateDoc(profile, { username: 'Otro nombre' }));
+      await assertFails(updateDoc(profile, { username: '' }));
+      await assertFails(updateDoc(profile, { username: 'a'.repeat(31) }));
+      await assertFails(updateDoc(profile, { email: 'otro@mail.com' }));
+      await assertFails(updateDoc(profile, { createdAt: new Date() }));
     });
 
     it('ni el dueño puede cambiar su saldo de puntos (FR-032)', async () => {

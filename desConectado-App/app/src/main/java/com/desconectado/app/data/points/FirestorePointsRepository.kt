@@ -6,11 +6,14 @@ import com.desconectado.app.domain.model.ChallengeResult
 import com.desconectado.app.domain.model.Recompensa
 import com.desconectado.app.domain.model.RedeemedReward
 import com.desconectado.app.domain.model.PointLot
+import com.desconectado.app.domain.model.CosmeticOwnership
 import com.desconectado.app.domain.model.PendingRedemption
 import com.desconectado.app.domain.model.UpcomingPointExpiry
 import com.desconectado.app.domain.model.Resultado
 import com.desconectado.app.domain.model.TipoRecompensa
 import com.desconectado.app.domain.codigoCupon
+import com.desconectado.app.domain.esCosmetico
+import com.desconectado.app.domain.seleccionarPremioSorpresa
 import com.desconectado.app.domain.proximoVencimiento
 import com.desconectado.app.domain.repository.PointsRepository
 import com.google.firebase.firestore.DocumentSnapshot
@@ -33,6 +36,7 @@ class FirestorePointsRepository(private val firestore: FirebaseFirestore) : Poin
 
     private class SaldoInsuficienteException : IllegalStateException()
     private class OtroCanjePendienteException : IllegalStateException()
+    private class RecompensaNoDisponibleException : IllegalStateException()
     private data class InicioCanje(val pending: PendingRedemption?, val redeemed: RedeemedReward?)
     private val expirationProcessor = PointExpirationProcessor(firestore)
 
@@ -163,6 +167,24 @@ class FirestorePointsRepository(private val firestore: FirebaseFirestore) : Poin
         val redemption = user.collection("redeemedRewards").document(redemptionId)
         val pendingRef = user.collection("pendingRedemptions").document("current")
         val rewardRef = firestore.collection("rewards").document(reward.id)
+        cargarCanjeFinalizado(uid, redemptionId)?.let { return Resultado.Exito(it) }
+        val pendingBefore = pendingRef.get(Source.SERVER).await().toPendingRedemption()
+        if (pendingBefore != null) {
+            if (pendingBefore.redemptionId != redemptionId || pendingBefore.rewardId != reward.id) {
+                throw OtroCanjePendienteException()
+            }
+            return Resultado.Exito(completarCanje(uid, pendingBefore))
+        }
+        val premioCaja = if (reward.kind == TipoRecompensa.CAJA_SORPRESA) {
+            val ownedIds = user.collection("cosmeticOwnership").get(Source.SERVER).await().documents
+                .map { it.id }
+                .toSet()
+            val catalogo = firestore.collection("rewards").orderBy("order", Query.Direction.ASCENDING)
+                .get(Source.SERVER).await().documents.mapNotNull { it.toRecompensa() }
+            seleccionarPremioSorpresa(catalogo, ownedIds, redemptionId) ?: throw RecompensaNoDisponibleException()
+        } else {
+            null
+        }
         val code = if (reward.kind == TipoRecompensa.CUPON) codigoCupon(redemptionId) else null
         val start = firestore.runTransaction { transaction ->
             val existingRedemption = transaction.get(redemption)
@@ -179,6 +201,22 @@ class FirestorePointsRepository(private val firestore: FirebaseFirestore) : Poin
             val rewardSnapshot = transaction.get(rewardRef)
             check(rewardSnapshot.exists()) { "reward does not exist" }
             check(rewardSnapshot.getLong("costPoints") == reward.costPoints.toLong()) { "reward cost changed" }
+            check(rewardSnapshot.getString("kind") == reward.kind.valorAlmacen) { "reward kind changed" }
+            check(rewardSnapshot.getBoolean("active") != false) { "reward is inactive" }
+            check(rewardSnapshot.stringMap("config") == reward.config) { "reward config changed" }
+            if (reward.kind.esCosmetico()) {
+                val owned = transaction.get(user.collection("cosmeticOwnership").document(reward.id))
+                if (owned.exists()) throw RecompensaNoDisponibleException()
+            }
+            val premioCajaSnapshot = premioCaja?.let { transaction.get(firestore.collection("rewards").document(it.id)) }
+            if (premioCaja != null) {
+                val owned = transaction.get(user.collection("cosmeticOwnership").document(premioCaja.id))
+                if (owned.exists() || premioCajaSnapshot?.getBoolean("active") == false) {
+                    throw RecompensaNoDisponibleException()
+                }
+                check(premioCajaSnapshot?.getString("kind") == premioCaja.kind.valorAlmacen)
+                check(premioCajaSnapshot.stringMap("config") == premioCaja.config)
+            }
             val balance = userSnapshot.getLong("pointsBalance") ?: 0L
             if (balance < reward.costPoints) throw SaldoInsuficienteException()
             val pending = PendingRedemption(
@@ -190,6 +228,12 @@ class FirestorePointsRepository(private val firestore: FirebaseFirestore) : Poin
                 pointsDebited = 0,
                 lotDebits = emptyMap(),
                 createdAt = java.time.Instant.now(),
+                kind = reward.kind,
+                config = reward.config,
+                grantedRewardId = premioCaja?.id,
+                grantedRewardName = premioCaja?.name,
+                grantedRewardKind = premioCaja?.kind,
+                grantedRewardConfig = premioCaja?.config.orEmpty(),
             )
             transaction.set(pendingRef, pending.toFirestoreMap())
             InicioCanje(pending, null)
@@ -201,6 +245,8 @@ class FirestorePointsRepository(private val firestore: FirebaseFirestore) : Poin
         throw e
     } catch (e: SaldoInsuficienteException) {
         Resultado.Fallo(com.desconectado.app.domain.model.ErrorApp.SaldoInsuficiente)
+    } catch (e: RecompensaNoDisponibleException) {
+        Resultado.Fallo(com.desconectado.app.domain.model.ErrorApp.RecompensaNoDisponible)
     } catch (e: OtroCanjePendienteException) {
         Resultado.Fallo(com.desconectado.app.domain.model.ErrorApp.Desconocido)
     } catch (e: Exception) {
@@ -292,7 +338,7 @@ class FirestorePointsRepository(private val firestore: FirebaseFirestore) : Poin
             val current = pendingSnapshot.toPendingRedemption()
                 ?: throw IllegalStateException("pending redemption does not exist")
             check(current.redemptionId == pending.redemptionId && current.canFinalize)
-            transaction.set(redemption, mapOf(
+            val datosCanje = mapOf(
                 "redemptionId" to current.redemptionId,
                 "rewardId" to current.rewardId,
                 "name" to current.name,
@@ -301,7 +347,17 @@ class FirestorePointsRepository(private val firestore: FirebaseFirestore) : Poin
                 "movementIds" to movementIds,
                 "code" to current.code,
                 "createdAt" to FieldValue.serverTimestamp(),
-            ))
+                "kind" to current.kind?.valorAlmacen,
+                "config" to current.config,
+                "grantedRewardId" to current.grantedRewardId,
+                "grantedRewardName" to current.grantedRewardName,
+                "grantedRewardKind" to current.grantedRewardKind?.valorAlmacen,
+                "grantedRewardConfig" to current.grantedRewardConfig,
+            )
+            transaction.set(redemption, datosCanje)
+            cosmeticOwnership(current)?.let { ownership ->
+                transaction.set(user.collection("cosmeticOwnership").document(ownership.rewardId), ownership.toFirestoreMap())
+            }
             transaction.delete(pendingRef)
             RedeemedReward(
                 current.redemptionId,
@@ -312,9 +368,49 @@ class FirestorePointsRepository(private val firestore: FirebaseFirestore) : Poin
                 current.code,
                 now,
                 movementIds,
+                current.kind,
+                current.config,
+                current.grantedRewardId,
+                current.grantedRewardName,
+                current.grantedRewardKind,
+                current.grantedRewardConfig,
             )
         }.await()
     }
+
+    private fun cosmeticOwnership(pending: PendingRedemption): CosmeticOwnership? {
+        if (pending.kind?.esCosmetico() == true) {
+            return CosmeticOwnership(
+                rewardId = pending.rewardId,
+                name = pending.name,
+                kind = pending.kind,
+                config = pending.config,
+                acquiredAt = pending.createdAt,
+                redemptionId = pending.redemptionId,
+            )
+        }
+        val grantedKind = pending.grantedRewardKind
+        val grantedId = pending.grantedRewardId
+        val grantedName = pending.grantedRewardName
+        if (grantedKind?.esCosmetico() != true || grantedId == null || grantedName == null) return null
+        return CosmeticOwnership(
+            rewardId = grantedId,
+            name = grantedName,
+            kind = grantedKind,
+            config = pending.grantedRewardConfig,
+            acquiredAt = pending.createdAt,
+            redemptionId = pending.redemptionId,
+        )
+    }
+
+    private fun CosmeticOwnership.toFirestoreMap(): Map<String, Any> = mapOf(
+        "rewardId" to rewardId,
+        "name" to name,
+        "kind" to kind.valorAlmacen,
+        "config" to config,
+        "redemptionId" to redemptionId,
+        "createdAt" to FieldValue.serverTimestamp(),
+    )
 
     private suspend fun cargarCanjeFinalizado(uid: String, redemptionId: String): RedeemedReward? =
         firestore.collection("users").document(uid).collection("redeemedRewards")
@@ -341,6 +437,12 @@ class FirestorePointsRepository(private val firestore: FirebaseFirestore) : Poin
             createdAt = date,
             movementIds = (get("movementIds") as? List<*>)?.filterIsInstance<String>()
                 ?: listOf(movementId),
+            kind = TipoRecompensa.desdeAlmacen(getString("kind")),
+            config = stringMap("config"),
+            grantedRewardId = getString("grantedRewardId"),
+            grantedRewardName = getString("grantedRewardName"),
+            grantedRewardKind = TipoRecompensa.desdeAlmacen(getString("grantedRewardKind")),
+            grantedRewardConfig = stringMap("grantedRewardConfig"),
         )
     }
 
@@ -364,6 +466,12 @@ class FirestorePointsRepository(private val firestore: FirebaseFirestore) : Poin
                 pointsDebited = getLong("pointsDebited")?.toInt() ?: return null,
                 lotDebits = lotDebits,
                 createdAt = getTimestamp("createdAt")?.toDate()?.toInstant() ?: return null,
+                kind = TipoRecompensa.desdeAlmacen(getString("kind")),
+                config = stringMap("config"),
+                grantedRewardId = getString("grantedRewardId"),
+                grantedRewardName = getString("grantedRewardName"),
+                grantedRewardKind = TipoRecompensa.desdeAlmacen(getString("grantedRewardKind")),
+                grantedRewardConfig = stringMap("grantedRewardConfig"),
             )
         } catch (_: IllegalArgumentException) {
             null
@@ -378,6 +486,12 @@ class FirestorePointsRepository(private val firestore: FirebaseFirestore) : Poin
         "code" to code,
         "pointsDebited" to pointsDebited,
         "lotDebits" to lotDebits,
+        "kind" to kind?.valorAlmacen,
+        "config" to config,
+        "grantedRewardId" to grantedRewardId,
+        "grantedRewardName" to grantedRewardName,
+        "grantedRewardKind" to grantedRewardKind?.valorAlmacen,
+        "grantedRewardConfig" to grantedRewardConfig,
         "createdAt" to FieldValue.serverTimestamp(),
         "updatedAt" to FieldValue.serverTimestamp(),
     )
@@ -409,6 +523,30 @@ class FirestorePointsRepository(private val firestore: FirebaseFirestore) : Poin
         "issuedPoints" to issuedPoints,
         "remainingPoints" to remainingPoints,
     )
+
+    private fun DocumentSnapshot.toRecompensa(): Recompensa? {
+        val kind = TipoRecompensa.desdeAlmacen(getString("kind")) ?: return null
+        return Recompensa(
+            id = id,
+            name = getString("name") ?: return null,
+            description = getString("description") ?: return null,
+            costPoints = getLong("costPoints")?.toInt() ?: return null,
+            kind = kind,
+            order = getLong("order")?.toInt() ?: return null,
+            active = getBoolean("active") ?: true,
+            config = stringMap("config"),
+        )
+    }
+
+    private fun DocumentSnapshot.stringMap(field: String): Map<String, String> =
+        (get(field) as? Map<*, *>)
+            ?.mapNotNull { (key, value) ->
+                val keyText = key as? String ?: return@mapNotNull null
+                val valueText = value as? String ?: return@mapNotNull null
+                keyText to valueText
+            }
+            ?.toMap()
+            ?: emptyMap()
 
     private companion object {
         const val TIPO_ACREDITACION = "credit"

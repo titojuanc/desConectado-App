@@ -53,7 +53,7 @@ class AuthRepositoryEmulatorTest {
 
     @Test
     fun registrar_creaCuentaYPerfilYDejaLaSesionIniciada() = runBlocking {
-        val resultado = auth.registrar("Ana Prueba", "Ana@Mail.com", "Secreto123")
+        val resultado = auth.registrar("Ana Prueba", "Ana@Mail.com", "Secreto123", 120)
 
         assertEquals(Resultado.Exito(Unit), resultado)
         val sesion = estadoActual()
@@ -63,21 +63,23 @@ class AuthRepositoryEmulatorTest {
             Resultado.Exito(Perfil(username = "Ana Prueba", email = "ana@mail.com")),
             container.perfilRepository.perfil(uid),
         )
+        val preferences = container.userPreferencesRepository.leer(uid)
+        assertEquals(120, (preferences as Resultado.Exito).valor.weeklyGoalMinutes)
     }
 
     @Test
     fun registrar_conUnCorreoRepetido_daCorreoEnUso() = runBlocking {
-        auth.registrar("Ana", "ana@mail.com", "Secreto123")
+        auth.registrar("Ana", "ana@mail.com", "Secreto123", 120)
         auth.cerrarSesion()
 
-        val resultado = auth.registrar("Otra Ana", "ANA@mail.com", "OtraClave123")
+        val resultado = auth.registrar("Otra Ana", "ANA@mail.com", "OtraClave123", 120)
 
         assertEquals(ErrorApp.CorreoEnUso, resultado.errorOrNull())
     }
 
     @Test
     fun ingresar_conContrasenaIncorrectaOCorreoInexistente_daCredencialesInvalidas() = runBlocking {
-        auth.registrar("Ana", "ana@mail.com", "Secreto123")
+        auth.registrar("Ana", "ana@mail.com", "Secreto123", 120)
         auth.cerrarSesion()
 
         val passwordIncorrecta = auth.ingresar("ana@mail.com", "Incorrecta1")
@@ -89,7 +91,7 @@ class AuthRepositoryEmulatorTest {
 
     @Test
     fun ingresar_ignoraMayusculasYEspaciosDelCorreo() = runBlocking {
-        auth.registrar("Ana", "  Ana@Mail.COM ", "Secreto123")
+        auth.registrar("Ana", "  Ana@Mail.COM ", "Secreto123", 120)
         auth.cerrarSesion()
 
         assertEquals(Resultado.Exito(Unit), auth.ingresar("ana@mail.com", "Secreto123"))
@@ -114,7 +116,7 @@ class AuthRepositoryEmulatorTest {
 
     @Test
     fun cerrarSesion_dejaSinSesion() = runBlocking {
-        auth.registrar("Ana", "ana@mail.com", "Secreto123")
+        auth.registrar("Ana", "ana@mail.com", "Secreto123", 120)
         assertTrue(estadoActual() is EstadoSesion.ConSesion)
 
         auth.cerrarSesion()
@@ -124,7 +126,7 @@ class AuthRepositoryEmulatorTest {
 
     @Test
     fun verificarCuenta_cierraLaSesionSiLaCuentaSeElimino() = runBlocking {
-        auth.registrar("Ana", "ana@mail.com", "Secreto123")
+        auth.registrar("Ana", "ana@mail.com", "Secreto123", 120)
         val token = container.auth.currentUser!!.getIdToken(false).await().token
         assertNotNull(token)
 
@@ -137,7 +139,7 @@ class AuthRepositoryEmulatorTest {
 
     @Test
     fun verificarCuenta_conLaCuentaVigente_noCierraLaSesion() = runBlocking {
-        auth.registrar("Ana", "ana@mail.com", "Secreto123")
+        auth.registrar("Ana", "ana@mail.com", "Secreto123", 120)
 
         auth.verificarCuenta()
 

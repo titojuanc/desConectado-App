@@ -9,6 +9,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -23,6 +24,7 @@ import com.desconectado.app.ui.auth.RegistroScreen
 import com.desconectado.app.ui.auth.RegistroUiState
 import com.desconectado.app.ui.navigation.RaizApp
 import com.desconectado.app.ui.theme.DesConectadoTheme
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -51,7 +53,10 @@ class AuthScreensTest {
         }
     }
 
-    private fun mostrarRegistro(estado: RegistroUiState = RegistroUiState()) = compose.setContent {
+    private fun mostrarRegistro(
+        estado: RegistroUiState = RegistroUiState(),
+        onMetaSemanalChange: (Int?) -> Unit = {},
+    ) = compose.setContent {
         DesConectadoTheme {
             RegistroScreen(
                 estado = estado,
@@ -61,6 +66,7 @@ class AuthScreensTest {
                 onRegistrar = {},
                 onIrAIngreso = {},
                 onGoogle = {},
+                onMetaSemanalChange = onMetaSemanalChange,
             )
         }
     }
@@ -78,6 +84,30 @@ class AuthScreensTest {
         mostrarRegistro()
 
         compose.onNodeWithText("(des)Conectado").assertIsDisplayed()
+    }
+
+    @Test
+    fun registro_exigeElegirUnaMetaYOfreceOpcionesEnIntervalosDeTreinta() {
+        var metaElegida: Int? = null
+        mostrarRegistro(onMetaSemanalChange = { metaElegida = it })
+
+        compose.onNodeWithText("Elegí una meta semanal").assertIsDisplayed()
+        compose.onNodeWithText("Elegir meta semanal").assertIsDisplayed()
+        compose.onNodeWithTag("boton_registrar").assertIsNotEnabled()
+        compose.onNodeWithTag("selector_meta_semanal").performClick()
+        compose.onNodeWithText("180 min/semana").performClick()
+
+        assertEquals(180, metaElegida)
+    }
+
+    @Test
+    fun GoogleDesdeIngreso_exigeMetaParaPosibleCuentaNueva() {
+        mostrarIngreso()
+
+        compose.onNodeWithText("Meta semanal para una cuenta nueva de Google").assertIsDisplayed()
+        compose.onNodeWithTag("selector_meta_semanal").assertIsDisplayed()
+        compose.onNodeWithTag("boton_google").assertIsNotEnabled()
+        compose.onNodeWithTag("boton_ingresar").assertIsDisplayed()
     }
 
     @Test

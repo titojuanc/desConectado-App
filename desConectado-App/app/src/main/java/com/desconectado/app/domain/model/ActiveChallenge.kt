@@ -12,6 +12,7 @@ data class ActiveChallenge(
     val status: Status,
     val updatedAt: Instant,
     val durationSeconds: Int = durationMinutes * 60,
+    val category: CategoriaDesafio? = null,
 ) {
     enum class Status { ACTIVE, CANCELLED, FAILED, COMPLETED, INVALIDATED }
 }

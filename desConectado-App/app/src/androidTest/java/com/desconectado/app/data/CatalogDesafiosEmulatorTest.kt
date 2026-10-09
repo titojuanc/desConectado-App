@@ -38,7 +38,7 @@ class CatalogDesafiosEmulatorTest {
         container.auth.signOut()
         EmuladorFirebase.limpiarAuth()
         // Los catálogos solo los lee una persona autenticada.
-        val registro = container.authRepository.registrar("Ana Prueba", "ana@mail.com", "Secreto123")
+        val registro = container.authRepository.registrar("Ana Prueba", "ana@mail.com", "Secreto123", 120)
         assertEquals(Resultado.Exito(Unit), registro)
     }
 

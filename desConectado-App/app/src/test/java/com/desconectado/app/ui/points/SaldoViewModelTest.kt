@@ -150,6 +150,7 @@ class SaldoViewModelTest {
             auth,
             perfiles,
             com.desconectado.app.fakes.FakeChallengeRepository(),
+            com.desconectado.app.fakes.FakeAchievementRepository(),
             puntos,
             conectividad,
         )

@@ -54,8 +54,19 @@ class FirestoreCatalogRepository(private val firestore: FirebaseFirestore) : Cat
             kind = tipo,
             order = orden,
             active = getBoolean("active") ?: true,
+            config = stringMap("config"),
         )
     }
+
+    private fun DocumentSnapshot.stringMap(field: String): Map<String, String> =
+        (get(field) as? Map<*, *>)
+            ?.mapNotNull { (key, value) ->
+                val keyText = key as? String ?: return@mapNotNull null
+                val valueText = value as? String ?: return@mapNotNull null
+                keyText to valueText
+            }
+            ?.toMap()
+            ?: emptyMap()
 
     /** Un documento incompleto o con valores fuera de rango se descarta en vez de romper la lista. */
     private fun DocumentSnapshot.aDesafio(): Desafio? {

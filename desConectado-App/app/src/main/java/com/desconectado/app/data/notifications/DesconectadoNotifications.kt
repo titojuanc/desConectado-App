@@ -18,17 +18,18 @@ class DesconectadoNotifications(private val context: Context) {
         }
     }
 
-    fun desafioTerminado(cumplido: Boolean, puntos: Int) {
+    fun desafioTerminado(cumplido: Boolean, puntos: Int, enabled: Boolean) {
         val titulo = if (cumplido) "Desafío cumplido" else "Desafío terminado"
         val texto = if (cumplido) "Ganaste $puntos puntos." else "El desafío no se cumplió."
-        mostrar(titulo, texto, 1001)
+        mostrar(titulo, texto, 1001, enabled)
     }
 
-    fun entroAUnaRed(nombre: String) {
-        mostrar("Desafío perdido", "Usaste $nombre durante el desafío.", 1002)
+    fun entroAUnaRed(nombre: String, enabled: Boolean) {
+        mostrar("Desafío perdido", "Usaste $nombre durante el desafío.", 1002, enabled)
     }
 
-    private fun mostrar(titulo: String, texto: String, id: Int) {
+    private fun mostrar(titulo: String, texto: String, id: Int, enabled: Boolean) {
+        if (!enabled) return
         if (Build.VERSION.SDK_INT >= 33 &&
             !context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS).equals(android.content.pm.PackageManager.PERMISSION_GRANTED)
         ) return

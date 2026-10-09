@@ -4,9 +4,11 @@ import com.desconectado.app.data.esErrorDeRed
 import com.desconectado.app.domain.model.ErrorApp
 import com.desconectado.app.domain.model.EstadoSesion
 import com.desconectado.app.domain.model.Resultado
+import com.desconectado.app.domain.model.UserPreferences
 import com.desconectado.app.domain.normalizarCorreo
 import com.desconectado.app.domain.repository.AuthRepository
 import com.desconectado.app.domain.repository.ProfileRepository
+import com.desconectado.app.domain.repository.UserPreferencesRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
@@ -22,6 +24,7 @@ import kotlinx.coroutines.tasks.await
 class FirebaseAuthRepository(
     private val auth: FirebaseAuth,
     private val perfiles: ProfileRepository,
+    private val userPreferences: UserPreferencesRepository,
 ) : AuthRepository {
 
     override val authState: Flow<EstadoSesion> = callbackFlow {
@@ -34,13 +37,22 @@ class FirebaseAuthRepository(
         awaitClose { auth.removeAuthStateListener(listener) }
     }
 
-    override suspend fun registrar(username: String, email: String, password: String): Resultado<Unit> {
+    override suspend fun registrar(
+        username: String,
+        email: String,
+        password: String,
+        weeklyGoalMinutes: Int,
+    ): Resultado<Unit> {
+        if (!weeklyGoalMinutes.esMetaValida()) return Resultado.Fallo(ErrorApp.Desconocido)
         val correo = normalizarCorreo(email)
         return try {
             val usuario = auth.createUserWithEmailAndPassword(correo, password).await().user
                 ?: return Resultado.Fallo(ErrorApp.Desconocido)
             // Si el perfil falla, la cuenta queda creada; `ingresar` lo completa en el próximo intento.
-            perfiles.asegurarPerfil(usuario.uid, username.trim(), correo)
+            when (val perfil = perfiles.asegurarPerfil(usuario.uid, username.trim(), correo)) {
+                is Resultado.Fallo -> perfil
+                is Resultado.Exito -> guardarMetaSemanal(usuario.uid, weeklyGoalMinutes)
+            }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -77,7 +89,10 @@ class FirebaseAuthRepository(
         }
     }
 
-    override suspend fun ingresarConGoogle(idToken: String): Resultado<Unit> {
+    override suspend fun ingresarConGoogle(idToken: String, weeklyGoalMinutes: Int?): Resultado<Unit> {
+        if (weeklyGoalMinutes != null && !weeklyGoalMinutes.esMetaValida()) {
+            return Resultado.Fallo(ErrorApp.Desconocido)
+        }
         return try {
             val credencial = GoogleAuthProvider.getCredential(idToken, null)
             val usuario = auth.signInWithCredential(credencial).await().user
@@ -85,7 +100,21 @@ class FirebaseAuthRepository(
             val correo = usuario.email ?: return Resultado.Fallo(ErrorApp.Desconocido)
             // Cuenta nueva: crea el perfil con el nombre de Google (o la parte local del correo).
             // Cuenta que ya existía: `asegurarPerfil` no toca el perfil que ya tiene.
-            perfiles.asegurarPerfil(usuario.uid, usuario.displayName, correo)
+            when (val perfil = perfiles.asegurarPerfil(usuario.uid, usuario.displayName, correo)) {
+                is Resultado.Fallo -> perfil
+                is Resultado.Exito -> if (weeklyGoalMinutes == null) {
+                    Resultado.Exito(Unit)
+                } else {
+                    when (val current = userPreferences.leer(usuario.uid)) {
+                        is Resultado.Exito -> if (current.valor.weeklyGoalMinutes == null) {
+                            guardarMetaSemanal(usuario.uid, weeklyGoalMinutes)
+                        } else {
+                            Resultado.Exito(Unit)
+                        }
+                        is Resultado.Fallo -> current
+                    }
+                }
+            }
         } catch (e: CancellationException) {
             throw e
         } catch (e: FirebaseAuthUserCollisionException) {
@@ -144,4 +173,13 @@ class FirebaseAuthRepository(
             // Sin red u otro fallo transitorio: la sesión NO se cierra (FR-011).
         }
     }
+
+    private fun Int.esMetaValida() = this in UserPreferences.META_MINIMA..UserPreferences.META_MAXIMA &&
+        this % UserPreferences.INCREMENTO_META == 0
+
+    private suspend fun guardarMetaSemanal(uid: String, minutes: Int): Resultado<Unit> =
+        when (val result = userPreferences.guardarMetaSemanal(uid, minutes)) {
+            is Resultado.Exito -> Resultado.Exito(Unit)
+            is Resultado.Fallo -> result
+        }
 }

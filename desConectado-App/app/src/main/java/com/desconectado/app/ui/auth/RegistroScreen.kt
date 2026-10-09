@@ -36,10 +36,11 @@ fun RegistroScreen(
     onRegistrar: () -> Unit,
     onIrAIngreso: () -> Unit,
     onGoogle: () -> Unit,
+    onMetaSemanalChange: (Int?) -> Unit = {},
     modifier: Modifier = Modifier,
     vinculacion: AccionesVinculacion = AccionesVinculacion(),
 ) {
-    val puedeEnviar = !estado.enviando && !estado.sinConexion
+    val puedeEnviar = !estado.enviando && !estado.sinConexion && estado.weeklyGoalMinutes != null
 
     estado.vinculacion?.let { DialogoVinculacion(it, vinculacion) }
 
@@ -91,6 +92,13 @@ fun RegistroScreen(
             mensajeError = errorCorreo,
             tipoTeclado = KeyboardType.Email,
             modifier = Modifier.padding(top = 8.dp),
+        )
+
+        SelectorMetaSemanal(
+            selectedMinutes = estado.weeklyGoalMinutes,
+            error = estado.errorMetaSemanal,
+            onSelect = onMetaSemanalChange,
+            modifier = Modifier.padding(top = 12.dp),
         )
         CampoFormulario(
             valor = estado.password,

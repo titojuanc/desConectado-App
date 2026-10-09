@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -14,18 +15,25 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.desconectado.app.R
 import com.desconectado.app.domain.model.ChallengeResult
+import com.desconectado.app.domain.model.CosmeticPreferences
 import com.desconectado.app.domain.model.ErrorApp
+import com.desconectado.app.domain.model.TipoRecompensa
+import android.media.AudioManager
+import android.media.ToneGenerator
 import java.time.Duration
 import java.time.Instant
 import kotlinx.coroutines.delay
@@ -41,10 +49,39 @@ fun DesafioActivoScreen(
     onSeleccionarCalificacion: (Int) -> Unit,
     onCalificar: () -> Unit,
     onVolverCatalogo: () -> Unit,
+    preferenciasCosmeticas: CosmeticPreferences = CosmeticPreferences(),
     modifier: Modifier = Modifier,
 ) {
+    val backgroundId = preferenciasCosmeticas.activeCosmetics[TipoRecompensa.FONDO_ENFOQUE]
+    val backgroundColor = if (estado is DesafioActivoUiState.Activo) {
+        colorFondoDesafio(backgroundId)
+    } else {
+        null
+    }
+    val challengeRunId = (estado as? DesafioActivoUiState.Terminado)
+        ?.takeIf { it.resultado.status == ChallengeResult.Status.COMPLETED }
+        ?.resultado?.challengeRunId
+    val selectedSound = preferenciasCosmeticas.activeCosmetics[TipoRecompensa.SONIDO_COMPLETADO]
+    val selectedAnimation = preferenciasCosmeticas.activeCosmetics[TipoRecompensa.ANIMACION_COMPLETADO]
+    val resultScale by animateFloatAsState(
+        targetValue = if (challengeRunId != null && selectedAnimation != null) 1.04f else 1f,
+        label = "animacion_completado",
+    )
+    LaunchedEffect(challengeRunId, selectedSound) {
+        if (challengeRunId != null && selectedSound != null) {
+            val tone = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 30)
+            try {
+                tone.startTone(ToneGenerator.TONE_PROP_ACK, 160)
+                delay(180)
+            } finally {
+                tone.release()
+            }
+        }
+    }
     Column(
-        modifier = modifier.fillMaxSize().padding(24.dp),
+        modifier = modifier.fillMaxSize()
+            .then(backgroundColor?.let(Modifier::background) ?: Modifier)
+            .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -97,7 +134,10 @@ fun DesafioActivoScreen(
                 }
             }
             is DesafioActivoUiState.Terminado -> {
-                Text(mensajeResultado(estado.resultado))
+                Text(mensajeResultado(estado.resultado), modifier = Modifier.graphicsLayer {
+                    scaleX = resultScale
+                    scaleY = resultScale
+                })
                 if (estado.resultado.status == ChallengeResult.Status.COMPLETED && estado.ratingStars == null) {
                     Text(stringResource(R.string.desafio_rating_titulo))
                     FilaEstrellas(estado.ratingSeleccionado, onSeleccionarCalificacion)
@@ -122,6 +162,13 @@ fun DesafioActivoScreen(
             is DesafioActivoUiState.Error -> Text(mensajeError(estado.causa))
         }
     }
+}
+
+private fun colorFondoDesafio(backgroundId: String?): Color? = when (backgroundId) {
+    "background-montanas" -> Color(0xFFE8F0E5)
+    "background-noche-estrellada" -> Color(0xFFE8EDF8)
+    "background-amanecer" -> Color(0xFFFFF1DF)
+    else -> null
 }
 
 @Composable

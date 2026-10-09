@@ -6,6 +6,7 @@ import com.desconectado.app.domain.ErrorCampo
 import com.desconectado.app.domain.model.Conectividad
 import com.desconectado.app.domain.model.ErrorApp
 import com.desconectado.app.domain.model.Resultado
+import com.desconectado.app.domain.model.UserPreferences
 import com.desconectado.app.domain.model.errorOrNull
 import com.desconectado.app.domain.normalizarCorreo
 import com.desconectado.app.domain.repository.AuthRepository
@@ -20,6 +21,8 @@ import kotlinx.coroutines.launch
 data class IngresoUiState(
     val email: String = "",
     val password: String = "",
+    val weeklyGoalMinutes: Int? = null,
+    val errorMetaSemanal: Boolean = false,
     val errorCorreo: ErrorCampo? = null,
     val errorPassword: ErrorCampo? = null,
     val enviando: Boolean = false,
@@ -52,6 +55,16 @@ class IngresoViewModel(
 
     fun onPasswordChange(valor: String) = _uiState.update {
         it.copy(password = valor, errorPassword = null, errorEnvio = null)
+    }
+
+    fun onMetaSemanalChange(minutes: Int?) = _uiState.update {
+        val valid = minutes == null || (minutes in UserPreferences.META_MINIMA..UserPreferences.META_MAXIMA
+            && minutes % UserPreferences.INCREMENTO_META == 0)
+        it.copy(
+            weeklyGoalMinutes = minutes.takeIf { valid },
+            errorMetaSemanal = !valid,
+            errorEnvio = null,
+        )
     }
 
     fun ingresar() {
@@ -92,9 +105,13 @@ class IngresoViewModel(
                     _uiState.update { it.copy(errorEnvio = ErrorApp.SinConexion) }
                     return
                 }
+                if (actual.weeklyGoalMinutes == null) {
+                    _uiState.update { it.copy(errorMetaSemanal = true) }
+                    return
+                }
                 _uiState.update { it.copy(enviando = true, errorEnvio = null) }
                 viewModelScope.launch {
-                    val resultado = auth.ingresarConGoogle(token.valor)
+                    val resultado = auth.ingresarConGoogle(token.valor, actual.weeklyGoalMinutes)
                     _uiState.update {
                         if (resultado.errorOrNull() == ErrorApp.CuentaExistenteConOtroProveedor) {
                             it.copy(

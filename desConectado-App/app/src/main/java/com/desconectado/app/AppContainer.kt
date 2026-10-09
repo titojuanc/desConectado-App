@@ -7,6 +7,9 @@ import com.desconectado.app.data.catalog.FirestoreCatalogRepository
 import com.desconectado.app.data.connectivity.AndroidConnectivityMonitor
 import com.desconectado.app.data.points.FirestorePointsRepository
 import com.desconectado.app.data.profile.FirestoreProfileRepository
+import com.desconectado.app.data.profile.FirestoreAchievementRepository
+import com.desconectado.app.data.profile.FirestoreCosmeticPreferencesRepository
+import com.desconectado.app.data.profile.FirestoreUserPreferencesRepository
 import com.desconectado.app.data.usage.AndroidUsageStatsRepository
 import com.desconectado.app.data.notifications.DesconectadoNotifications
 import com.desconectado.app.data.challenges.ActiveChallengeStore
@@ -16,6 +19,9 @@ import com.desconectado.app.domain.repository.CatalogRepository
 import com.desconectado.app.domain.repository.ConnectivityMonitor
 import com.desconectado.app.domain.repository.PointsRepository
 import com.desconectado.app.domain.repository.ProfileRepository
+import com.desconectado.app.domain.repository.AchievementRepository
+import com.desconectado.app.domain.repository.CosmeticPreferencesRepository
+import com.desconectado.app.domain.repository.UserPreferencesRepository
 import com.desconectado.app.domain.repository.UsageStatsRepository
 import com.desconectado.app.domain.repository.ChallengeRepository
 import com.google.firebase.auth.FirebaseAuth
@@ -48,7 +54,10 @@ class AppContainer(context: Context) {
     val connectivityMonitor: ConnectivityMonitor = AndroidConnectivityMonitor(context)
 
     val perfilRepository: ProfileRepository = FirestoreProfileRepository(firestore)
-    val authRepository: AuthRepository = FirebaseAuthRepository(auth, perfilRepository)
+    val achievementRepository: AchievementRepository = FirestoreAchievementRepository(firestore)
+    val cosmeticPreferencesRepository: CosmeticPreferencesRepository = FirestoreCosmeticPreferencesRepository(firestore)
+    val userPreferencesRepository: UserPreferencesRepository = FirestoreUserPreferencesRepository(firestore)
+    val authRepository: AuthRepository = FirebaseAuthRepository(auth, perfilRepository, userPreferencesRepository)
     val catalogRepository: CatalogRepository = FirestoreCatalogRepository(firestore)
     val pointsRepository: PointsRepository = FirestorePointsRepository(firestore)
     val usageStatsRepository: UsageStatsRepository = AndroidUsageStatsRepository(context)

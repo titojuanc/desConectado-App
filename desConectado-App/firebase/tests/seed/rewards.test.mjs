@@ -15,8 +15,15 @@ describe('catálogo de recompensas sembrado (catalog.json)', () => {
     assert.deepEqual(validarRecompensas(recompensas), []);
   });
 
-  it('tiene al menos 5 recompensas', () => {
-    assert.ok(recompensas.length >= 5, `hay ${recompensas.length}`);
+  it('tiene 15 cosméticos aprobados, conserva los dos cupones y no vende insignias', () => {
+    assert.equal(recompensas.length, 17);
+    assert.equal(recompensas.filter((r) => r.kind !== 'coupon').length, 15);
+    assert.equal(recompensas.filter((r) => r.kind === 'coupon').length, 2);
+    assert.equal(recompensas.some((r) => r.kind === 'badge'), false);
+    assert.deepEqual(
+      recompensas.filter((r) => r.kind === 'coupon').map((r) => r.id).sort(),
+      ['cupon-descuento-de-ejemplo', 'cupon-regalo-sorpresa'],
+    );
   });
 
   it('cada recompensa tiene nombre y descripción no vacíos, costo entero mayor que 0 y tipo válido', () => {
@@ -25,6 +32,33 @@ describe('catálogo de recompensas sembrado (catalog.json)', () => {
       assert.ok(typeof r.description === 'string' && r.description.trim().length > 0, `${r.id}: description`);
       assert.ok(Number.isInteger(r.costPoints) && r.costPoints > 0, `${r.id}: costPoints`);
       assert.ok(TIPOS_RECOMPENSA.includes(r.kind), `${r.id}: kind`);
+    }
+  });
+
+  it('cada cosmético trae configuración y costo/ID aprobado por el documento', () => {
+    const costos = {
+      'theme-bosque': 100,
+      'theme-atardecer': 150,
+      'theme-oceano': 150,
+      'theme-noche': 200,
+      'icon-pack-minimal': 80,
+      'icon-pack-naturaleza': 100,
+      'background-montanas': 60,
+      'background-noche-estrellada': 80,
+      'background-amanecer': 80,
+      'profile-frame': 100,
+      'profile-frame-naturaleza': 150,
+      'point-icon-estrella-especial': 200,
+      'completion-animation-logro': 120,
+      'completion-sound-finalizacion': 60,
+      'surprise-box': 120,
+    };
+    const porId = new Map(recompensas.map((r) => [r.id, r]));
+    assert.deepEqual([...porId.keys()].filter((id) => id in costos).sort(), Object.keys(costos).sort());
+    for (const [id, costo] of Object.entries(costos)) {
+      const recompensa = porId.get(id);
+      assert.equal(recompensa?.costPoints, costo, `${id}: costPoints`);
+      assert.ok(recompensa?.config && Object.keys(recompensa.config).length > 0, `${id}: config`);
     }
   });
 
@@ -45,25 +79,22 @@ describe('catálogo de recompensas sembrado (catalog.json)', () => {
     }
   });
 
-  it('contiene las 5 recompensas iniciales del spec', () => {
-    const resumen = [...recompensas].sort((a, b) => a.order - b.order).map((r) => [r.kind, r.costPoints]);
-    assert.deepEqual(resumen, [
-      ['badge', 50],
-      ['theme', 100],
-      ['coupon', 200],
-      ['badge', 300],
-      ['coupon', 500],
-    ]);
+  it('preserva costos y nombres de los cupones existentes', () => {
+    const porId = new Map(recompensas.map((r) => [r.id, r]));
+    assert.equal(porId.get('cupon-descuento-de-ejemplo')?.costPoints, 200);
+    assert.equal(porId.get('cupon-regalo-sorpresa')?.costPoints, 500);
   });
 });
 
 describe('validarRecompensas detecta datos inválidos', () => {
   const base = (extra = {}) => ({
     id: 'r',
-    name: 'Insignia',
-    description: 'Una insignia dentro de la app.',
+    name: 'Tema',
+    description: 'Un tema digital dentro de la app.',
     costPoints: 50,
-    kind: 'badge',
+    kind: 'theme',
+    config: { palette: 'forest' },
+    active: true,
     order: 1,
     ...extra,
   });

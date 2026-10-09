@@ -37,6 +37,7 @@ fun ErrorApp.mensajeEnvio(): Int? = when (this) {
     ErrorApp.AccesoUsoDenegado -> R.string.desafio_permiso_mensaje
     ErrorApp.Cancelado -> null
     ErrorApp.CuentaExistenteConOtroProveedor,
+    ErrorApp.RecompensaNoDisponible,
     ErrorApp.FirestoreNoAutorizado,
     ErrorApp.DatoNoEncontrado,
     ErrorApp.Desconocido -> R.string.error_generico

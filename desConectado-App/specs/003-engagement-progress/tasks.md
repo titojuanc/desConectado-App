@@ -30,8 +30,8 @@ Después de esta feature: adaptación visual de las referencias
 
 - [X] T001 Confirmar y registrar en `specs/003-engagement-progress/research.md` lote por sesión local, cierre a medianoche de la zona capturada al finalizar el primer desafío, vencimiento al inicio del día 30, finalización online como fecha de ganancia y procesamiento diferido; Rules valida con `request.time`, sin TTL ni Functions. Registrar el reset productivo autorizado, preparado pero no ejecutado.
 - [X] T002 Confirmar que rating usa solo 1-5 estrellas, es obligatorio antes de volver al catálogo, no incluye etiquetas y es inmutable; registrar en `specs/003-engagement-progress/spec.md`.
-- [ ] T003 Antes de implementar racha/progreso temporal, preguntar qué cuenta como día cumplido, política de zona horaria y valor/rango inicial de la meta semanal en `specs/003-engagement-progress/spec.md`.
-- [ ] T004 Antes de implementar cosméticos, pedir selección de catálogo/IDs/costos al usuario; no inferirlos de las imágenes ni sembrarlos anticipadamente.
+- [X] T003 Confirmar y registrar el día válido (un desafío completado), zona al completar, semana lunes-domingo y meta sin default de 30..840 minutos en pasos de 30; conservar la racha durante el día actual si ayer se cumplió.
+- [X] T004 Confirmar catálogo/costos de `Recompensas_desconectado.docx`; IDs slug aprobados, cupones existentes preservados, insignias retiradas de compra y caja sorpresa sin duplicados ni cobro si no hay elegibles.
 
 ## Phase 2: Foundational (bloquea las historias)
 
@@ -94,11 +94,11 @@ Después de esta feature: adaptación visual de las referencias
 
 **Independent Test**: Preparar historiales antes/en/después de cada umbral y comprobar conteos, progreso parcial y concesión única.
 
-- [ ] T029 [P] [US5] Escribir primero pruebas de umbrales, semana/racha, cambio de zona horaria e idempotencia en `app/src/test/java/com/desconectado/app/domain/ProgressCalculatorTest.kt` y `firebase/tests/rules/achievements.test.mjs`.
-- [ ] T030 [US5] Crear `app/src/main/java/com/desconectado/app/domain/model/Achievement.kt` y `firebase/seed/achievements.json`; extender `firebase/seed/seed.mjs` y `firebase/seed/validate.mjs` para cargar las diez definiciones de FR-009.
-- [ ] T031 [US5] Implementar agregados de tiempo total, conteo por categoría, racha y meta semanal en `app/src/main/java/com/desconectado/app/domain/ProgressCalculator.kt`, usando solo desafíos completados y reglas de calendario de T003.
-- [ ] T032 [US5] Persistir progreso/concesiones idempotentes por logro en `app/src/main/java/com/desconectado/app/data/profile/` y `users/{uid}/achievements/`; validar los umbrales en `firebase/firestore.rules`.
-- [ ] T033 [US5] Integrar el resumen y progreso parcial con `app/src/main/java/com/desconectado/app/ui/profile/PerfilViewModel.kt` y la vista funcional de logros en `app/src/main/java/com/desconectado/app/ui/rewards/` sin rediseñar la UI objetivo.
+- [X] T029 [P] [US5] Tests first de umbrales, semana/racha, cambio de zona, refresco tras completar e idempotencia/propiedad en `ProgressCalculatorTest.kt`, `AchievementCalculatorTest.kt`, `AchievementRefreshTest.kt` y `firebase/tests/rules/achievements.test.mjs`.
+- [X] T030 [US5] Crear `Achievement.kt` y `firebase/seed/achievements.json`; extender `seed.mjs`/`validate.mjs` para validar y sincronizar las diez definiciones FR-009, archivando sobrantes.
+- [X] T031 [US5] Implementar agregados de tiempo total, conteo por categoría, racha y semana en `ProgressCalculator.kt`, solo desde resultados completados y calendario T003; la meta es opcional hasta configuración en US7.
+- [X] T032 [US5] Persistir progreso/concesiones idempotentes en `FirestoreAchievementRepository` y `users/{uid}/achievements/`; Rules valida propietario, definición activa, umbral declarado, progreso monotónico y concesión inmutable. El umbral contra todo el historial se calcula en cliente por limitación de Rules aprobada.
+- [X] T033 [US5] Integrar métricas y progreso parcial al perfil con estados de carga/error/sin conexión; el test Compose compila, pero no se ejecutó en dispositivo. No se rediseñó la UI.
 
 ## Phase 8: User Story 6 - Cosméticos y aplicación (Priority: P2)
 
@@ -106,11 +106,11 @@ Después de esta feature: adaptación visual de las referencias
 
 **Independent Test**: Canjear un cosmético, aplicar su efecto, reiniciar la app y verificar propiedad y preferencia; abrir una caja sin duplicar premios.
 
-- [ ] T034 [P] [US6] Escribir primero pruebas nuevas para saldo insuficiente, propiedad, no repetición de caja, cambio de selección y persistencia en `app/src/test/java/com/desconectado/app/ui/rewards/` y `firebase/tests/rules/rewards-cosmetics.test.mjs`.
-- [ ] T035 [US6] Normalizar tipos, configuración y catálogo aprobado en `app/src/main/java/com/desconectado/app/domain/model/Recompensa.kt` y `firebase/seed/catalog.json`; quitar insignias del canje nuevo sin borrar historial legado.
-- [ ] T036 [US6] Extender `FirestorePointsRepository.redeem` en `app/src/main/java/com/desconectado/app/data/points/FirestorePointsRepository.kt` y `firebase/firestore.rules` para propiedad de cosméticos y caja sorpresa idempotente, con selección de artículo no poseído y costo/movimiento atómicos.
-- [ ] T037 [US6] Persistir cosmético activo y aplicar paleta, fondo de enfoque, pack de íconos, marco, ícono de puntos, animación y sonido a través de `app/src/main/java/com/desconectado/app/ui/theme/`, preferencias y flujo de desafío, manteniendo el layout actual.
-- [ ] T038 [US6] Exponer tienda, propiedad y opción Aplicar/Quitar en `app/src/main/java/com/desconectado/app/ui/rewards/RecompensasCanjeViewModel.kt` y `RecompensasScreen.kt`; mantener cupones existentes según FR-017.
+- [X] T034 [P] [US6] Tests first de propiedad, caja sin duplicados/agotada, selección/persistencia, reanudación y canje insuficiente en tests de dominio/ViewModel y `firebase/tests/rules/rewards-cosmetics.test.mjs`.
+- [X] T035 [US6] Extender tipos/configuración y cargar catálogo aprobado de 15 cosméticos más dos cupones; quitar badges de compra, archivarlas sin borrar historial y validar IDs/costos/config.
+- [X] T036 [US6] Extender `FirestorePointsRepository.redeem` y Rules: snapshot en pending, grant de caja fijado, ownership en cierre atómico, protección de duplicados y no cobrar si la caja está agotada.
+- [X] T037 [US6] Persistir selecciones y aplicar tema, fondo, pack de íconos, marco, estrella, animación y sonido manteniendo layouts existentes.
+- [X] T038 [US6] Mostrar propiedad y controles Aplicar/Quitar; ocultar recompra de cosméticos poseídos y preservar cupones existentes. Test Compose compila, no ejecutado en dispositivo.
 
 ## Phase 9: User Story 7 - Perfil y preferencias (Priority: P2)
 
@@ -118,17 +118,26 @@ Después de esta feature: adaptación visual de las referencias
 
 **Independent Test**: Cambiar nombre/preferencias, reiniciar, cambiar cuenta y comprobar persistencia, permisos e aislamiento.
 
-- [ ] T039 [P] [US7] Escribir primero pruebas de validación de nombre, campos inmutables, acceso a Ajustes y persistencia/aislamiento de preferencias en `app/src/test/java/com/desconectado/app/ui/profile/` y `firebase/tests/rules/profile-preferences.test.mjs`.
-- [ ] T040 [US7] Ampliar `app/src/main/java/com/desconectado/app/domain/repository/ProfileRepository.kt`, `app/src/main/java/com/desconectado/app/data/profile/FirestoreProfileRepository.kt` y `firebase/firestore.rules` para modificar únicamente el nombre visible permitido; correo e identidad de Auth siguen inmutables.
-- [ ] T041 [US7] Crear `app/src/main/java/com/desconectado/app/domain/model/UserPreferences.kt` y persistir meta, apariencia y opciones de notificación en `app/src/main/java/com/desconectado/app/data/profile/` con reglas de propietario.
-- [ ] T042 [US7] Añadir estados y acciones funcionales de edición, privacidad, notificaciones y apariencia en `app/src/main/java/com/desconectado/app/ui/profile/`; vincular permiso de uso a Ajustes Android, sin fotos ni permisos nuevos.
+- [X] T039 [P] [US7] Tests first de validación de nombre/meta, campos inmutables, acceso a Ajustes y persistencia/aislamiento en tests ProfileViewModel/UserPreferences y `firebase/tests/rules/profile-preferences.test.mjs`.
+- [X] T040 [US7] Actualizar `ProfileRepository`/`FirestoreProfileRepository` para permitir solo username validado; Firestore conserva email/Auth/economía inmutables.
+- [X] T041 [US7] Crear `UserPreferences.kt` y repositorio Firestore para meta opcional, cosméticos y toggle general apagado por defecto con Rules de propietario/rango.
+- [X] T042 [US7] Integrar edición de nombre/meta, privacidad/Ajustes, notificaciones y apariencia. Compose compila, pero no se ejecutó en dispositivo; no se agregan fotos ni permisos.
 
 ## Phase 10: Integración funcional (sin adaptación visual)
 
-- [ ] T043 Actualizar `specs/003-engagement-progress/quickstart.md` y crear `specs/003-engagement-progress/evidencia/` con resultados por requisito FR-001 a FR-017 y referencias a capturas/outputs de los escenarios nuevos.
-- [ ] T044 Ejecutar pruebas enfocadas de las historias nuevas, `npm test` y validación de seed en `firebase/`, resolver fallos introducidos por esta feature y dejar sin cambios el alcance aprobado de la entrega 2.
-- [ ] T045 Verificar manualmente en dispositivo que ratings, vencimientos, historiales, filtros, logros, cosméticos y preferencias funcionan con los estilos actuales; cerrar cada criterio de `quickstart.md` antes de iniciar la réplica visual de `reference-images/`.
-- [ ] T046 Preparar `firebase/maintenance/reset-delivery-3.mjs` para el reset de producción autorizado: dry-run por defecto, `--project` explícito, chunks y guardia de confirmación; conservar Auth/perfiles, dejar saldo en 0 y borrar movimientos, canjes, pending-redemptions, resultados/ratings y desafíos activos sin registrar resultado. Limpiar `lastMovementId` y estado local al siguiente arranque. No ejecutar hasta instrucción explícita de despliegue.
+- [X] T043 Actualizar `quickstart.md` y crear `evidencia/README.md` con matriz FR-001..FR-017, resultados de suites y limitación de capturas/manual.
+- [X] T044 Ejecutar tests JVM, `npm test`, validación de seed y tests de maintenance; suites finales verdes, sin alterar flujos aprobados de entrega 2.
+- [ ] T045 Verificación manual en dispositivo pendiente: `adb` no está instalado/conectado en este entorno. No iniciar réplica visual hasta completar ratings, vencimientos, historiales, filtros, logros, cosméticos y preferencias en dispositivo.
+- [X] T046 Preparar `firebase/maintenance/reset-delivery-3.mjs`: dry-run por defecto, `--project`, chunks y confirmación exacta; preserva Auth/perfil/preferencias, saldo 0, borra ledger/lotes/canjes/pending/resultados/ratings/logros/ownership/desafíos activos sin crear resultados, elimina `lastMovementId` y escribe marcador `delivery3ResetAt` para limpieza local al siguiente inicio. No ejecutado.
+
+## Phase 11: Validación productiva y handoff
+
+- [X] T047 Actualizar plan y `quickstart-produccion.md` con orden de despliegue, cuenta descartable, pruebas de conexión Android y límites de no ejecutar reset.
+- [X] T048 Validar, commitear y pushear el estado local de `entrega-3`, sin incluir credenciales ni artefactos ignorados.
+- [ ] T049 Revisar dry-run; desplegar solo Rules y sembrar desafíos/recompensas/logros en `des-conectado` con project explícito. No ejecutar reset.
+- [ ] T050 Arrancar el AVD `desconectado`, compilar con `USE_FIREBASE_EMULATOR=false` y probar conexiones Auth/Firestore desde Android con cuenta desechable aislada.
+- [ ] T051 Corregir conexiones/rules que fallen en producción y repetir tests focalizados y smoke afectados.
+- [ ] T052 Entregar checklist `quickstart-produccion.md` para el teléfono real y recoger feedback del usuario antes del frontend final.
 
 ## Oportunidades de paralelismo
 

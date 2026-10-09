@@ -40,7 +40,7 @@ class PointsRepositoryEmulatorTest {
         container = app.container
         container.auth.signOut()
         EmuladorFirebase.limpiarAuth()
-        val registro = container.authRepository.registrar("Ana Prueba", "ana@mail.com", "Secreto123")
+        val registro = container.authRepository.registrar("Ana Prueba", "ana@mail.com", "Secreto123", 120)
         assertEquals(Resultado.Exito(Unit), registro)
         uid = container.auth.currentUser!!.uid
     }

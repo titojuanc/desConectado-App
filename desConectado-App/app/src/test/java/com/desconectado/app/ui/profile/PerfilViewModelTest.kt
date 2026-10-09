@@ -1,5 +1,10 @@
 package com.desconectado.app.ui.profile
 
+import com.desconectado.app.domain.model.AchievementCriterion
+import com.desconectado.app.domain.model.AchievementDefinition
+import com.desconectado.app.domain.model.AchievementProgress
+import com.desconectado.app.domain.model.CategoriaDesafio
+import com.desconectado.app.domain.model.ChallengeResult
 import com.desconectado.app.domain.model.Conectividad
 import com.desconectado.app.domain.model.DesafioHecho
 import com.desconectado.app.domain.model.ErrorApp
@@ -7,18 +12,23 @@ import com.desconectado.app.domain.model.EstadoSesion
 import com.desconectado.app.domain.model.Perfil
 import com.desconectado.app.domain.model.RedeemedReward
 import com.desconectado.app.domain.model.UpcomingPointExpiry
+import com.desconectado.app.domain.model.UserPreferences
 import com.desconectado.app.domain.model.Resultado
 import com.desconectado.app.fakes.FakeAuthRepository
+import com.desconectado.app.fakes.FakeAchievementRepository
 import com.desconectado.app.fakes.FakeConnectivityMonitor
 import com.desconectado.app.fakes.FakeChallengeRepository
 import com.desconectado.app.fakes.FakePointsRepository
 import com.desconectado.app.fakes.FakeProfileRepository
+import com.desconectado.app.fakes.FakeUserPreferencesRepository
 import com.desconectado.app.testutil.MainDispatcherRule
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import java.time.Instant
+import java.time.Clock
+import java.time.ZoneId
 
 class PerfilViewModelTest {
 
@@ -28,7 +38,9 @@ class PerfilViewModelTest {
     private val auth = FakeAuthRepository(EstadoSesion.ConSesion("uid-1"))
     private val perfiles = FakeProfileRepository()
     private val desafios = FakeChallengeRepository()
+    private val logros = FakeAchievementRepository()
     private val puntos = FakePointsRepository()
+    private val preferenciasUsuario = FakeUserPreferencesRepository()
     private val conectividad = FakeConnectivityMonitor()
 
     private val perfilAna = Perfil(username = "Ana Prueba", email = "ana@mail.com")
@@ -47,7 +59,11 @@ class PerfilViewModelTest {
         DesafioHecho("Salir a caminar", 10, Instant.parse("2026-09-20T10:00:00Z")),
     )
 
-    private fun crearViewModel() = PerfilViewModel(auth, perfiles, desafios, puntos, conectividad)
+    private fun crearViewModel() = PerfilViewModel(
+        auth, perfiles, desafios, logros, puntos, conectividad,
+        Clock.fixed(Instant.parse("2026-10-07T15:00:00Z"), ZoneId.of("UTC")),
+        preferenciasUsuario,
+    )
 
     @Test
     fun cargaElPerfilDeLaSesionActualYExponeNombreYCorreo() = runTest {
@@ -148,6 +164,102 @@ class PerfilViewModelTest {
 
         assertEquals(DesafiosHechosUiState.Lista(desafiosHechos), vm.desafiosHechos.value)
         assertEquals(listOf("uid-1"), desafios.historyCalls)
+    }
+
+    @Test
+    fun calculaMetricasYLogrosConResultadosCompletadosTipados() = runTest {
+        val resultado = ChallengeResult(
+            challengeRunId = "run-1",
+            challengeId = "move-1",
+            challengeTitle = "Salir a caminar",
+            durationMinutes = 30,
+            startedAt = Instant.parse("2026-10-07T11:30:00Z"),
+            finishedAt = Instant.parse("2026-10-07T12:00:00Z"),
+            status = ChallengeResult.Status.COMPLETED,
+            measuredSocialSeconds = 0,
+            offlineSeconds = 0,
+            pointsAwarded = 10,
+            category = CategoriaDesafio.MOVERME,
+        )
+        val primerPaso = AchievementProgress(
+            AchievementDefinition(
+                id = "primer-paso",
+                name = "Primer paso",
+                description = "Completa tu primer desafío.",
+                criterion = AchievementCriterion.COMPLETED_CHALLENGES,
+                threshold = 1,
+                order = 1,
+            ),
+            progress = 1,
+        )
+        desafios.resultsResult = Resultado.Exito(listOf(resultado))
+        logros.resultado = Resultado.Exito(listOf(primerPaso))
+
+        val vm = crearViewModel()
+
+        val estado = vm.progreso.value as ProgresoUiState.Datos
+        assertEquals(1, estado.metricas.desafiosCompletados)
+        assertEquals(1_800L, estado.metricas.tiempoCompletadoSegundos)
+        assertEquals(1, estado.metricas.rachaDias)
+        assertEquals(null, estado.metricas.minutosRestantesMetaSemanal)
+        assertEquals(listOf(primerPaso), estado.logros)
+        assertEquals(listOf("uid-1" to listOf(resultado)), logros.llamadas)
+    }
+
+    @Test
+    fun editaNombreVisibleRecortandoEspaciosSinCambiarCorreo() = runTest {
+        val vm = crearViewModel()
+        vm.editarNombre()
+        vm.cambiarNombre("  Ana Nueva  ")
+
+        vm.guardarNombre()
+
+        assertEquals(listOf("uid-1" to "Ana Nueva"), perfiles.llamadasActualizarUsername)
+        assertEquals("Ana Nueva", (vm.estado.value as PerfilUiState.Datos).perfil.username)
+        assertEquals("ana@mail.com", (vm.estado.value as PerfilUiState.Datos).perfil.email)
+        assertEquals(false, vm.edicionNombre.value.editando)
+    }
+
+    @Test
+    fun noGuardaNombreVacioOMayorA30Caracteres() = runTest {
+        val vm = crearViewModel()
+        vm.editarNombre()
+        vm.cambiarNombre("   ")
+        vm.guardarNombre()
+        assertEquals(0, perfiles.llamadasActualizarUsername.size)
+
+        vm.cambiarNombre("a".repeat(31))
+        vm.guardarNombre()
+        assertEquals(0, perfiles.llamadasActualizarUsername.size)
+        assertEquals(true, vm.edicionNombre.value.error)
+    }
+
+    @Test
+    fun cargaPreferenciasSinMetaPredeterminadaYGuardaMetaYNotificaciones() = runTest {
+        val vm = crearViewModel()
+
+        assertEquals(
+            PreferenciasPerfilUiState.Datos(UserPreferences()),
+            vm.preferencias.value,
+        )
+        vm.guardarMetaSemanal(120)
+        assertEquals(listOf("uid-1" to 120), preferenciasUsuario.goalCalls)
+        vm.configurarNotificaciones(true)
+
+        val state = vm.preferencias.value as PreferenciasPerfilUiState.Datos
+        assertEquals(120, state.preferencias.weeklyGoalMinutes)
+        assertEquals(true, state.preferencias.notificationsEnabled)
+        assertEquals(listOf("uid-1" to true), preferenciasUsuario.notificationCalls)
+    }
+
+    @Test
+    fun rechazaMetaFueraDeRangoOIncrementoAntesDeLlamarAlRepositorio() = runTest {
+        val vm = crearViewModel()
+
+        vm.guardarMetaSemanal(45)
+
+        assertEquals(emptyList<Pair<String, Int>>(), preferenciasUsuario.goalCalls)
+        assertEquals(true, (vm.preferencias.value as PreferenciasPerfilUiState.Datos).error)
     }
 
     @Test

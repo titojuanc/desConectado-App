@@ -1,0 +1,96 @@
+[
+  {
+    "id": "primer-paso",
+    "name": "Primer paso",
+    "description": "Completa tu primer desafío.",
+    "criterion": "completed_challenges",
+    "threshold": 1,
+    "order": 1,
+    "active": true
+  },
+  {
+    "id": "en-marcha",
+    "name": "En marcha",
+    "description": "Completa 5 desafíos.",
+    "criterion": "completed_challenges",
+    "threshold": 5,
+    "order": 2,
+    "active": true
+  },
+  {
+    "id": "modo-presente",
+    "name": "Modo presente",
+    "description": "Acumula 5 horas en desafíos completados.",
+    "criterion": "completed_seconds",
+    "threshold": 18000,
+    "order": 3,
+    "active": true
+  },
+  {
+    "id": "sin-apuro",
+    "name": "Sin apuro",
+    "description": "Completa un desafío de 3 horas o más.",
+    "criterion": "single_challenge_seconds",
+    "threshold": 10800,
+    "order": 4,
+    "active": true
+  },
+  {
+    "id": "aire-libre",
+    "name": "Aire libre",
+    "description": "Completa 5 desafíos de Moverme.",
+    "criterion": "category_completions",
+    "category": "move",
+    "threshold": 5,
+    "order": 5,
+    "active": true
+  },
+  {
+    "id": "foco-total",
+    "name": "Foco total",
+    "description": "Completa 5 desafíos de Enfocarme.",
+    "criterion": "category_completions",
+    "category": "focus",
+    "threshold": 5,
+    "order": 6,
+    "active": true
+  },
+  {
+    "id": "mas-cerca",
+    "name": "Más cerca",
+    "description": "Completa 5 desafíos de Socializar.",
+    "criterion": "category_completions",
+    "category": "social",
+    "threshold": 5,
+    "order": 7,
+    "active": true
+  },
+  {
+    "id": "tiempo-para-mi",
+    "name": "Tiempo para mí",
+    "description": "Completa 5 desafíos de Descansar.",
+    "criterion": "category_completions",
+    "category": "rest",
+    "threshold": 5,
+    "order": 8,
+    "active": true
+  },
+  {
+    "id": "explorador",
+    "name": "Explorador",
+    "description": "Completa al menos un desafío de cada categoría.",
+    "criterion": "explored_categories",
+    "threshold": 4,
+    "order": 9,
+    "active": true
+  },
+  {
+    "id": "100-horas-presentes",
+    "name": "100 horas presentes",
+    "description": "Acumula 100 horas en desafíos completados.",
+    "criterion": "completed_seconds",
+    "threshold": 360000,
+    "order": 10,
+    "active": true
+  }
+]

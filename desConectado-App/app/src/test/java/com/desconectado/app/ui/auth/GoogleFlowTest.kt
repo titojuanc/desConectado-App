@@ -24,8 +24,8 @@ class GoogleFlowTest {
     private val auth = FakeAuthRepository()
     private val conectividad = FakeConnectivityMonitor()
 
-    private fun ingreso() = IngresoViewModel(auth, conectividad)
-    private fun registro() = RegistroViewModel(auth, conectividad)
+    private fun ingreso() = IngresoViewModel(auth, conectividad).apply { onMetaSemanalChange(120) }
+    private fun registro() = RegistroViewModel(auth, conectividad).apply { onMetaSemanalChange(120) }
 
     // --- Ingreso ---
 

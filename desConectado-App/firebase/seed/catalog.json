@@ -311,20 +311,154 @@
   ],
   "rewards": [
     {
-      "id": "insignia-primer-paso",
-      "name": "Insignia \"Primer paso\"",
-      "description": "Una insignia digital para tu perfil que celebra tu primer desafío cumplido. Es solo de (des)Conectado.",
-      "costPoints": 50,
-      "kind": "badge",
+      "id": "background-montanas",
+      "name": "Fondo Montañas",
+      "description": "Fondo de montañas para la pantalla del temporizador. Solo dentro de (des)Conectado.",
+      "costPoints": 60,
+      "kind": "focus-background",
+      "config": { "background": "mountains" },
+      "active": true,
       "order": 1
     },
     {
-      "id": "tema-de-color",
-      "name": "Tema de color para la app",
-      "description": "Cambiá los colores de la app con un tema exclusivo. Es un elemento digital que solo existe dentro de (des)Conectado.",
+      "id": "completion-sound-finalizacion",
+      "name": "Sonido de finalización",
+      "description": "Elegí un sonido suave cuando termina un desafío. Solo dentro de (des)Conectado.",
+      "costPoints": 60,
+      "kind": "completion-sound",
+      "config": { "sound": "soft-completion" },
+      "active": true,
+      "order": 2
+    },
+    {
+      "id": "icon-pack-minimal",
+      "name": "Pack de íconos Minimal",
+      "description": "Íconos minimalistas para categorías y navegación dentro de la app.",
+      "costPoints": 80,
+      "kind": "icon-pack",
+      "config": { "iconPack": "minimal" },
+      "active": true,
+      "order": 3
+    },
+    {
+      "id": "background-noche-estrellada",
+      "name": "Fondo Noche estrellada",
+      "description": "Escenario nocturno para acompañar el modo enfoque dentro de la app.",
+      "costPoints": 80,
+      "kind": "focus-background",
+      "config": { "background": "starry-night" },
+      "active": true,
+      "order": 4
+    },
+    {
+      "id": "background-amanecer",
+      "name": "Fondo Amanecer",
+      "description": "Fondo cálido y tranquilo para la pantalla de desafío activo dentro de la app.",
+      "costPoints": 80,
+      "kind": "focus-background",
+      "config": { "background": "sunrise" },
+      "active": true,
+      "order": 5
+    },
+    {
+      "id": "theme-bosque",
+      "name": "Tema Bosque",
+      "description": "Interfaz de verdes profundos, hojas y tonos naturales dentro de la app.",
       "costPoints": 100,
       "kind": "theme",
-      "order": 2
+      "config": { "palette": "forest" },
+      "active": true,
+      "order": 6
+    },
+    {
+      "id": "icon-pack-naturaleza",
+      "name": "Pack de íconos Naturaleza",
+      "description": "Íconos de hojas, montañas, sol y árboles para la app.",
+      "costPoints": 100,
+      "kind": "icon-pack",
+      "config": { "iconPack": "nature" },
+      "active": true,
+      "order": 7
+    },
+    {
+      "id": "profile-frame",
+      "name": "Marco de perfil",
+      "description": "Marco decorativo para el avatar integrado del perfil dentro de la app.",
+      "costPoints": 100,
+      "kind": "profile-frame",
+      "config": { "frame": "classic" },
+      "active": true,
+      "order": 8
+    },
+    {
+      "id": "completion-animation-logro",
+      "name": "Animación de logro",
+      "description": "Una animación distinta al completar un desafío dentro de la app.",
+      "costPoints": 120,
+      "kind": "completion-animation",
+      "config": { "animation": "achievement" },
+      "active": true,
+      "order": 9
+    },
+    {
+      "id": "surprise-box",
+      "name": "Caja sorpresa",
+      "description": "Entrega un cosmético de la app que todavía no poseés; no se repiten premios.",
+      "costPoints": 120,
+      "kind": "surprise-box",
+      "config": { "eligibility": "unowned-cosmetics" },
+      "active": true,
+      "order": 10
+    },
+    {
+      "id": "theme-atardecer",
+      "name": "Tema Atardecer",
+      "description": "Paleta cálida en naranja y rosa inspirada en el atardecer dentro de la app.",
+      "costPoints": 150,
+      "kind": "theme",
+      "config": { "palette": "sunset" },
+      "active": true,
+      "order": 11
+    },
+    {
+      "id": "theme-oceano",
+      "name": "Tema Océano",
+      "description": "Interfaz en azul profundo, celeste y turquesa dentro de la app.",
+      "costPoints": 150,
+      "kind": "theme",
+      "config": { "palette": "ocean" },
+      "active": true,
+      "order": 12
+    },
+    {
+      "id": "profile-frame-naturaleza",
+      "name": "Marco Naturaleza",
+      "description": "Marco de perfil con detalles inspirados en hojas y ramas dentro de la app.",
+      "costPoints": 150,
+      "kind": "profile-frame",
+      "config": { "frame": "nature" },
+      "active": true,
+      "order": 13
+    },
+    {
+      "id": "theme-noche",
+      "name": "Tema Noche",
+      "description": "Modo oscuro especial con detalles azulados y estrellas dentro de la app.",
+      "costPoints": 200,
+      "kind": "theme",
+      "config": { "palette": "night" },
+      "active": true,
+      "order": 14
+    },
+    {
+      "id": "point-icon-estrella-especial",
+      "name": "Estrella especial",
+      "description": "Cambia el ícono de puntos que se muestra en el perfil dentro de la app.",
+      "costPoints": 200,
+      "kind": "point-icon",
+      "config": { "icon": "special-star" },
+      "active": true,
+      "order": 15
     },
     {
       "id": "cupon-descuento-de-ejemplo",
@@ -332,15 +466,9 @@
       "description": "Un cupón de ejemplo con código único, para ver cómo funciona el canje. No tiene valor fuera de la app.",
       "costPoints": 200,
       "kind": "coupon",
-      "order": 3
-    },
-    {
-      "id": "insignia-semana-desconectada",
-      "name": "Insignia \"Semana desconectada\"",
-      "description": "Una insignia digital para quienes sostienen su desconexión durante una semana. Es solo de (des)Conectado.",
-      "costPoints": 300,
-      "kind": "badge",
-      "order": 4
+      "config": {},
+      "active": true,
+      "order": 16
     },
     {
       "id": "cupon-regalo-sorpresa",
@@ -348,7 +476,9 @@
       "description": "Un cupón de ejemplo con código único y una sorpresa dentro de la app. No tiene valor fuera de ella.",
       "costPoints": 500,
       "kind": "coupon",
-      "order": 5
+      "config": {},
+      "active": true,
+      "order": 17
     }
   ]
 }

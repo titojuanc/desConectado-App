@@ -10,4 +10,8 @@ interface ProfileRepository {
 
     /** Crea el perfil si falta; `nombre` puede ser nulo (cuenta de Google sin nombre). */
     suspend fun asegurarPerfil(uid: String, nombre: String?, email: String): Resultado<Unit>
+
+    /** Actualiza solo el nombre visible; correo e identidad de Auth permanecen inmutables. */
+    suspend fun actualizarUsername(uid: String, username: String): Resultado<Unit> =
+        Resultado.Fallo(com.desconectado.app.domain.model.ErrorApp.Desconocido)
 }

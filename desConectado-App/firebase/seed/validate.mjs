@@ -4,9 +4,20 @@
 /** Dificultades de menor a mayor. Los valores son los que se guardan en Firestore. */
 export const DIFICULTADES = ['easy', 'normal', 'hard'];
 export const CATEGORIAS_DESAFIO = ['move', 'focus', 'social', 'rest'];
+export const CRITERIOS_LOGRO = [
+  'completed_challenges',
+  'completed_seconds',
+  'single_challenge_seconds',
+  'category_completions',
+  'explored_categories',
+];
 
 /** Tipos de recompensa admitidos. */
-export const TIPOS_RECOMPENSA = ['badge', 'theme', 'coupon'];
+export const TIPOS_RECOMPENSA = [
+  'theme', 'coupon', 'focus-background', 'icon-pack', 'profile-frame',
+  'point-icon', 'completion-animation', 'completion-sound', 'surprise-box',
+];
+export const TIPOS_COSMETICOS = TIPOS_RECOMPENSA.filter((tipo) => tipo !== 'coupon');
 
 /** Palabras que sugieren un beneficio fuera de la app (FR-019); no deben aparecer en los cupones. */
 export const REFERENCIAS_EXTERNAS = /\b(comercios?|locales?|tiendas? f[ií]sicas?|descuentos? reales?)\b/i;
@@ -14,6 +25,7 @@ export const REFERENCIAS_EXTERNAS = /\b(comercios?|locales?|tiendas? f[ií]sicas
 const CANTIDAD_DESAFIOS = 28;
 const DESAFIOS_POR_CATEGORIA = 7;
 const MIN_RECOMPENSAS = 5;
+const CANTIDAD_LOGROS = 10;
 // Formato anterior del título; el título ahora es el nombre de una actividad (FR-013).
 const TITULO_FORMATO_ANTERIOR = /^No uses redes/i;
 const MULTIPLICADOR_DIFICULTAD = { easy: 1, normal: 1.25, hard: 1.5 };
@@ -102,8 +114,13 @@ export function validarRecompensas(recompensas) {
     if (!esTextoNoVacio(r?.name)) errores.push(`${nombre}: name vacío`);
     if (!esTextoNoVacio(r?.description)) errores.push(`${nombre}: description vacía`);
     if (!esEnteroPositivo(r?.costPoints)) errores.push(`${nombre}: costPoints debe ser un entero mayor que 0`);
-    if (!TIPOS_RECOMPENSA.includes(r?.kind)) errores.push(`${nombre}: kind debe ser badge, theme o coupon`);
-    if (!Number.isInteger(r?.order)) errores.push(`${nombre}: order debe ser un entero`);
+    if (!TIPOS_RECOMPENSA.includes(r?.kind)) errores.push(`${nombre}: kind debe ser un tipo cosmético aprobado o coupon`);
+    if (!Number.isInteger(r?.order) || r.order < 1) errores.push(`${nombre}: order debe ser un entero positivo`);
+    if (TIPOS_COSMETICOS.includes(r?.kind)
+      && (!r?.config || typeof r.config !== 'object' || Array.isArray(r.config) || Object.keys(r.config).length === 0)) {
+      errores.push(`${nombre}: un cosmético debe incluir config no vacía`);
+    }
+    if (typeof r?.active !== 'boolean') errores.push(`${nombre}: active debe ser boolean`);
 
     if (r?.kind === 'coupon' && REFERENCIAS_EXTERNAS.test(`${r.name} ${r.description}`)) {
       errores.push(`${nombre}: un cupón no puede mencionar comercios, locales ni descuentos reales`);
@@ -116,6 +133,38 @@ export function validarRecompensas(recompensas) {
     if (porOrden[i].costPoints < porOrden[i - 1].costPoints) {
       errores.push(`${porOrden[i].id}: el orden no va por costo ascendente`);
     }
+  }
+  return errores;
+}
+
+/** Valida las definiciones de logros que se siembran en la colección pública. */
+export function validarLogros(logros) {
+  const errores = [];
+  if (!Array.isArray(logros)) return ['achievements debe ser una lista'];
+  if (logros.length !== CANTIDAD_LOGROS) {
+    errores.push(`hay ${logros.length} logros y debe haber exactamente ${CANTIDAD_LOGROS}`);
+  }
+
+  const ids = new Set();
+  const ordenes = new Set();
+  for (const logro of logros) {
+    const nombre = logro?.id ?? '(sin id)';
+    if (!esTextoNoVacio(logro?.id)) errores.push(`${nombre}: id vacío`);
+    if (ids.has(logro?.id)) errores.push(`${nombre}: id repetido`);
+    ids.add(logro?.id);
+    if (!esTextoNoVacio(logro?.name)) errores.push(`${nombre}: name vacío`);
+    if (!esTextoNoVacio(logro?.description)) errores.push(`${nombre}: description vacía`);
+    if (!CRITERIOS_LOGRO.includes(logro?.criterion)) errores.push(`${nombre}: criterion inválido`);
+    if (!esEnteroPositivo(logro?.threshold)) errores.push(`${nombre}: threshold debe ser un entero mayor que 0`);
+    if (!Number.isInteger(logro?.order) || logro.order < 1) errores.push(`${nombre}: order debe ser un entero positivo`);
+    if (ordenes.has(logro?.order)) errores.push(`${nombre}: order repetido`);
+    ordenes.add(logro?.order);
+    if (logro?.criterion === 'category_completions') {
+      if (!CATEGORIAS_DESAFIO.includes(logro?.category)) errores.push(`${nombre}: category inválida para criterio de categoría`);
+    } else if (logro?.category !== undefined) {
+      errores.push(`${nombre}: category solo se permite para category_completions`);
+    }
+    if (typeof logro?.active !== 'boolean') errores.push(`${nombre}: active debe ser boolean`);
   }
   return errores;
 }

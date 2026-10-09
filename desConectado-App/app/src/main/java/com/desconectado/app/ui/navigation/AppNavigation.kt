@@ -20,6 +20,7 @@ import java.util.UUID
 import com.desconectado.app.AppContainer
 import com.desconectado.app.domain.model.Conectividad
 import com.desconectado.app.domain.model.EstadoSesion
+import com.desconectado.app.domain.model.CosmeticPreferences
 import com.desconectado.app.ui.auth.AccionesVinculacion
 import com.desconectado.app.ui.auth.EsperaScreen
 import com.desconectado.app.ui.auth.IngresoScreen
@@ -48,7 +49,7 @@ private object Rutas {
 
 /** Raíz de la app: conecta el estado de la sesión con las pantallas que corresponden (FR-012). */
 @Composable
-fun AppNavigation(container: AppContainer) {
+fun AppNavigation(container: AppContainer, cosmeticPreferences: CosmeticPreferences = CosmeticPreferences()) {
     val sesionViewModel: SesionViewModel = viewModel(
         factory = viewModelFactory {
             initializer { SesionViewModel(container.authRepository, container.connectivityMonitor) }
@@ -62,13 +63,17 @@ fun AppNavigation(container: AppContainer) {
         estado = estado,
         conectividad = conectividad,
         sinSesion = { GrafoAcceso(container) },
-        conSesion = { ShellConSesion(container, conectividad) },
+        conSesion = { ShellConSesion(container, conectividad, cosmeticPreferences) },
     )
 }
 
 /** Navegación principal con el saldo de puntos compartido por las tres pestañas (FR-028). */
 @Composable
-private fun ShellConSesion(container: AppContainer, conectividad: Conectividad) {
+private fun ShellConSesion(
+    container: AppContainer,
+    conectividad: Conectividad,
+    cosmeticPreferences: CosmeticPreferences,
+) {
     val saldoViewModel: SaldoViewModel = viewModel(
         factory = viewModelFactory {
             initializer {
@@ -81,14 +86,15 @@ private fun ShellConSesion(container: AppContainer, conectividad: Conectividad) 
         conectividad = conectividad,
         saldo = saldo,
         onDestinoCambiado = saldoViewModel::recargar,
-        desafios = { DesafiosRoute(container) },
+        desafios = { DesafiosRoute(container, cosmeticPreferences) },
         recompensas = { RecompensasRoute(container) },
-        perfil = { PerfilRoute(container) },
+        perfil = { PerfilRoute(container, cosmeticPreferences) },
+        iconPackId = cosmeticPreferences.activeCosmetics[com.desconectado.app.domain.model.TipoRecompensa.PACK_ICONOS],
     )
 }
 
 @Composable
-private fun DesafiosRoute(container: AppContainer) {
+private fun DesafiosRoute(container: AppContainer, cosmeticPreferences: CosmeticPreferences) {
     val viewModel: DesafiosViewModel = viewModel(
         factory = viewModelFactory {
             initializer { DesafiosViewModel(container.catalogRepository, container.connectivityMonitor) }
@@ -103,6 +109,7 @@ private fun DesafiosRoute(container: AppContainer) {
             onReintentar = viewModel::reintentar,
             onIniciar = { desafioSeleccionado = it },
             onCategoriaSeleccionada = viewModel::seleccionarCategoria,
+            iconPackId = cosmeticPreferences.activeCosmetics[com.desconectado.app.domain.model.TipoRecompensa.PACK_ICONOS],
         )
     } else {
         val activoViewModel: DesafioActivoViewModel = viewModel(
@@ -115,6 +122,8 @@ private fun DesafiosRoute(container: AppContainer) {
                         usage = container.usageStatsRepository,
                         store = container.activeChallengeStore,
                         points = container.pointsRepository,
+                        achievements = container.achievementRepository,
+                        userPreferences = container.userPreferencesRepository,
                         notifications = container.notifications,
                         connectivity = container.connectivityMonitor,
                     )
@@ -124,6 +133,7 @@ private fun DesafiosRoute(container: AppContainer) {
         val activoEstado by activoViewModel.estado.collectAsStateWithLifecycle()
         DesafioActivoScreen(
             estado = activoEstado,
+            preferenciasCosmeticas = cosmeticPreferences,
             onAbrirAjustes = activoViewModel::abrirAjustes,
             onReintentarPermiso = activoViewModel::reintentarPermiso,
             onActualizar = activoViewModel::actualizar,
@@ -155,12 +165,15 @@ private fun RecompensasRoute(container: AppContainer) {
                     uid = container.auth.currentUser?.uid.orEmpty(),
                     catalog = container.catalogRepository,
                     points = container.pointsRepository,
+                    cosmeticPreferences = container.cosmeticPreferencesRepository,
                     connectivity = container.connectivityMonitor,
                 )
             }
         },
     )
     val canjeEstado by canjeViewModel.estado.collectAsStateWithLifecycle()
+    val propiedad by canjeViewModel.propiedad.collectAsStateWithLifecycle()
+    val preferenciasCosmeticas by canjeViewModel.preferencias.collectAsStateWithLifecycle()
     val canjePendiente = (canjeEstado as? RecompensasCanjeUiState.Lista)?.pendiente
     RecompensasScreen(
         estado = estado,
@@ -168,11 +181,15 @@ private fun RecompensasRoute(container: AppContainer) {
         onCanjear = { canjeViewModel.canjear(it, UUID.randomUUID().toString()) },
         feedbackEvents = canjeViewModel.feedback,
         canjePendiente = canjePendiente,
+        propiedad = propiedad,
+        preferencias = preferenciasCosmeticas,
+        onAplicarCosmetico = canjeViewModel::activarCosmetico,
+        onQuitarCosmetico = canjeViewModel::quitarCosmetico,
     )
 }
 
 @Composable
-private fun PerfilRoute(container: AppContainer) {
+private fun PerfilRoute(container: AppContainer, cosmeticPreferences: CosmeticPreferences) {
     val viewModel: PerfilViewModel = viewModel(
         factory = viewModelFactory {
             initializer {
@@ -180,8 +197,10 @@ private fun PerfilRoute(container: AppContainer) {
                     container.authRepository,
                     container.perfilRepository,
                     container.challengeRepository,
+                    container.achievementRepository,
                     container.pointsRepository,
                     container.connectivityMonitor,
+                    userPreferences = container.userPreferencesRepository,
                 )
             }
         },
@@ -190,15 +209,31 @@ private fun PerfilRoute(container: AppContainer) {
     val desafiosHechos by viewModel.desafiosHechos.collectAsStateWithLifecycle()
     val canjes by viewModel.canjes.collectAsStateWithLifecycle()
     val proximoVencimiento by viewModel.proximoVencimiento.collectAsStateWithLifecycle()
+    val progreso by viewModel.progreso.collectAsStateWithLifecycle()
+    val edicionNombre by viewModel.edicionNombre.collectAsStateWithLifecycle()
+    val preferenciasUsuario by viewModel.preferencias.collectAsStateWithLifecycle()
     PerfilScreen(
         estado = estado,
+        preferenciasCosmeticas = cosmeticPreferences,
         desafiosHechos = desafiosHechos,
         canjes = canjes,
         proximoVencimiento = proximoVencimiento,
+        progreso = progreso,
+        edicionNombre = edicionNombre,
+        preferenciasUsuario = preferenciasUsuario,
         onReintentar = viewModel::reintentar,
         onReintentarPuntos = viewModel::reintentarHistorial,
         onReintentarCanjes = viewModel::reintentarCanjes,
         onReintentarVencimiento = viewModel::reintentarVencimiento,
+        onReintentarProgreso = viewModel::reintentarProgreso,
+        onEditarNombre = viewModel::editarNombre,
+        onCambiarNombre = viewModel::cambiarNombre,
+        onGuardarNombre = viewModel::guardarNombre,
+        onCancelarEdicionNombre = viewModel::cancelarEdicionNombre,
+        onReintentarPreferencias = viewModel::reintentarPreferencias,
+        onGuardarMetaSemanal = viewModel::guardarMetaSemanal,
+        onConfigurarNotificaciones = viewModel::configurarNotificaciones,
+        onAbrirAjustesPrivacidad = container.usageStatsRepository::openUsageAccessSettings,
         onCerrarSesion = viewModel::cerrarSesion,
     )
 }
@@ -248,6 +283,7 @@ private fun GrafoAcceso(container: AppContainer) {
                         viewModel.continuarConGoogle(container.googleCredentialProvider.obtenerIdToken(contexto))
                     }
                 },
+                onMetaSemanalChange = viewModel::onMetaSemanalChange,
                 vinculacion = AccionesVinculacion(
                     onEmailChange = viewModel::onVinculacionEmailChange,
                     onPasswordChange = viewModel::onVinculacionPasswordChange,
@@ -293,6 +329,7 @@ private fun GrafoAcceso(container: AppContainer) {
                         viewModel.continuarConGoogle(container.googleCredentialProvider.obtenerIdToken(contexto))
                     }
                 },
+                onMetaSemanalChange = viewModel::onMetaSemanalChange,
                 vinculacion = AccionesVinculacion(
                     onEmailChange = viewModel::onVinculacionEmailChange,
                     onPasswordChange = viewModel::onVinculacionPasswordChange,

@@ -35,6 +35,7 @@ fun IngresoScreen(
     onIrARegistro: () -> Unit,
     onOlvidePassword: () -> Unit,
     onGoogle: () -> Unit,
+    onMetaSemanalChange: (Int?) -> Unit = {},
     modifier: Modifier = Modifier,
     vinculacion: AccionesVinculacion = AccionesVinculacion(),
 ) {
@@ -88,6 +89,14 @@ fun IngresoScreen(
             modifier = Modifier.padding(top = 8.dp),
         )
 
+        SelectorMetaSemanal(
+            selectedMinutes = estado.weeklyGoalMinutes,
+            error = estado.errorMetaSemanal,
+            onSelect = onMetaSemanalChange,
+            titleResource = R.string.ingreso_meta_google_titulo,
+            modifier = Modifier.padding(top = 12.dp),
+        )
+
         MensajeErrorEnvio(estado.errorEnvio, modifier = Modifier.fillMaxWidth())
 
         Button(
@@ -103,7 +112,7 @@ fun IngresoScreen(
 
         OutlinedButton(
             onClick = onGoogle,
-            enabled = puedeEnviar,
+            enabled = puedeEnviar && estado.weeklyGoalMinutes != null,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 8.dp)

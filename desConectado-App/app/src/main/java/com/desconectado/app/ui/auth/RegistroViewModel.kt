@@ -6,6 +6,7 @@ import com.desconectado.app.domain.ErroresRegistro
 import com.desconectado.app.domain.model.Conectividad
 import com.desconectado.app.domain.model.ErrorApp
 import com.desconectado.app.domain.model.Resultado
+import com.desconectado.app.domain.model.UserPreferences
 import com.desconectado.app.domain.model.errorOrNull
 import com.desconectado.app.domain.normalizarCorreo
 import com.desconectado.app.domain.repository.AuthRepository
@@ -21,6 +22,8 @@ data class RegistroUiState(
     val username: String = "",
     val email: String = "",
     val password: String = "",
+    val weeklyGoalMinutes: Int? = null,
+    val errorMetaSemanal: Boolean = false,
     val errores: ErroresRegistro = ErroresRegistro(),
     val enviando: Boolean = false,
     val sinConexion: Boolean = false,
@@ -58,11 +61,25 @@ class RegistroViewModel(
         it.copy(password = valor, errores = it.errores.copy(password = null), errorEnvio = null)
     }
 
+    fun onMetaSemanalChange(minutos: Int?) = _uiState.update {
+        val valido = minutos == null || (minutos in UserPreferences.META_MINIMA..UserPreferences.META_MAXIMA
+            && minutos % UserPreferences.INCREMENTO_META == 0)
+        it.copy(
+            weeklyGoalMinutes = minutos.takeIf { valido },
+            errorMetaSemanal = !valido,
+            errorEnvio = null,
+        )
+    }
+
     fun registrar() {
         val actual = _uiState.value
         if (actual.enviando) return // doble toque
 
         val errores = validarRegistro(actual.username, actual.email, actual.password)
+        if (actual.weeklyGoalMinutes == null) {
+            _uiState.update { it.copy(errores = errores, errorMetaSemanal = true, errorEnvio = null) }
+            return
+        }
         if (!errores.esValido) {
             _uiState.update { it.copy(errores = errores, errorEnvio = null) }
             return
@@ -78,6 +95,7 @@ class RegistroViewModel(
                 username = actual.username.trim(),
                 email = normalizarCorreo(actual.email),
                 password = actual.password,
+                weeklyGoalMinutes = actual.weeklyGoalMinutes,
             )
             _uiState.update { it.copy(enviando = false, errorEnvio = resultado.errorOrNull()) }
         }
@@ -93,13 +111,17 @@ class RegistroViewModel(
                 if (token.error != ErrorApp.Cancelado) _uiState.update { it.copy(errorEnvio = token.error) }
             }
             is Resultado.Exito -> {
+                if (actual.weeklyGoalMinutes == null) {
+                    _uiState.update { it.copy(errorMetaSemanal = true) }
+                    return
+                }
                 if (actual.sinConexion) {
                     _uiState.update { it.copy(errorEnvio = ErrorApp.SinConexion) }
                     return
                 }
                 _uiState.update { it.copy(enviando = true, errorEnvio = null) }
                 viewModelScope.launch {
-                    val resultado = auth.ingresarConGoogle(token.valor)
+                    val resultado = auth.ingresarConGoogle(token.valor, actual.weeklyGoalMinutes)
                     _uiState.update {
                         if (resultado.errorOrNull() == ErrorApp.CuentaExistenteConOtroProveedor) {
                             it.copy(

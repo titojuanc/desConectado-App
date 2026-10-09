@@ -24,7 +24,9 @@ La documentación de precios de Firestore indica que TTL no tiene cuota gratuita
 
 ### Logros y métricas
 
-La meta semanal se configura en el registro y puede cambiarse después; no hay valor inicial/rango aprobado todavía. La racha se pierde cuando no se cumple, sin acumulación/compensación. Antes de implementar métricas temporales hay que preguntar qué califica como día cumplido y cómo tratar la zona horaria. Los conteos y horas se derivan solo de desafíos completados válidos.
+**Confirmado por el usuario**: un día de racha cuenta con al menos un desafío completado válido, sin duración mínima. La racha se conserva durante el día actual si se cumplió ayer y se rompe al cerrar un día local incumplido; no se compensa. Cada resultado se asigna a su fecha con la zona capturada al completarlo. La semana va de lunes a domingo. La meta se elige durante el registro sin valor predeterminado, entre 30 y 840 minutos en incrementos de 30; se puede ajustar después en el mismo rango.
+
+Los conteos y horas se derivan solo de resultados completados válidos. La categoría se guarda como snapshot del resultado para que cambios futuros del catálogo no alteren logros. Firestore puede imponer acceso propietario, progreso monotónico e idempotencia, pero Rules no puede contar una colección arbitraria de resultados; se acepta cálculo cliente porque los logros no tienen valor económico ni otorgan puntos. Un cliente modificado podría falsificarlos.
 
 ### Catálogos
 
@@ -34,11 +36,11 @@ Agregar las 28 propuestas en cuatro categorías con Todos como vista inicial. Pu
 
 Una valoración inmutable por resultado exitoso, con estrellas de 1 a 5, obligatoria antes de volver al catálogo y sin etiquetas. Guardar rating en un recurso separado; no reabrir el resultado financiero/inmutable.
 
-Preferencias cosméticas y meta se sincronizan en Firestore; permisos del sistema siguen bajo control Android. La meta se recoge durante el registro y es editable luego. Usar avatar de catálogo/iniciales, sin fotos.
+Preferencias cosméticas y meta se sincronizan en Firestore; permisos del sistema siguen bajo control Android. La meta se recoge durante el registro y es editable luego. Hay un único toggle de notificaciones apagado por defecto. Perfil permite editar solo el nombre visible; correo/Auth permanecen inmutables. Privacidad enlaza a Ajustes Android de estadísticas de uso. Usar avatar de catálogo/iniciales, sin fotos.
 
-### Catálogo cosmético propuesto
+### Catálogo cosmético confirmado
 
-El catálogo y los costos se definirán cuando comience la implementación de cosméticos. No sembrarlos ni inferirlos ahora. Las insignias se conceden por progreso, nunca por compra.
+Usar los 15 artículos y costos de `documentos de referencia/Recompensas_desconectado.docx`: cuatro temas (100/150/150/200), dos packs de íconos (80/100), tres fondos (60/80/80), dos marcos (100/150), estrella especial (200), animación de logro (120), sonido (60) y caja sorpresa (120). El usuario aprobó IDs slug derivados de los nombres. La caja elige solo artículos cosméticos no poseídos y no cobra si no hay elegibles. Conservar cupones existentes; retirar insignias de compra sin borrar canjes históricos; las insignias se obtienen por logros.
 
 ## Riesgos y validación de diseño
 

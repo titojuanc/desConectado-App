@@ -9,9 +9,11 @@ class FakeProfileRepository : ProfileRepository {
 
     var resultadoPerfil: Resultado<Perfil> = Resultado.Exito(Perfil(username = "ana", email = "ana@mail.com"))
     var resultadoAsegurar: Resultado<Unit> = Resultado.Exito(Unit)
+    var resultadoActualizarUsername: Resultado<Unit> = Resultado.Exito(Unit)
 
     val llamadasPerfil = mutableListOf<String>()
     val llamadasAsegurar = mutableListOf<Triple<String, String?, String>>()
+    val llamadasActualizarUsername = mutableListOf<Pair<String, String>>()
 
     override suspend fun perfil(uid: String): Resultado<Perfil> {
         llamadasPerfil += uid
@@ -21,5 +23,10 @@ class FakeProfileRepository : ProfileRepository {
     override suspend fun asegurarPerfil(uid: String, nombre: String?, email: String): Resultado<Unit> {
         llamadasAsegurar += Triple(uid, nombre, email)
         return resultadoAsegurar
+    }
+
+    override suspend fun actualizarUsername(uid: String, username: String): Resultado<Unit> {
+        llamadasActualizarUsername += uid to username
+        return resultadoActualizarUsername
     }
 }

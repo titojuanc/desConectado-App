@@ -7,6 +7,7 @@ import com.desconectado.app.domain.model.DesafioHecho
 import com.desconectado.app.domain.model.Resultado
 
 interface ChallengeRepository {
+    suspend fun results(uid: String): Resultado<List<ChallengeResult>>
     suspend fun history(uid: String): Resultado<List<DesafioHecho>>
     suspend fun rating(uid: String, runId: String): Resultado<ChallengeRating?>
     suspend fun rate(uid: String, rating: ChallengeRating): Resultado<Unit>

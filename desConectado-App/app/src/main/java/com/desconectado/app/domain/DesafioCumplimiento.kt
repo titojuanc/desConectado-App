@@ -31,6 +31,7 @@ fun evaluarCumplimiento(
         offlineSeconds = offlineSeconds.coerceAtLeast(0),
         pointsAwarded = if (status == ChallengeResult.Status.COMPLETED) desafio.points else 0,
         durationSeconds = durationSeconds,
+        category = desafio.category,
     )
 }
 

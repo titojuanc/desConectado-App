@@ -109,4 +109,17 @@ class IngresoViewModelTest {
         assertEquals(com.desconectado.app.domain.ErrorCampo.VACIO, vm.uiState.value.errorCorreo)
         assertEquals(com.desconectado.app.domain.ErrorCampo.VACIO, vm.uiState.value.errorPassword)
     }
+
+    @Test
+    fun GoogleExigeMetaYPasaLaSeleccionSinAfectarIngresoConContrasena() = runTest {
+        val vm = crearViewModel()
+        vm.continuarConGoogle(Resultado.Exito("id-token"))
+        assertTrue(auth.llamadasIngresarConGoogle.isEmpty())
+        assertEquals(true, vm.uiState.value.errorMetaSemanal)
+
+        vm.onMetaSemanalChange(240)
+        vm.continuarConGoogle(Resultado.Exito("id-token"))
+
+        assertEquals(listOf("id-token" to 240), auth.llamadasIngresarConGoogleYMeta)
+    }
 }

@@ -7,6 +7,7 @@ import com.desconectado.app.data.challenges.ActiveChallengeStore
 import com.desconectado.app.data.notifications.DesconectadoNotifications
 import com.desconectado.app.domain.SystemTimeSource
 import com.desconectado.app.domain.TimeSource
+import com.desconectado.app.domain.actualizarLogrosTrasResultado
 import com.desconectado.app.domain.evaluarCumplimiento
 import com.desconectado.app.domain.model.ActiveChallenge
 import com.desconectado.app.domain.model.ChallengeResult
@@ -16,6 +17,8 @@ import com.desconectado.app.domain.model.Desafio
 import com.desconectado.app.domain.model.ErrorApp
 import com.desconectado.app.domain.model.Resultado
 import com.desconectado.app.domain.repository.ChallengeRepository
+import com.desconectado.app.domain.repository.AchievementRepository
+import com.desconectado.app.domain.repository.UserPreferencesRepository
 import com.desconectado.app.domain.repository.ConnectivityMonitor
 import com.desconectado.app.domain.repository.UsageStatsRepository
 import com.desconectado.app.domain.repository.PointsRepository
@@ -47,6 +50,8 @@ class DesafioActivoViewModel(
     private val usage: UsageStatsRepository,
     private val store: ActiveChallengeStore,
     private val points: PointsRepository,
+    private val achievements: AchievementRepository,
+    private val userPreferences: UserPreferencesRepository,
     private val notifications: DesconectadoNotifications,
     connectivity: ConnectivityMonitor,
     private val time: TimeSource = SystemTimeSource,
@@ -54,9 +59,13 @@ class DesafioActivoViewModel(
     private val _estado = MutableStateFlow<DesafioActivoUiState>(DesafioActivoUiState.Cargando)
     val estado: StateFlow<DesafioActivoUiState> = _estado.asStateFlow()
     private var conectado = true
+    private var notificationsEnabled = false
     private var desafioPendiente: Desafio? = null
 
     init {
+        viewModelScope.launch {
+            userPreferences.observar(uid).collect { notificationsEnabled = it.notificationsEnabled }
+        }
         viewModelScope.launch {
             connectivity.estado.collect { valor ->
                 conectado = valor == Conectividad.CONECTADO
@@ -113,7 +122,7 @@ class DesafioActivoViewModel(
                 is Resultado.Exito -> {
                     val app = medicion.valor.entries.firstOrNull { it.value > 0 }?.key
                     if (app != null) {
-                        notifications.entroAUnaRed(nombreVisible(app))
+                        notifications.entroAUnaRed(nombreVisible(app), notificationsEnabled)
                         invalidar(actual, "social_app_used")
                     } else {
                         _estado.value = DesafioActivoUiState.Activo(actual, medicion.valor.values.sum())
@@ -135,7 +144,17 @@ class DesafioActivoViewModel(
             val medicion = usage.socialUsageByPackageSeconds(actual.startedAt, ahora)
             val uso = (medicion as? Resultado.Exito)?.valor?.values?.sum() ?: return@launch
             val resultado = evaluarCumplimiento(
-                desafio = Desafio(actual.challengeId, actual.challengeTitle, "", actual.durationMinutes, com.desconectado.app.domain.model.Dificultad.FACIL, actual.points, 0, actual.durationSeconds),
+                desafio = Desafio(
+                    actual.challengeId,
+                    actual.challengeTitle,
+                    "",
+                    actual.durationMinutes,
+                    com.desconectado.app.domain.model.Dificultad.FACIL,
+                    actual.points,
+                    0,
+                    durationSeconds = actual.durationSeconds,
+                    category = actual.category,
+                ),
                 measuredSocialSeconds = uso,
                 offlineSeconds = actual.offlineSeconds,
                 finishedAt = ahora,
@@ -203,8 +222,18 @@ class DesafioActivoViewModel(
                     Resultado.Exito(Unit)
                 }
                 if (acreditacion is Resultado.Exito) {
+                    if (finalResult.status == ChallengeResult.Status.COMPLETED) {
+                        when (actualizarLogrosTrasResultado(uid, finalResult, challenges, achievements)) {
+                            is Resultado.Exito -> Unit
+                            is Resultado.Fallo -> Log.w(TAG, "No se pudieron actualizar los logros tras completar el desafío")
+                        }
+                    }
                     store.clear()
-                    notifications.desafioTerminado(finalResult.status == ChallengeResult.Status.COMPLETED, finalResult.pointsAwarded)
+                    notifications.desafioTerminado(
+                        finalResult.status == ChallengeResult.Status.COMPLETED,
+                        finalResult.pointsAwarded,
+                        notificationsEnabled,
+                    )
                     mostrarResultadoTerminal(finalResult)
                 } else if (acreditacion is Resultado.Fallo) {
                     _estado.value = DesafioActivoUiState.Error(acreditacion.error)

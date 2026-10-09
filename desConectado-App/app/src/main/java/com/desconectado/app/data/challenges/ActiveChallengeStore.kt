@@ -25,6 +25,7 @@ class ActiveChallengeStore(private val context: Context) {
             status = values[STATUS]?.let { runCatching { ActiveChallenge.Status.valueOf(it) }.getOrNull() } ?: return null,
             updatedAt = Instant.ofEpochMilli(values[UPDATED_AT] ?: return null),
             durationSeconds = values[DURATION_SECONDS] ?: (values[DURATION_MINUTES] ?: 0) * 60,
+            category = values[CATEGORY]?.let(com.desconectado.app.domain.model.CategoriaDesafio::desdeAlmacen),
         )
     }
 
@@ -39,6 +40,7 @@ class ActiveChallengeStore(private val context: Context) {
             values[STATUS] = challenge.status.name
             values[UPDATED_AT] = challenge.updatedAt.toEpochMilli()
             values[DURATION_SECONDS] = challenge.durationSeconds
+            challenge.category?.let { values[CATEGORY] = it.valorAlmacen } ?: values.remove(CATEGORY)
         }
     }
 
@@ -56,5 +58,6 @@ class ActiveChallengeStore(private val context: Context) {
         val STATUS = stringPreferencesKey("status")
         val UPDATED_AT = longPreferencesKey("updated_at")
         val DURATION_SECONDS = androidx.datastore.preferences.core.intPreferencesKey("duration_seconds")
+        val CATEGORY = stringPreferencesKey("category")
     }
 }

@@ -11,6 +11,12 @@ data class PendingRedemption(
     val pointsDebited: Int,
     val lotDebits: Map<String, Int>,
     val createdAt: Instant,
+    val kind: TipoRecompensa? = null,
+    val config: Map<String, String> = emptyMap(),
+    val grantedRewardId: String? = null,
+    val grantedRewardName: String? = null,
+    val grantedRewardKind: TipoRecompensa? = null,
+    val grantedRewardConfig: Map<String, String> = emptyMap(),
 ) {
     val pointsRemaining: Int
         get() = costPoints - pointsDebited

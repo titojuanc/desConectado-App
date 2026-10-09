@@ -13,6 +13,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Park
+import androidx.compose.material.icons.filled.CenterFocusStrong
+import androidx.compose.material.icons.filled.Spa
+import androidx.compose.material.icons.outlined.FilterAlt
+import androidx.compose.material.icons.outlined.Forum
+import androidx.compose.material.icons.outlined.SelfImprovement
+import androidx.compose.material.icons.outlined.Widgets
 import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
@@ -20,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
@@ -45,13 +57,14 @@ fun DesafiosScreen(
     onReintentar: () -> Unit,
     onIniciar: ((Desafio) -> Unit)? = null,
     onCategoriaSeleccionada: (CategoriaDesafio?) -> Unit = {},
+    iconPackId: String? = null,
     modifier: Modifier = Modifier,
 ) {
     when (estado) {
         DesafiosUiState.Cargando -> PantallaCargando(modifier)
         DesafiosUiState.Error -> PantallaError(onReintentar, modifier)
         DesafiosUiState.SinConexion -> PantallaSinConexion(onReintentar, modifier)
-        is DesafiosUiState.Lista -> ListaDesafios(estado, onIniciar, onCategoriaSeleccionada, modifier)
+        is DesafiosUiState.Lista -> ListaDesafios(estado, onIniciar, onCategoriaSeleccionada, iconPackId, modifier)
     }
 }
 
@@ -60,6 +73,7 @@ private fun ListaDesafios(
     estado: DesafiosUiState.Lista,
     onIniciar: ((Desafio) -> Unit)?,
     onCategoriaSeleccionada: (CategoriaDesafio?) -> Unit,
+    iconPackId: String?,
     modifier: Modifier = Modifier,
 ) {
     val categorias = listOf(null) + CategoriaDesafio.entries
@@ -81,7 +95,15 @@ private fun ListaDesafios(
                     selected = estado.categoriaSeleccionada == categoria,
                     onClick = { onCategoriaSeleccionada(categoria) },
                     modifier = Modifier.testTag(testTag),
-                    text = { Text(stringResource(etiquetas[index])) },
+                    text = {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            categoria?.let { Icon(iconoCategoria(it, iconPackId), contentDescription = null) }
+                            if (categoria == null && iconPackId == "icon-pack-minimal") {
+                                Icon(Icons.Outlined.FilterAlt, contentDescription = null)
+                            }
+                            Text(stringResource(etiquetas[index]))
+                        }
+                    },
                 )
             }
         }
@@ -95,6 +117,27 @@ private fun ListaDesafios(
         ) {
             items(estado.desafios, key = { it.id }) { desafio -> TarjetaDesafio(desafio, onIniciar) }
         }
+    }
+}
+
+private fun iconoCategoria(categoria: CategoriaDesafio, iconPackId: String?): ImageVector = when (iconPackId) {
+    "icon-pack-minimal" -> when (categoria) {
+        CategoriaDesafio.MOVERME -> Icons.Outlined.Widgets
+        CategoriaDesafio.ENFOCARME -> Icons.Outlined.FilterAlt
+        CategoriaDesafio.SOCIALIZAR -> Icons.Outlined.Forum
+        CategoriaDesafio.DESCANSAR -> Icons.Outlined.SelfImprovement
+    }
+    "icon-pack-naturaleza" -> when (categoria) {
+        CategoriaDesafio.MOVERME -> Icons.AutoMirrored.Filled.DirectionsWalk
+        CategoriaDesafio.ENFOCARME -> Icons.Filled.CenterFocusStrong
+        CategoriaDesafio.SOCIALIZAR -> Icons.Filled.Groups
+        CategoriaDesafio.DESCANSAR -> Icons.Filled.Spa
+    }
+    else -> when (categoria) {
+        CategoriaDesafio.MOVERME -> Icons.AutoMirrored.Filled.DirectionsWalk
+        CategoriaDesafio.ENFOCARME -> Icons.Filled.CenterFocusStrong
+        CategoriaDesafio.SOCIALIZAR -> Icons.Filled.Groups
+        CategoriaDesafio.DESCANSAR -> Icons.Filled.Park
     }
 }
 

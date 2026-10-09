@@ -15,6 +15,7 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.Source
+import com.desconectado.app.domain.desafioAnteriorAlReset
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.tasks.await
 import android.util.Log
@@ -73,9 +74,35 @@ class FirestoreChallengeRepository(
         Resultado.Fallo(e.aErrorApp())
     }
 
+    override suspend fun results(uid: String): Resultado<List<ChallengeResult>> = try {
+        val documents = firestore.collection("users").document(uid).collection("challengeResults")
+            .orderBy("finishedAt", Query.Direction.DESCENDING)
+            .get(Source.SERVER)
+            .await()
+            .documents
+        Resultado.Exito(documents.mapNotNull { it.toChallengeResult() })
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Resultado.Fallo(e.aErrorApp())
+    }
+
     override suspend fun active(uid: String): Resultado<ActiveChallenge?> = try {
-        val document = activeReference(uid).get(Source.SERVER).await()
-        Resultado.Exito(document.toActiveChallenge())
+        val activeRef = activeReference(uid)
+        val user = firestore.collection("users").document(uid)
+        val resetAt = user.get(Source.SERVER).await()
+            .getTimestamp("delivery3ResetAt")?.toDate()?.toInstant()
+        val active = activeRef.get(Source.SERVER).await().toActiveChallenge()
+        val local = store?.read()
+        if (resetAt != null && active != null && desafioAnteriorAlReset(active.startedAt, resetAt)) {
+            activeRef.delete().await()
+        }
+        if (resetAt != null && local != null && desafioAnteriorAlReset(local.startedAt, resetAt)) {
+            store.clear()
+        }
+        val current = active?.takeUnless { resetAt != null && desafioAnteriorAlReset(it.startedAt, resetAt) }
+        if (current != null) store?.write(current)
+        Resultado.Exito(current)
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
@@ -97,6 +124,7 @@ class FirestoreChallengeRepository(
                 "challengeTitle" to challenge.getString("title").orEmpty(),
                 "durationMinutes" to (challenge.getLong("durationMinutes") ?: 0L),
                 "points" to (challenge.getLong("points") ?: 0L),
+                "category" to challenge.getString("category"),
                 "durationSeconds" to (challenge.getLong("durationSeconds") ?: (challenge.getLong("durationMinutes") ?: 0L) * 60L),
                 "startedAt" to now,
                 "offlineSeconds" to 0L,
@@ -148,12 +176,17 @@ class FirestoreChallengeRepository(
                     durationMinutes = activeChallenge.getLong("durationMinutes")?.toInt() ?: 0,
                     durationSeconds = activeChallenge.getLong("durationSeconds")?.toInt()
                         ?: ((activeChallenge.getLong("durationMinutes") ?: 0L) * 60L).toInt(),
+                    category = activeChallenge.getString("category")
+                        ?.let(com.desconectado.app.domain.model.CategoriaDesafio::desdeAlmacen),
                     startedAt = activeChallenge.getTimestamp("startedAt")?.toDate()?.toInstant() ?: result.startedAt,
                     offlineSeconds = activeChallenge.getLong("offlineSeconds") ?: result.offlineSeconds,
                     pointsAwarded = 0,
                 )
             } else {
-                result
+                result.copy(
+                    category = result.category ?: activeChallenge.getString("category")
+                        ?.let(com.desconectado.app.domain.model.CategoriaDesafio::desdeAlmacen),
+                )
             }
             transaction.set(resultRef, finalResult.toMap())
             transaction.delete(activeRef)
@@ -191,6 +224,8 @@ class FirestoreChallengeRepository(
         status = ActiveChallenge.Status.valueOf(get("status") as String),
         updatedAt = (get("updatedAt") as com.google.firebase.Timestamp).toDate().toInstant(),
         durationSeconds = (get("durationSeconds") as? Number)?.toInt() ?: (get("durationMinutes") as Number).toInt() * 60,
+        category = (get("category") as? String)
+            ?.let(com.desconectado.app.domain.model.CategoriaDesafio::desdeAlmacen),
     )
 
     private fun com.google.firebase.firestore.DocumentSnapshot.toActiveChallenge(): ActiveChallenge? = if (!exists()) null else data?.toActiveChallenge()
@@ -229,25 +264,28 @@ class FirestoreChallengeRepository(
             offlineSeconds = getLong("offlineSeconds") ?: return null,
             pointsAwarded = getLong("pointsAwarded")?.toInt() ?: return null,
             timeZoneId = getString("timeZoneId") ?: java.time.ZoneId.systemDefault().id,
+            category = getString("category")
+                ?.let(com.desconectado.app.domain.model.CategoriaDesafio::desdeAlmacen),
         )
     } catch (_: IllegalArgumentException) {
         null
     }
 
-    private fun ChallengeResult.toMap(): Map<String, Any> = mapOf(
-        "challengeRunId" to challengeRunId,
-        "challengeId" to challengeId,
-        "challengeTitle" to challengeTitle,
-        "durationMinutes" to durationMinutes,
-        "durationSeconds" to durationSeconds,
-        "startedAt" to com.google.firebase.Timestamp(startedAt.epochSecond, startedAt.nano),
-        "finishedAt" to com.google.firebase.Timestamp(finishedAt.epochSecond, finishedAt.nano),
-        "status" to status.name,
-        "measuredSocialSeconds" to measuredSocialSeconds,
-        "offlineSeconds" to offlineSeconds,
-        "pointsAwarded" to pointsAwarded,
-        "timeZoneId" to timeZoneId,
-    )
+    private fun ChallengeResult.toMap(): Map<String, Any> = buildMap {
+        put("challengeRunId", challengeRunId)
+        put("challengeId", challengeId)
+        put("challengeTitle", challengeTitle)
+        put("durationMinutes", durationMinutes)
+        put("durationSeconds", durationSeconds)
+        put("startedAt", com.google.firebase.Timestamp(startedAt.epochSecond, startedAt.nano))
+        put("finishedAt", com.google.firebase.Timestamp(finishedAt.epochSecond, finishedAt.nano))
+        put("status", status.name)
+        put("measuredSocialSeconds", measuredSocialSeconds)
+        put("offlineSeconds", offlineSeconds)
+        put("pointsAwarded", pointsAwarded)
+        put("timeZoneId", timeZoneId)
+        category?.let { put("category", it.valorAlmacen) }
+    }
 
     private suspend fun Resultado<ActiveChallenge?>.valorOrThrow(): Resultado<ActiveChallenge> = when (this) {
         is Resultado.Exito -> valor?.let { Resultado.Exito(it) } ?: Resultado.Fallo(com.desconectado.app.domain.model.ErrorApp.Desconocido)

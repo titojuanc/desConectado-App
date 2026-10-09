@@ -17,6 +17,21 @@ service cloud.firestore {
       return autenticado() && request.auth.uid == uid;
     }
 
+    function cosmeticoPoseido(uid, rewardId, kind) {
+      return rewardId is string
+        && exists(/databases/$(database)/documents/users/$(uid)/cosmeticOwnership/$(rewardId))
+        && get(/databases/$(database)/documents/users/$(uid)/cosmeticOwnership/$(rewardId)).data.kind == kind;
+    }
+
+    function seleccionValida(uid, selections, slot, kind) {
+      let rewardId = selections.get(slot, null);
+      return rewardId == null || cosmeticoPoseido(uid, rewardId, kind);
+    }
+
+    function esTipoCosmetico(kind) {
+      return kind in ['theme', 'focus-background', 'icon-pack', 'profile-frame', 'point-icon', 'completion-animation', 'completion-sound'];
+    }
+
     function ultimoMovimientoId(uid) {
       return getAfter(/databases/$(database)/documents/users/$(uid)).data.lastMovementId;
     }
@@ -42,7 +57,12 @@ service cloud.firestore {
         && request.resource.data.get('pointsBalance', 0) == 0;
 
       allow update: if esDueno(uid)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pointsBalance', 'lastMovementId'])
+        && (
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['username'])
+            && request.resource.data.username is string
+            && request.resource.data.username.size() >= 1
+            && request.resource.data.username.size() <= 30)
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pointsBalance', 'lastMovementId'])
         && request.resource.data.pointsBalance is int
         && request.resource.data.pointsBalance >= 0
         && request.resource.data.lastMovementId is string
@@ -70,7 +90,8 @@ service cloud.firestore {
           ||
           (getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(request.resource.data.lastMovementId)).data.type == 'expire'
             && request.resource.data.pointsBalance == resource.data.get('pointsBalance', 0)
-              - getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(request.resource.data.lastMovementId)).data.amount)
+              - getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(request.resource.data.lastMovementId)).data.amount))
+          )
         );
 
       allow delete: if false;
@@ -109,12 +130,87 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    match /users/{uid}/achievements/{achievementId} {
+      allow read: if esDueno(uid);
+      allow create: if esDueno(uid)
+        && request.resource.data.keys().hasOnly(['achievementId', 'progress', 'threshold', 'unlockedAt', 'updatedAt'])
+        && request.resource.data.keys().hasAll(['achievementId', 'progress', 'threshold', 'updatedAt'])
+        && request.resource.data.achievementId == achievementId
+        && exists(/databases/$(database)/documents/achievements/$(achievementId))
+        && get(/databases/$(database)/documents/achievements/$(achievementId)).data.active == true
+        && request.resource.data.threshold == get(/databases/$(database)/documents/achievements/$(achievementId)).data.threshold
+        && request.resource.data.progress is int
+        && request.resource.data.progress >= 0
+        && request.resource.data.progress <= request.resource.data.threshold
+        && request.resource.data.updatedAt == request.time
+        && ((request.resource.data.progress < request.resource.data.threshold && request.resource.data.get('unlockedAt', null) == null)
+          || (request.resource.data.progress == request.resource.data.threshold && request.resource.data.get('unlockedAt', null) == request.time));
+      allow update: if esDueno(uid)
+        && resource.data.get('unlockedAt', null) == null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['progress', 'unlockedAt', 'updatedAt'])
+        && request.resource.data.achievementId == resource.data.achievementId
+        && request.resource.data.threshold == resource.data.threshold
+        && request.resource.data.progress is int
+        && request.resource.data.progress >= resource.data.progress
+        && request.resource.data.progress <= resource.data.threshold
+        && request.resource.data.updatedAt == request.time
+        && ((request.resource.data.progress < request.resource.data.threshold && request.resource.data.get('unlockedAt', null) == null)
+          || (request.resource.data.progress == request.resource.data.threshold && request.resource.data.get('unlockedAt', null) == request.time));
+      allow delete: if false;
+    }
+
+    match /users/{uid}/cosmeticOwnership/{rewardId} {
+      allow read: if esDueno(uid);
+      allow create: if esDueno(uid)
+        && !exists(/databases/$(database)/documents/users/$(uid)/cosmeticOwnership/$(rewardId))
+        && request.resource.data.keys().hasOnly(['rewardId', 'name', 'kind', 'config', 'redemptionId', 'createdAt'])
+        && request.resource.data.keys().hasAll(['rewardId', 'name', 'kind', 'config', 'redemptionId', 'createdAt'])
+        && request.resource.data.rewardId == rewardId
+        && request.resource.data.name is string
+        && request.resource.data.kind in ['theme', 'focus-background', 'icon-pack', 'profile-frame', 'point-icon', 'completion-animation', 'completion-sound']
+        && request.resource.data.config is map
+        && request.resource.data.redemptionId is string
+        && request.resource.data.createdAt == request.time
+        && exists(/databases/$(database)/documents/rewards/$(rewardId))
+        && get(/databases/$(database)/documents/rewards/$(rewardId)).data.get('active', true) == true
+        && get(/databases/$(database)/documents/rewards/$(rewardId)).data.kind == request.resource.data.kind
+        && existsAfter(/databases/$(database)/documents/users/$(uid)/redeemedRewards/$(request.resource.data.redemptionId))
+        && (getAfter(/databases/$(database)/documents/users/$(uid)/redeemedRewards/$(request.resource.data.redemptionId)).data.rewardId == rewardId
+          || getAfter(/databases/$(database)/documents/users/$(uid)/redeemedRewards/$(request.resource.data.redemptionId)).data.grantedRewardId == rewardId)
+        && (getAfter(/databases/$(database)/documents/users/$(uid)/redeemedRewards/$(request.resource.data.redemptionId)).data.kind == request.resource.data.kind
+          || getAfter(/databases/$(database)/documents/users/$(uid)/redeemedRewards/$(request.resource.data.redemptionId)).data.grantedRewardKind == request.resource.data.kind);
+      allow update, delete: if false;
+    }
+
+    match /users/{uid}/preferences/{preferenceId} {
+      allow read: if esDueno(uid);
+      allow create, update: if esDueno(uid)
+        && preferenceId == 'current'
+        && request.resource.data.keys().hasOnly(['activeCosmetics', 'weeklyGoalMinutes', 'notificationsEnabled'])
+        && request.resource.data.activeCosmetics is map
+        && request.resource.data.activeCosmetics.keys().hasOnly(['theme', 'focus-background', 'icon-pack', 'profile-frame', 'point-icon', 'completion-animation', 'completion-sound'])
+        && request.resource.data.get('notificationsEnabled', false) is bool
+        && (request.resource.data.get('weeklyGoalMinutes', null) == null
+          || (request.resource.data.weeklyGoalMinutes is int
+            && request.resource.data.weeklyGoalMinutes >= 30
+            && request.resource.data.weeklyGoalMinutes <= 840
+            && request.resource.data.weeklyGoalMinutes % 30 == 0))
+        && seleccionValida(uid, request.resource.data.activeCosmetics, 'theme', 'theme')
+        && seleccionValida(uid, request.resource.data.activeCosmetics, 'focus-background', 'focus-background')
+        && seleccionValida(uid, request.resource.data.activeCosmetics, 'icon-pack', 'icon-pack')
+        && seleccionValida(uid, request.resource.data.activeCosmetics, 'profile-frame', 'profile-frame')
+        && seleccionValida(uid, request.resource.data.activeCosmetics, 'point-icon', 'point-icon')
+        && seleccionValida(uid, request.resource.data.activeCosmetics, 'completion-animation', 'completion-animation')
+        && seleccionValida(uid, request.resource.data.activeCosmetics, 'completion-sound', 'completion-sound');
+      allow delete: if false;
+    }
+
     match /users/{uid}/pendingRedemptions/{pendingId} {
       allow read: if esDueno(uid);
       allow create: if esDueno(uid)
         && pendingId == 'current'
         && !exists(/databases/$(database)/documents/users/$(uid)/pendingRedemptions/current)
-        && request.resource.data.keys().hasOnly(['redemptionId', 'rewardId', 'name', 'costPoints', 'code', 'pointsDebited', 'lotDebits', 'createdAt', 'updatedAt'])
+        && request.resource.data.keys().hasOnly(['redemptionId', 'rewardId', 'name', 'costPoints', 'code', 'pointsDebited', 'lotDebits', 'createdAt', 'updatedAt', 'kind', 'config', 'grantedRewardId', 'grantedRewardName', 'grantedRewardKind', 'grantedRewardConfig'])
         && request.resource.data.redemptionId is string
         && request.resource.data.rewardId is string
         && request.resource.data.name is string
@@ -128,6 +224,25 @@ service cloud.firestore {
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time
         && get(/databases/$(database)/documents/rewards/$(request.resource.data.rewardId)).data.costPoints == request.resource.data.costPoints
+        && get(/databases/$(database)/documents/rewards/$(request.resource.data.rewardId)).data.get('active', true) == true
+        && (!request.resource.data.keys().hasAny(['kind'])
+          || (request.resource.data.kind == get(/databases/$(database)/documents/rewards/$(request.resource.data.rewardId)).data.kind
+            && request.resource.data.config == get(/databases/$(database)/documents/rewards/$(request.resource.data.rewardId)).data.config))
+        && ((request.resource.data.get('kind', get(/databases/$(database)/documents/rewards/$(request.resource.data.rewardId)).data.get('kind', 'coupon')) != 'surprise-box'
+            && request.resource.data.get('grantedRewardId', null) == null
+            && (!esTipoCosmetico(get(/databases/$(database)/documents/rewards/$(request.resource.data.rewardId)).data.get('kind', 'coupon'))
+              || !exists(/databases/$(database)/documents/users/$(uid)/cosmeticOwnership/$(request.resource.data.rewardId))))
+          || (request.resource.data.get('kind', null) == 'surprise-box'
+            && request.resource.data.grantedRewardId is string
+            && request.resource.data.grantedRewardName is string
+            && request.resource.data.grantedRewardKind is string
+            && esTipoCosmetico(request.resource.data.grantedRewardKind)
+            && request.resource.data.grantedRewardConfig is map
+            && exists(/databases/$(database)/documents/rewards/$(request.resource.data.grantedRewardId))
+            && get(/databases/$(database)/documents/rewards/$(request.resource.data.grantedRewardId)).data.get('active', true) == true
+            && get(/databases/$(database)/documents/rewards/$(request.resource.data.grantedRewardId)).data.kind == request.resource.data.grantedRewardKind
+            && get(/databases/$(database)/documents/rewards/$(request.resource.data.grantedRewardId)).data.config == request.resource.data.grantedRewardConfig
+            && !exists(/databases/$(database)/documents/users/$(uid)/cosmeticOwnership/$(request.resource.data.grantedRewardId))))
         && get(/databases/$(database)/documents/users/$(uid)).data.pointsBalance >= request.resource.data.costPoints;
       allow update: if esDueno(uid)
         && pendingId == 'current'
@@ -289,6 +404,18 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/users/$(uid)/pendingRedemptions/current).data.code == request.resource.data.code
         && request.resource.data.movementIds is list
         && request.resource.data.movementIds.size() > 0
+        && (request.resource.data.get('kind', null) == null
+          || (request.resource.data.kind == get(/databases/$(database)/documents/users/$(uid)/pendingRedemptions/current).data.kind
+            && request.resource.data.config == get(/databases/$(database)/documents/users/$(uid)/pendingRedemptions/current).data.config
+            && request.resource.data.get('grantedRewardId', null) == get(/databases/$(database)/documents/users/$(uid)/pendingRedemptions/current).data.get('grantedRewardId', null)
+            && request.resource.data.get('grantedRewardName', null) == get(/databases/$(database)/documents/users/$(uid)/pendingRedemptions/current).data.get('grantedRewardName', null)
+            && request.resource.data.get('grantedRewardKind', null) == get(/databases/$(database)/documents/users/$(uid)/pendingRedemptions/current).data.get('grantedRewardKind', null)
+            && request.resource.data.get('grantedRewardConfig', {}) == get(/databases/$(database)/documents/users/$(uid)/pendingRedemptions/current).data.get('grantedRewardConfig', {})
+            && ((!esTipoCosmetico(request.resource.data.kind) && request.resource.data.kind != 'surprise-box')
+              || (esTipoCosmetico(request.resource.data.kind)
+                && existsAfter(/databases/$(database)/documents/users/$(uid)/cosmeticOwnership/$(request.resource.data.rewardId)))
+              || (request.resource.data.kind == 'surprise-box'
+                && existsAfter(/databases/$(database)/documents/users/$(uid)/cosmeticOwnership/$(request.resource.data.grantedRewardId))))))
         && (request.resource.data.code == null
           || (request.resource.data.code is string && request.resource.data.code.size() > 3));
       allow update, delete: if false;
@@ -302,6 +429,11 @@ service cloud.firestore {
     }
 
     match /rewards/{id} {
+      allow read: if autenticado();
+      allow write: if false;
+    }
+
+    match /achievements/{id} {
       allow read: if autenticado();
       allow write: if false;
     }
