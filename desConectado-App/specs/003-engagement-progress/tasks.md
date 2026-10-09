@@ -134,9 +134,9 @@ Después de esta feature: adaptación visual de las referencias
 
 - [X] T047 Actualizar plan y `quickstart-produccion.md` con orden de despliegue, cuenta descartable, pruebas de conexión Android y límites de no ejecutar reset.
 - [X] T048 Validar, commitear y pushear el estado local de `entrega-3`, sin incluir credenciales ni artefactos ignorados.
-- [ ] T049 Revisar dry-run; desplegar solo Rules y sembrar desafíos/recompensas/logros en `des-conectado` con project explícito. No ejecutar reset.
-- [ ] T050 Arrancar el AVD `desconectado`, compilar con `USE_FIREBASE_EMULATOR=false` y probar conexiones Auth/Firestore desde Android con cuenta desechable aislada.
-- [ ] T051 Corregir conexiones/rules que fallen en producción y repetir tests focalizados y smoke afectados.
+- [X] T049 Revisar dry-run; desplegar Rules e índices, y sembrar desafíos/recompensas/logros en `des-conectado` con project explícito. No ejecutar reset.
+- [X] T050 Arrancar el AVD `desconectado`, compilar con `USE_FIREBASE_EMULATOR=false` y probar conexiones Auth/Firestore desde Android con cuenta desechable aislada. Smoke opt-in y fixtures sintéticos autorizados; límites manuales documentados en evidencia.
+- [X] T051 Corregir conexiones/rules que fallen en producción y repetir tests focalizados y smoke afectados. Índices desplegados y precisión de Timestamp conservada; smoke final pasado y QA limpiada.
 - [ ] T052 Entregar checklist `quickstart-produccion.md` para el teléfono real y recoger feedback del usuario antes del frontend final.
 
 ## Oportunidades de paralelismo

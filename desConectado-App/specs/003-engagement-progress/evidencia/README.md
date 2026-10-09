@@ -32,6 +32,20 @@
 
 ## Evidencia manual
 
-La instrumentación Compose compila, pero no se ejecutó en dispositivo: `adb` no está instalado/conectado en este entorno. Por eso no se generaron capturas. Antes de iniciar la adaptación visual, completar T045 en un dispositivo real siguiendo los nueve escenarios de `../quickstart.md`.
+La suite Compose completa sigue sin ejecutarse. Antes de iniciar la adaptación visual, completar T045 en un dispositivo real siguiendo los nueve escenarios de `../quickstart.md` y el checklist `../quickstart-produccion.md`.
 
-El seed productivo de cosméticos/logros y el reset productivo no se ejecutaron. El reset preparado exige `--project`, `--execute` y `--confirm-reset-delivery-3 <mismo-project-id>`; conserva Auth/perfil/preferencias y deja un marcador para limpiar sesiones locales antiguas.
+## Firebase real desde Android
+
+Validación del 2026-10-09, rama `entrega-3`, AVD `desconectado` Android 16, Firebase SDK de la variante debug con `USE_FIREBASE_EMULATOR=false`. El commit inicial `1366d33` fue pusheado antes del despliegue.
+
+- Proyecto confirmado: `des-conectado`, coincidente en Android, CLI y cuenta Admin local ignorada por Git.
+- Rules compiladas/desplegadas e índices declarados desplegados. Seed: 28 desafíos, 17 recompensas y 10 logros; 4 desafíos y 4 recompensas sobrantes archivados, sin borrar usuarios.
+- `ProductionConnectionsTest`: reporte final con 1 test, 0 fallos, 0 errores y 0 omitidos, 23.240 s. Ejecutado con banderas explícitas `productionSmoke=des-conectado` y `syntheticQa=true`, solo en cuentas QA nuevas; datos sintéticos autorizados por el usuario.
+- SDK/repositorios verificados: registro, ingreso/revalidación de sesión, lectura/edición de username, meta y notificaciones persistentes; 28/17 elementos de catálogo; historiales, saldo, vencimiento y pending; definiciones/progreso de 10 logros; inicio/cancelación de desafío, resultado e idempotencia.
+- Caminos positivos con fixtures sintéticos: resultado completado, acreditación inicial y segunda al mismo lote, rating inmutable/idempotente, escrituras de logros, canje de tema, propiedad y Aplicar/Quitar persistentes; caja sorpresa con premio único y activación; débito de lote vencido/idempotencia. No prueban una finalización real con estadísticas de uso.
+- Rechazos comprobados: tema no poseído, canje sin saldo y rating sobre desafío cancelado. El saldo no cambió en esas operaciones.
+- Fallos encontrados/corregidos: índice `pointLots` no desplegado (`FAILED_PRECONDITION`), resuelto desplegando índices; pérdida de precisión de `earnedAt` al convertir Timestamp a Date, resuelta conservando segundos/nanosegundos al leer lotes. La segunda acreditación que fallaba pasó sin relajar Rules.
+- Regresión posterior al fix: 183 tests JVM, 0 fallos; APK debug construido; diagnósticos del repositorio y smoke sin errores. Rules 77/77, seed 28/28 y maintenance 5/5 pasaron antes del despliegue; sus archivos no cambiaron durante el fix.
+- Limpieza: cinco cuentas QA creadas en estas ejecuciones, verificadas por marcador de perfil y correo QA generado, eliminadas exclusivamente por UID en Auth y Firestore; ausencia comprobada después. No se ejecutó el reset general ni se canjearon cupones.
+
+Pendiente en teléfono: proveedor Google/OAuth con cuenta interactiva, recepción/restablecimiento de correo, estadísticas de uso/notificaciones del SO, persistencia visible tras reinicio y efectos visuales/sonoros de cada cosmético. No se declaran probados esos casos ni la suite completa de UI. T045 y feedback del usuario siguen bloqueando la adaptación visual final.

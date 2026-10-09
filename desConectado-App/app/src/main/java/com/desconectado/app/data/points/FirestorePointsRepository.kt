@@ -502,9 +502,9 @@ class FirestorePointsRepository(private val firestore: FirebaseFirestore) : Poin
             lotId = getString("lotId") ?: id,
             localDate = localDate,
             timeZoneId = getString("timeZoneId") ?: return null,
-            windowEndsAt = getTimestamp("windowEndsAt")?.toDate()?.toInstant() ?: return null,
-            expiresAt = getTimestamp("expiresAt")?.toDate()?.toInstant() ?: return null,
-            earnedAt = getTimestamp("earnedAt")?.toDate()?.toInstant() ?: return null,
+            windowEndsAt = getTimestamp("windowEndsAt")?.let { java.time.Instant.ofEpochSecond(it.seconds, it.nanoseconds.toLong()) } ?: return null,
+            expiresAt = getTimestamp("expiresAt")?.let { java.time.Instant.ofEpochSecond(it.seconds, it.nanoseconds.toLong()) } ?: return null,
+            earnedAt = getTimestamp("earnedAt")?.let { java.time.Instant.ofEpochSecond(it.seconds, it.nanoseconds.toLong()) } ?: return null,
             issuedPoints = getLong("issuedPoints")?.toInt() ?: return null,
             remainingPoints = getLong("remainingPoints")?.toInt() ?: return null,
         )

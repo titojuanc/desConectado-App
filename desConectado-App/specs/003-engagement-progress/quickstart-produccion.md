@@ -14,12 +14,12 @@ $project = 'des-conectado'
 $credential = (Resolve-Path 'service-account.json').Path
 $env:GOOGLE_APPLICATION_CREDENTIALS = $credential
 node seed/seed.mjs --dry-run
-npx firebase deploy --only firestore:rules --project $project
+npx firebase deploy --only 'firestore:rules,firestore:indexes' --project $project
 node seed/seed.mjs --project $project
 Pop-Location
 ```
 
-Antes del primer write, confirmar en la salida que el proyecto es `des-conectado` y el catálogo declara 28 desafíos, 17 recompensas y 10 logros. El seed sincroniza esos documentos, archiva los sobrantes de esas colecciones y no borra perfiles ni datos de usuarios. Despliega únicamente Firestore Rules; no despliegues Functions ni ejecutes un reset.
+Antes del primer write, confirmar en la salida que el proyecto es `des-conectado` y el catálogo declara 28 desafíos, 17 recompensas y 10 logros. El seed sincroniza esos documentos, archiva los sobrantes de esas colecciones y no borra perfiles ni datos de usuarios. Despliega únicamente Firestore Rules e índices declarados; no despliegues Functions ni ejecutes un reset.
 
 ## 2. AVD contra producción
 
@@ -57,6 +57,18 @@ Registrar resultado y errores por flujo. Después de cada escritura, salir de la
 | Restablecer contraseña | Solicitar restablecimiento para la cuenta de QA y revisar el mailbox | Auth acepta la solicitud y entrega el correo |
 
 No canjear cupones reales durante el smoke ni completar flujos que produzcan un beneficio externo. Para el canje, usar un cosmético de la cuenta desechable. No manipular directamente el saldo productivo para forzar escenarios.
+
+### Smoke instrumentado opt-in
+
+Cerrar la sesión existente del AVD antes de ejecutar. El test crea una cuenta QA nueva con correo no entregable y contraseña aleatoria en ejecución; no usa credenciales reales. Sin bandera productiva se omite para no escribir accidentalmente desde suites habituales.
+
+```powershell
+.\gradlew.bat :app:connectedDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=com.desconectado.app.data.ProductionConnectionsTest' '-Pandroid.testInstrumentationRunnerArguments.productionSmoke=des-conectado'
+```
+
+Para caminos positivos sin esperar desafíos reales, el usuario autorizó resultados sintéticos exclusivamente en QA. Agregar `'-Pandroid.testInstrumentationRunnerArguments.syntheticQa=true'` al comando anterior. El test escribe resultados completados con tiempos pasados y acredita mediante el repositorio normal; no altera el saldo con Admin. Prueba crédito, rating, logros, tema, caja sorpresa y expiración; no simula una comprobación real de uso del dispositivo ni canjea cupones.
+
+Cada ejecución deja una cuenta QA hasta su limpieza. Revisar el UID generado en `ProductionSmoke`, corroborar Auth y perfil con el correo QA y marcador del test, y borrar solo ese UID/subcolecciones con Admin. No enumerar/borrar usuarios en bloque. El último lote de cinco cuentas fue limpiado y verificado; repetir el comando exige limpiar sus nuevas cuentas. Registrar el resultado por flujo, sin conservar credenciales ni datos personales.
 
 ## 4. Límites y evidencia
 

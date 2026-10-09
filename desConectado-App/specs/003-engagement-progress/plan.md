@@ -116,7 +116,7 @@ la navegación visual antes de cerrar los contratos de comportamiento.
 
 La validación productiva apunta exclusivamente al proyecto `des-conectado` y comienza con cambios committeados/pusheados. Orden obligatorio:
 
-1. Desplegar solo `firestore:rules` con `--project des-conectado`; no desplegar Functions ni productos que requieran billing.
+1. Desplegar `firestore:rules,firestore:indexes` con `--project des-conectado`; no desplegar Functions ni productos que requieran billing.
 2. Ejecutar el seed de desafíos/recompensas/logros con `GOOGLE_APPLICATION_CREDENTIALS` ignorado por Git y `--project des-conectado`; revisar primero el dry-run. No ejecutar `reset-delivery-3.mjs`.
 3. Construir variante debug con `USE_FIREBASE_EMULATOR=false`, instalar en el AVD local y confirmar proyecto `des-conectado` antes de iniciar sesión.
 4. Usar únicamente una cuenta de smoke desechable, sin leer/modificar perfiles existentes. Limpiar solo esa cuenta de prueba tras registrar resultados; nunca ejecutar borrado masivo.
