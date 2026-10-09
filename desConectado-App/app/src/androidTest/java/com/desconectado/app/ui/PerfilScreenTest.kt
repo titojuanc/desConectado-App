@@ -11,6 +11,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.desconectado.app.domain.model.DesafioHecho
 import com.desconectado.app.domain.model.AchievementCriterion
@@ -94,6 +95,9 @@ class PerfilScreenTest {
     private fun arriba(texto: String): Float =
         compose.onNodeWithText(texto, substring = true).fetchSemanticsNode().boundsInRoot.top
 
+    private fun arribaTag(tag: String) =
+        compose.onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot.top
+
     @Test
     fun muestraElNombreDeUsuarioYElCorreoRecibidos() {
         mostrar()
@@ -107,7 +111,7 @@ class PerfilScreenTest {
         var cierres = 0
         mostrar(onCerrarSesion = { cierres++ })
 
-        compose.onNodeWithTag("boton_cerrar_sesion").assertIsDisplayed().performClick()
+        compose.onNodeWithTag("boton_cerrar_sesion").performScrollTo().assertIsDisplayed().performClick()
 
         assertEquals(1, cierres)
     }
@@ -147,7 +151,7 @@ class PerfilScreenTest {
         compose.onNodeWithTag("proximo_vencimiento")
             .assertIsDisplayed()
             .assertTextEquals("35 puntos están por vencer en 29 días.")
-        assertTrue(arriba("proximo_vencimiento") > arriba("puntos_perfil") && arriba("proximo_vencimiento") < arriba("Historial de desafíos"))
+        assertTrue(arribaTag("proximo_vencimiento") > arribaTag("puntos_perfil") && arribaTag("proximo_vencimiento") < arriba("Historial de desafíos"))
     }
 
     @Test
@@ -165,14 +169,18 @@ class PerfilScreenTest {
         )
         mostrar(progreso = ProgresoUiState.Datos(
             metricas = ProgressMetrics(1, 1_800, 1, 1_800, null, emptyMap()),
-            logros = listOf(primerPaso),
+            logros = listOf(primerPaso, primerPaso.copy(definition = primerPaso.definition.copy(id = "pendiente", name = "Pendiente"), progress = 0)),
         ))
 
         compose.onNodeWithTag("resumen_progreso").assertIsDisplayed()
-        compose.onNodeWithText("1 desafío completado").assertIsDisplayed()
-        compose.onNodeWithText("Meta semanal sin configurar.").assertIsDisplayed()
-        compose.onNodeWithTag("logro_primer-paso").assertIsDisplayed()
-        compose.onNodeWithText("Desbloqueado").assertIsDisplayed()
+        compose.onNodeWithTag("stat_desafios_completados").assertTextEquals("1")
+        compose.onNodeWithText("Desafíos completados").assertIsDisplayed()
+        compose.onNodeWithText("Meta semanal sin configurar.").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("fila_medallas").performScrollTo()
+        compose.onNodeWithTag("medalla_primer-paso").assertIsDisplayed()
+        compose.onNodeWithTag("logro_pendiente").assertDoesNotExist()
+        compose.onNodeWithTag("logro_bloqueado_pendiente").assertIsDisplayed()
+        compose.onNodeWithText("Aún no").assertIsDisplayed()
     }
 
     @Test
@@ -206,12 +214,12 @@ class PerfilScreenTest {
             onConfigurarNotificaciones = { notificaciones = it },
         )
 
-        compose.onNodeWithText("Elegir meta semanal").assertIsDisplayed()
-        compose.onNodeWithTag("boton_guardar_meta").assertIsNotEnabled()
-        compose.onNodeWithTag("meta_semanal_selector").performClick()
+        compose.onNodeWithText("Elegir meta semanal").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("boton_guardar_meta").performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithTag("meta_semanal_selector").performScrollTo().performClick()
         compose.onNodeWithText("120 min/semana").performClick()
         compose.onNodeWithTag("boton_guardar_meta").performClick()
-        compose.onNodeWithTag("toggle_notificaciones").performClick()
+        compose.onNodeWithTag("toggle_notificaciones").performScrollTo().performClick()
 
         assertEquals(120, metaGuardada)
         assertEquals(true, notificaciones)
@@ -238,11 +246,11 @@ class PerfilScreenTest {
     fun muestraLosDesafiosHechosConTituloPuntosYFechaEnElOrdenRecibido() {
         mostrar(desafios = DesafiosHechosUiState.Lista(desafiosHechos))
 
-        compose.onNodeWithTag("lista_desafios_hechos").assertIsDisplayed()
-        compose.onNodeWithText("Salir a trotar").assertIsDisplayed()
+        compose.onNodeWithTag("lista_desafios_hechos").assertExists()
+        compose.onNodeWithText("Salir a trotar").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("+50 puntos", substring = true).assertIsDisplayed()
         compose.onNodeWithText("22/09/2026", substring = true).assertIsDisplayed()
-        compose.onNodeWithText("Salir a caminar").assertIsDisplayed()
+        compose.onNodeWithText("Salir a caminar").performScrollTo().assertIsDisplayed()
         // Del más reciente al más antiguo: el primero queda arriba.
         assertTrue(arriba("Salir a trotar") < arriba("Salir a caminar"))
     }
@@ -276,8 +284,8 @@ class PerfilScreenTest {
 
         // Las acciones editan perfil/configuración; ninguna altera puntos.
         compose.onAllNodes(hasClickAction()).assertCountEquals(3)
-        compose.onNodeWithTag("boton_cerrar_sesion").assertIsDisplayed()
-        compose.onNodeWithTag("boton_editar_nombre").assertIsDisplayed()
-        compose.onNodeWithTag("boton_ajustes_privacidad").assertIsDisplayed()
+        compose.onNodeWithTag("boton_cerrar_sesion").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("boton_editar_nombre").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("boton_ajustes_privacidad").performScrollTo().assertIsDisplayed()
     }
 }

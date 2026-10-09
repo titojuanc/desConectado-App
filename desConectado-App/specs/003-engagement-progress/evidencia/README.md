@@ -49,3 +49,13 @@ Validación del 2026-10-09, rama `entrega-3`, AVD `desconectado` Android 16, Fir
 - Limpieza: cinco cuentas QA creadas en estas ejecuciones, verificadas por marcador de perfil y correo QA generado, eliminadas exclusivamente por UID en Auth y Firestore; ausencia comprobada después. No se ejecutó el reset general ni se canjearon cupones.
 
 Pendiente en teléfono: proveedor Google/OAuth con cuenta interactiva, recepción/restablecimiento de correo, estadísticas de uso/notificaciones del SO, persistencia visible tras reinicio y efectos visuales/sonoros de cada cosmético. No se declaran probados esos casos ni la suite completa de UI. T045 y feedback del usuario siguen bloqueando la adaptación visual final.
+
+## Feedback: barra, secciones y medallas
+
+- Recompensas: Canjeables y Logros en pestanas; medallas desbloqueadas en Perfil. Progreso compartido y recargado al cambiar de destino o terminar un desafio.
+- Desafio: barra encima de navegacion inferior, contador `mm:ss` de ancho estable y cruz; sin botones de actualizar/comprobar/finalizar. Ticker en ViewModel con vida por sesion; operaciones serializadas y valoracion conservada al terminar.
+- Seed adicional en `des-conectado`: 4 desafios activos de 10 segundos/1 punto, 3 recompensas de 1 punto y 3 logros inmediatos, todos `debug-`/`[TEST]`. Batch solo sobre esos diez documentos, sin borrar/archivar datos normales.
+- AVD Android 16: 5 tests de DesafioActivoScreen pasados, incluyendo barra persistente entre pestanas y cancelacion; 1 test aislado Canjeables/Logros pasado; 1 test de Perfil con medalla desbloqueada visible y pendiente oculto pasado. Ejecuciones separadas, 0 fallos/omisiones en reportes finales.
+- Recorrido real, no sintetico: 1 test opt-in de `tenSecondChallengeCompletesAutomatically`, con acceso real de uso en AVD; espera de diez segundos, finalizacion automatica, resultado COMPLETED de 10 segundos, saldo +1, tres logros debug desbloqueados, rating, canje de tema de 1 punto, saldo 0 y preferencia guardada. Reporte final 1/1, sin omisiones.
+- Cuenta QA de este recorrido eliminada exclusivamente por UID despues de corroborar perfil/Auth y marcador; catalogo test conservado para el telefono.
+- Seed 31/31 y JVM 183/183 pasados; release firmado construido. La suite completa de UI no se ejecuto. No se desplegaron cambios de Rules ni se ejecuto reset.

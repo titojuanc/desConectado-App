@@ -23,23 +23,28 @@ private val EsquemaClaro = lightColorScheme(
 )
 
 private val EsquemaOscuro = darkColorScheme(
-    primary = VerdePrimarioOscuro,
-    onPrimary = VerdeContenedorOscuro,
-    primaryContainer = VerdeContenedorOscuro,
-    secondary = AzulSecundarioOscuro,
-    onSecondary = AzulContenedorOscuro,
-    secondaryContainer = AzulContenedorOscuro,
+    primary = VerdeMenta,
+    onPrimary = VerdeSobreMenta,
+    primaryContainer = VerdeCabecera,
+    onPrimaryContainer = VerdeSobreCabecera,
+    secondary = VerdeMentaSuave,
+    onSecondary = VerdeSobreMenta,
+    secondaryContainer = VerdePildora,
+    onSecondaryContainer = VerdeMentaSuave,
     background = NeutroFondoOscuro,
     onBackground = NeutroTextoOscuro,
     surface = NeutroFondoOscuro,
     onSurface = NeutroTextoOscuro,
+    surfaceVariant = VerdeTarjetaOscura,
+    onSurfaceVariant = VerdeTextoSecundario,
+    outline = VerdeTextoSecundario,
     error = ErrorOscuro,
 )
 
-/** Tema Material 3 de la app: claro u oscuro según el sistema. */
+/** Tema Material 3 de la app. El diseño de referencia es oscuro, por eso es el predeterminado. */
 @Composable
 fun DesConectadoTheme(
-    oscuro: Boolean = isSystemInDarkTheme(),
+    oscuro: Boolean = true,
     temaId: String? = null,
     content: @Composable () -> Unit,
 ) {
@@ -56,7 +61,7 @@ private fun esquemaCosmetico(temaId: String?, oscuro: Boolean): ColorScheme = wh
         secondary = Color(0xFF8DC9D8), background = Color(0xFF101A16),
         surface = Color(0xFF101A16), onSurface = Color(0xFFE3EEE7),
     ) else EsquemaClaro
-    "theme-atardecer" -> if (oscuro) darkColorScheme(
+    "theme-atardecer", "debug-theme-1-punto" -> if (oscuro) darkColorScheme(
         primary = Color(0xFFFFB49A), onPrimary = Color(0xFF4D1609),
         secondary = Color(0xFFFFB0C0), background = Color(0xFF211411),
         surface = Color(0xFF211411), onSurface = Color(0xFFFFEDE6),

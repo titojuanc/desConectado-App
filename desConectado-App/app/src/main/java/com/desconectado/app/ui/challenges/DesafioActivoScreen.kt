@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.background
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -12,6 +14,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -34,8 +38,6 @@ import com.desconectado.app.domain.model.ErrorApp
 import com.desconectado.app.domain.model.TipoRecompensa
 import android.media.AudioManager
 import android.media.ToneGenerator
-import java.time.Duration
-import java.time.Instant
 import kotlinx.coroutines.delay
 
 @Composable
@@ -98,40 +100,11 @@ fun DesafioActivoScreen(
                 }
             }
             is DesafioActivoUiState.Activo -> {
-                var ahora by remember(estado.desafio.startedAt) { mutableStateOf(Instant.now()) }
-                LaunchedEffect(estado.desafio.startedAt) {
-                    while (true) {
-                        delay(1000)
-                        ahora = Instant.now()
-                        onActualizar()
-                        if (Duration.between(estado.desafio.startedAt, ahora).seconds >= estado.desafio.durationSeconds) {
-                            onFinalizar()
-                            break
-                        }
-                    }
-                }
-                val transcurrido = Duration.between(estado.desafio.startedAt, ahora).seconds
-                    .coerceAtLeast(0)
-                    .coerceAtMost(estado.desafio.durationSeconds.toLong())
-                Text(estado.desafio.challengeTitle)
-                Text(stringResource(R.string.desafio_tiempo_transcurrido, transcurrido, estado.desafio.durationSeconds))
-                Text(
-                    text = if (estado.desafio.durationSeconds < 60) {
-                        stringResource(R.string.desafios_duracion_segundos, estado.desafio.durationSeconds)
-                    } else {
-                        stringResource(R.string.desafio_tiempo_restante, estado.desafio.durationMinutes)
-                    },
+                BarraDesafioActivo(
+                    desafio = estado.desafio,
+                    segundosRestantes = estado.segundosRestantes,
+                    onCancelar = onCancelar,
                 )
-                Text(stringResource(R.string.desafio_uso_medido, estado.usoSocialSeconds))
-                Button(onClick = onActualizar, modifier = Modifier.testTag("boton_actualizar_desafio")) {
-                    Text(stringResource(R.string.desafio_actualizar))
-                }
-                Button(onClick = onFinalizar, modifier = Modifier.testTag("boton_finalizar_desafio")) {
-                    Text(stringResource(R.string.desafio_finalizar))
-                }
-                Button(onClick = onCancelar, modifier = Modifier.testTag("boton_cancelar_desafio")) {
-                    Text(stringResource(R.string.desafio_cancelar))
-                }
             }
             is DesafioActivoUiState.Terminado -> {
                 Text(mensajeResultado(estado.resultado), modifier = Modifier.graphicsLayer {
@@ -161,6 +134,32 @@ fun DesafioActivoScreen(
             DesafioActivoUiState.SinConexion -> Text(stringResource(R.string.desafio_requiere_conexion))
             is DesafioActivoUiState.Error -> Text(mensajeError(estado.causa))
         }
+    }
+}
+
+@Composable
+fun BarraDesafioActivo(
+    desafio: com.desconectado.app.domain.model.ActiveChallenge,
+    segundosRestantes: Long,
+    onCancelar: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).testTag("barra_desafio_activo")) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(desafio.challengeTitle, modifier = Modifier.weight(1f), maxLines = 2, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                text = String.format(java.util.Locale.ROOT, "%02d:%02d", segundosRestantes / 60, segundosRestantes % 60),
+                modifier = Modifier.widthIn(min = 64.dp).testTag("tiempo_restante_desafio"),
+                style = MaterialTheme.typography.labelLarge.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
+            )
+            IconButton(onClick = onCancelar, modifier = Modifier.testTag("boton_cancelar_desafio")) {
+                Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.desafio_cancelar))
+            }
+        }
+        LinearProgressIndicator(
+            progress = { (1f - segundosRestantes.toFloat() / desafio.durationSeconds.coerceAtLeast(1)).coerceIn(0f, 1f) },
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 

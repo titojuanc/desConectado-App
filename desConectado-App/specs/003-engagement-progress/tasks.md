@@ -127,7 +127,7 @@ Después de esta feature: adaptación visual de las referencias
 
 - [X] T043 Actualizar `quickstart.md` y crear `evidencia/README.md` con matriz FR-001..FR-017, resultados de suites y limitación de capturas/manual.
 - [X] T044 Ejecutar tests JVM, `npm test`, validación de seed y tests de maintenance; suites finales verdes, sin alterar flujos aprobados de entrega 2.
-- [ ] T045 Verificación manual en dispositivo pendiente: `adb` no está instalado/conectado en este entorno. No iniciar réplica visual hasta completar ratings, vencimientos, historiales, filtros, logros, cosméticos y preferencias en dispositivo.
+- [ ] T045 Verificación manual completa en teléfono pendiente. El usuario inició pruebas y dio feedback; AVD/adb disponibles y pruebas focalizadas ejecutadas. No iniciar réplica visual hasta confirmar todos los escenarios funcionales.
 - [X] T046 Preparar `firebase/maintenance/reset-delivery-3.mjs`: dry-run por defecto, `--project`, chunks y confirmación exacta; preserva Auth/perfil/preferencias, saldo 0, borra ledger/lotes/canjes/pending/resultados/ratings/logros/ownership/desafíos activos sin crear resultados, elimina `lastMovementId` y escribe marcador `delivery3ResetAt` para limpieza local al siguiente inicio. No ejecutado.
 
 ## Phase 11: Validación productiva y handoff
@@ -137,7 +137,14 @@ Después de esta feature: adaptación visual de las referencias
 - [X] T049 Revisar dry-run; desplegar Rules e índices, y sembrar desafíos/recompensas/logros en `des-conectado` con project explícito. No ejecutar reset.
 - [X] T050 Arrancar el AVD `desconectado`, compilar con `USE_FIREBASE_EMULATOR=false` y probar conexiones Auth/Firestore desde Android con cuenta desechable aislada. Smoke opt-in y fixtures sintéticos autorizados; límites manuales documentados en evidencia.
 - [X] T051 Corregir conexiones/rules que fallen en producción y repetir tests focalizados y smoke afectados. Índices desplegados y precisión de Timestamp conservada; smoke final pasado y QA limpiada.
-- [ ] T052 Entregar checklist `quickstart-produccion.md` para el teléfono real y recoger feedback del usuario antes del frontend final.
+- [X] T052 Entregar checklist `quickstart-produccion.md` para el teléfono real y recoger feedback del usuario antes del frontend final.
+
+## Phase 12: Feedback del telefono y testeo inmediato
+
+- [X] T053 Separar Recompensas en Canjeables y Logros; Perfil muestra medallas desbloqueadas y comparte progreso con ambas secciones.
+- [X] T054 Barra de desafio sobre navegacion, persistente entre pestanas, contador `mm:ss` y cruz. Verificacion/finalizacion automatica en ViewModel por sesion, sin botones manuales y con operaciones serializadas.
+- [X] T055 Ampliar `seed-debug.mjs`, validar dry-run y sembrar solo IDs `debug-`: cuatro desafios de 10 segundos/1 punto, tres logros inmediatos y tres canjeables de 1 punto; catalogo normal intacto.
+- [X] T056 Validar UI focalizada y recorrido real de diez segundos en AVD/Firebase, limpiar solo QA y generar release de entrega firmado. Evidencia en `evidencia/README.md`.
 
 ## Oportunidades de paralelismo
 

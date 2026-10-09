@@ -26,13 +26,22 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import java.time.Duration
 import java.time.Instant
 
 sealed interface DesafioActivoUiState {
     data object SinDesafio : DesafioActivoUiState
     data object Cargando : DesafioActivoUiState
     data object SinPermiso : DesafioActivoUiState
-    data class Activo(val desafio: ActiveChallenge, val usoSocialSeconds: Long = 0) : DesafioActivoUiState
+    data class Activo(
+        val desafio: ActiveChallenge,
+        val usoSocialSeconds: Long = 0,
+        val segundosRestantes: Long = desafio.durationSeconds.toLong(),
+    ) : DesafioActivoUiState
     data class Terminado(
         val resultado: ChallengeResult,
         val ratingStars: Int? = null,
@@ -61,6 +70,7 @@ class DesafioActivoViewModel(
     private var conectado = true
     private var notificationsEnabled = false
     private var desafioPendiente: Desafio? = null
+    private val operaciones = Mutex()
 
     init {
         viewModelScope.launch {
@@ -71,12 +81,19 @@ class DesafioActivoViewModel(
                 conectado = valor == Conectividad.CONECTADO
                 if (!conectado && _estado.value is DesafioActivoUiState.Activo) {
                     _estado.value = DesafioActivoUiState.SinConexion
-                } else if (conectado && _estado.value == DesafioActivoUiState.Cargando) {
-                    restaurar()
+                } else if (conectado && _estado.value == DesafioActivoUiState.SinConexion) {
+                    _estado.value = DesafioActivoUiState.Cargando
+                    operaciones.withLock { restaurar() }
                 }
             }
         }
-        viewModelScope.launch { restaurar() }
+        viewModelScope.launch { operaciones.withLock { restaurar() } }
+        viewModelScope.launch {
+            while (isActive) {
+                delay(1000)
+                operaciones.withLock { comprobarActual() }
+            }
+        }
     }
 
     fun iniciar(desafio: Desafio) {
@@ -91,15 +108,17 @@ class DesafioActivoViewModel(
             return
         }
         viewModelScope.launch {
-            _estado.value = DesafioActivoUiState.Cargando
-            when (val resultado = challenges.start(uid, desafio.id)) {
-                is Resultado.Exito -> {
-                    store.write(resultado.valor)
-                    _estado.value = DesafioActivoUiState.Activo(resultado.valor)
-                }
-                is Resultado.Fallo -> {
-                    Log.e(TAG, "No se pudo iniciar el desafío: ${resultado.error}")
-                    _estado.value = if (resultado.error == ErrorApp.SinConexion) DesafioActivoUiState.SinConexion else DesafioActivoUiState.Error(resultado.error)
+            operaciones.withLock {
+                _estado.value = DesafioActivoUiState.Cargando
+                when (val resultado = challenges.start(uid, desafio.id)) {
+                    is Resultado.Exito -> {
+                        store.write(resultado.valor)
+                        _estado.value = estadoActivo(resultado.valor)
+                    }
+                    is Resultado.Fallo -> {
+                        Log.e(TAG, "No se pudo iniciar el desafío: ${resultado.error}")
+                        _estado.value = if (resultado.error == ErrorApp.SinConexion) DesafioActivoUiState.SinConexion else DesafioActivoUiState.Error(resultado.error)
+                    }
                 }
             }
         }
@@ -107,71 +126,85 @@ class DesafioActivoViewModel(
 
     fun abrirAjustes() = usage.openUsageAccessSettings()
 
+    fun volverCatalogo() {
+        val terminal = _estado.value as? DesafioActivoUiState.Terminado
+        if (terminal?.resultado?.status == ChallengeResult.Status.COMPLETED && terminal.ratingStars == null) return
+        _estado.value = DesafioActivoUiState.SinDesafio
+    }
+
     fun reintentarPermiso() {
         desafioPendiente?.let { iniciar(it) }
     }
 
     fun actualizar() {
+        viewModelScope.launch { operaciones.withLock { comprobarActual() } }
+    }
+
+    private suspend fun comprobarActual() {
         val actual = (_estado.value as? DesafioActivoUiState.Activo)?.desafio ?: return
+        if (!conectado) return
         if (!usage.hasUsageAccess()) {
             invalidar(actual, "usage_access_revoked")
             return
         }
-        viewModelScope.launch {
-            when (val medicion = usage.socialUsageByPackageSeconds(actual.startedAt, time.now())) {
-                is Resultado.Exito -> {
-                    val app = medicion.valor.entries.firstOrNull { it.value > 0 }?.key
-                    if (app != null) {
-                        notifications.entroAUnaRed(nombreVisible(app), notificationsEnabled)
-                        invalidar(actual, "social_app_used")
-                    } else {
-                        _estado.value = DesafioActivoUiState.Activo(actual, medicion.valor.values.sum())
+        val ahora = time.now()
+        when (val medicion = usage.socialUsageByPackageSeconds(actual.startedAt, ahora)) {
+            is Resultado.Exito -> {
+                val app = medicion.valor.entries.firstOrNull { it.value > 0 }?.key
+                if (app != null) {
+                    notifications.entroAUnaRed(nombreVisible(app), notificationsEnabled)
+                    invalidar(actual, "social_app_used")
+                } else {
+                    val uso = medicion.valor.values.sum()
+                    _estado.value = estadoActivo(actual, uso)
+                    if (!ahora.isBefore(actual.startedAt.plusSeconds(actual.durationSeconds.toLong()))) {
+                        finalizarActual(actual, ahora, uso)
                     }
                 }
-                is Resultado.Fallo -> _estado.value = when (medicion.error) {
-                    ErrorApp.SinConexion -> DesafioActivoUiState.SinConexion
-                    ErrorApp.AccesoUsoDenegado -> DesafioActivoUiState.SinPermiso
-                    else -> DesafioActivoUiState.Error(medicion.error)
-                }
+            }
+            is Resultado.Fallo -> _estado.value = when (medicion.error) {
+                ErrorApp.SinConexion -> DesafioActivoUiState.SinConexion
+                ErrorApp.AccesoUsoDenegado -> DesafioActivoUiState.SinPermiso
+                else -> DesafioActivoUiState.Error(medicion.error)
             }
         }
     }
 
     fun finalizar() {
-        val actual = (_estado.value as? DesafioActivoUiState.Activo)?.desafio ?: return
-        viewModelScope.launch {
-            val ahora = time.now()
-            val medicion = usage.socialUsageByPackageSeconds(actual.startedAt, ahora)
-            val uso = (medicion as? Resultado.Exito)?.valor?.values?.sum() ?: return@launch
-            val resultado = evaluarCumplimiento(
-                desafio = Desafio(
-                    actual.challengeId,
-                    actual.challengeTitle,
-                    "",
-                    actual.durationMinutes,
-                    com.desconectado.app.domain.model.Dificultad.FACIL,
-                    actual.points,
-                    0,
-                    durationSeconds = actual.durationSeconds,
-                    category = actual.category,
-                ),
-                measuredSocialSeconds = uso,
-                offlineSeconds = actual.offlineSeconds,
-                finishedAt = ahora,
-                timeSource = time,
-                startedAt = actual.startedAt,
-            )
-            cerrar(resultado)
-        }
+        actualizar()
+    }
+
+    private suspend fun finalizarActual(actual: ActiveChallenge, ahora: Instant, uso: Long) {
+        val resultado = evaluarCumplimiento(
+            desafio = Desafio(
+                actual.challengeId,
+                actual.challengeTitle,
+                "",
+                actual.durationMinutes,
+                com.desconectado.app.domain.model.Dificultad.FACIL,
+                actual.points,
+                0,
+                durationSeconds = actual.durationSeconds,
+                category = actual.category,
+            ),
+            measuredSocialSeconds = uso,
+            offlineSeconds = actual.offlineSeconds,
+            finishedAt = ahora,
+            timeSource = time,
+            startedAt = actual.startedAt,
+        )
+        cerrar(resultado)
     }
 
     fun cancelar() {
-        val actual = (_estado.value as? DesafioActivoUiState.Activo)?.desafio ?: return
         viewModelScope.launch {
-            val resultado = challenges.cancel(uid, runId(actual))
-            if (resultado is Resultado.Exito) {
-                store.clear()
-                _estado.value = DesafioActivoUiState.Terminado(resultado.valor)
+            operaciones.withLock {
+                val actual = (_estado.value as? DesafioActivoUiState.Activo)?.desafio ?: return@withLock
+                val resultado = challenges.cancel(uid, runId(actual))
+                if (resultado is Resultado.Exito) {
+                    store.clear()
+                    _estado.value = DesafioActivoUiState.Terminado(resultado.valor)
+                }
             }
         }
     }
@@ -202,13 +235,11 @@ class DesafioActivoViewModel(
         }
     }
 
-    private fun invalidar(actual: ActiveChallenge, reason: String) {
-        viewModelScope.launch {
-            val resultado = challenges.invalidate(uid, runId(actual), reason)
-            if (resultado is Resultado.Exito) {
-                store.clear()
-                _estado.value = DesafioActivoUiState.Terminado(resultado.valor)
-            }
+    private suspend fun invalidar(actual: ActiveChallenge, reason: String) {
+        val resultado = challenges.invalidate(uid, runId(actual), reason)
+        if (resultado is Resultado.Exito) {
+            store.clear()
+            _estado.value = DesafioActivoUiState.Terminado(resultado.valor)
         }
     }
 
@@ -267,7 +298,7 @@ class DesafioActivoViewModel(
         when (val resultado = challenges.active(uid)) {
             is Resultado.Exito -> {
                 val activo = resultado.valor ?: store.read()
-                _estado.value = activo?.let { DesafioActivoUiState.Activo(it) } ?: DesafioActivoUiState.SinDesafio
+                _estado.value = activo?.let { estadoActivo(it) } ?: DesafioActivoUiState.SinDesafio
             }
             is Resultado.Fallo -> {
                 Log.e(TAG, "No se pudo restaurar el desafío: ${resultado.error}")
@@ -278,6 +309,12 @@ class DesafioActivoViewModel(
                 }
             }
         }
+    }
+
+    private fun estadoActivo(active: ActiveChallenge, uso: Long = 0): DesafioActivoUiState.Activo {
+        val remainingMillis = Duration.between(time.now(), active.startedAt.plusSeconds(active.durationSeconds.toLong())).toMillis()
+        val remainingSeconds = ((remainingMillis.coerceAtLeast(0) + 999) / 1000).coerceAtMost(active.durationSeconds.toLong())
+        return DesafioActivoUiState.Activo(active, uso, remainingSeconds)
     }
 
     private fun runId(active: ActiveChallenge): String = "${active.challengeId}-${active.startedAt.epochSecond}"

@@ -7,6 +7,11 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.onNodeWithText
+import com.desconectado.app.ui.challenges.BarraDesafioActivo
+import com.desconectado.app.ui.navigation.MainShell
+import com.desconectado.app.domain.model.ActiveChallenge
+import com.desconectado.app.domain.model.Conectividad
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.desconectado.app.domain.model.ChallengeResult
 import com.desconectado.app.ui.challenges.DesafioActivoScreen
@@ -54,6 +59,30 @@ class DesafioActivoScreenTest {
                 onVolverCatalogo = onVolverCatalogo,
             )
         }
+    }
+
+    @Test
+    fun barraTieneContadorCruzYSigueVisibleAlCambiarPestana() {
+        var cancelaciones = 0
+        val active = ActiveChallenge("test", "Desafio de prueba", 2, 1, Instant.now(), 0,
+            ActiveChallenge.Status.ACTIVE, Instant.now(), durationSeconds = 120)
+        compose.setContent {
+            DesConectadoTheme {
+                MainShell(
+                    conectividad = Conectividad.CONECTADO,
+                    barraDesafio = { BarraDesafioActivo(active, 65, { cancelaciones++ }) },
+                )
+            }
+        }
+        compose.onNodeWithText("01:05").assertIsDisplayed()
+        compose.onAllNodesWithTag("boton_actualizar_desafio").assertCountEquals(0)
+        compose.onAllNodesWithTag("boton_finalizar_desafio").assertCountEquals(0)
+        compose.onNodeWithTag("tab_recompensas").performClick()
+        compose.onNodeWithTag("barra_desafio_activo").assertIsDisplayed()
+        compose.onNodeWithTag("tab_perfil").performClick()
+        compose.onNodeWithTag("barra_desafio_activo").assertIsDisplayed()
+        compose.onNodeWithTag("boton_cancelar_desafio").performClick()
+        assertEquals(1, cancelaciones)
     }
 
     @Test

@@ -17,8 +17,18 @@ val AzulSecundarioOscuro = Color(0xFFA0CAFD)
 
 val NeutroFondoClaro = Color(0xFFF6FAF6)
 val NeutroTextoClaro = Color(0xFF181D1A)
-val NeutroFondoOscuro = Color(0xFF101411)
-val NeutroTextoOscuro = Color(0xFFE0E4DF)
+val NeutroFondoOscuro = Color(0xFF0C1310)
+val NeutroTextoOscuro = Color(0xFFE6EDE7)
+
+// Tonos del diseño de referencia (fondo verde profundo, menta y tarjetas).
+val VerdeMenta = Color(0xFF8BE3AC)
+val VerdeMentaSuave = Color(0xFFB9F0CE)
+val VerdeSobreMenta = Color(0xFF07301C)
+val VerdeCabecera = Color(0xFF1C3A2B)
+val VerdeSobreCabecera = Color(0xFFDFF3E6)
+val VerdeTarjetaOscura = Color(0xFF1A241E)
+val VerdeTextoSecundario = Color(0xFF9FB4A7)
+val VerdePildora = Color(0xFF1E3B2D)
 
 // Etiquetas de dificultad; el texto blanco tiene contraste suficiente sobre los tres.
 val DificultadFacil = Color(0xFF2E7D32)

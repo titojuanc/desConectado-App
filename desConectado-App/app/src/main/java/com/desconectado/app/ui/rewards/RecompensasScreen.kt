@@ -16,9 +16,21 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.WorkspacePremium
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.desconectado.app.ui.profile.ProgresoUiState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.testTag
@@ -49,6 +61,8 @@ fun RecompensasScreen(
     preferencias: CosmeticPreferences = CosmeticPreferences(),
     onAplicarCosmetico: ((String) -> Unit)? = null,
     onQuitarCosmetico: ((TipoRecompensa) -> Unit)? = null,
+    logros: ProgresoUiState = ProgresoUiState.Oculto,
+    onReintentarLogros: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val snackbar = remember { SnackbarHostState() }
@@ -72,22 +86,60 @@ fun RecompensasScreen(
         }
     }
     Box(modifier = modifier.fillMaxSize()) {
-        when (estado) {
-            RecompensasUiState.Cargando -> PantallaCargando(Modifier.fillMaxSize())
-            RecompensasUiState.Error -> PantallaError(onReintentar, Modifier.fillMaxSize())
-            RecompensasUiState.SinConexion -> PantallaSinConexion(onReintentar, Modifier.fillMaxSize())
-            is RecompensasUiState.Lista -> ListaRecompensas(
-                estado.recompensas,
-                onCanjear,
-                canjePendiente,
-                propiedad,
-                preferencias,
-                onAplicarCosmetico,
-                onQuitarCosmetico,
-                Modifier.fillMaxSize(),
-            )
+        var seccion by rememberSaveable { mutableStateOf(0) }
+        Column {
+            TabRow(selectedTabIndex = seccion) {
+                Tab(selected = seccion == 0, onClick = { seccion = 0 }, text = { Text(stringResource(R.string.recompensas_canjeables)) }, modifier = Modifier.testTag("seccion_canjeables"))
+                Tab(selected = seccion == 1, onClick = { seccion = 1 }, text = { Text(stringResource(R.string.perfil_logros_titulo)) }, modifier = Modifier.testTag("seccion_logros"))
+            }
+            if (seccion == 1) {
+                ListaLogros(logros, onReintentarLogros)
+            } else {
+                when (estado) {
+                    RecompensasUiState.Cargando -> PantallaCargando(Modifier.fillMaxSize())
+                    RecompensasUiState.Error -> PantallaError(onReintentar, Modifier.fillMaxSize())
+                    RecompensasUiState.SinConexion -> PantallaSinConexion(onReintentar, Modifier.fillMaxSize())
+                    is RecompensasUiState.Lista -> ListaRecompensas(
+                        estado.recompensas,
+                        onCanjear,
+                        canjePendiente,
+                        propiedad,
+                        preferencias,
+                        onAplicarCosmetico,
+                        onQuitarCosmetico,
+                        Modifier.fillMaxSize(),
+                    )
+                }
+            }
         }
         SnackbarHost(hostState = snackbar, modifier = Modifier.align(Alignment.BottomCenter))
+    }
+}
+
+@Composable
+private fun ListaLogros(estado: ProgresoUiState, onReintentar: () -> Unit) {
+    when (estado) {
+        ProgresoUiState.Cargando -> PantallaCargando(Modifier.fillMaxSize())
+        ProgresoUiState.Error -> PantallaError(onReintentar, Modifier.fillMaxSize())
+        ProgresoUiState.SinConexion -> PantallaSinConexion(onReintentar, Modifier.fillMaxSize())
+        ProgresoUiState.Oculto -> Text(stringResource(R.string.perfil_logros_vacios), modifier = Modifier.padding(16.dp))
+        is ProgresoUiState.Datos -> LazyColumn(
+            modifier = Modifier.fillMaxSize().testTag("lista_logros"),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            items(estado.logros, key = { it.definition.id }) { logro ->
+                Column(modifier = Modifier.fillMaxWidth().testTag("logro_recompensas_${logro.definition.id}"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(if (logro.unlocked) Icons.Filled.WorkspacePremium else Icons.Filled.Lock, contentDescription = null,
+                        tint = if (logro.unlocked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(logro.definition.name, style = MaterialTheme.typography.titleMedium)
+                    Text(logro.definition.description, style = MaterialTheme.typography.bodyMedium)
+                    LinearProgressIndicator(progress = { (logro.progress.toFloat() / logro.threshold.coerceAtLeast(1)).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
+                    Text(stringResource(R.string.perfil_logro_progreso, logro.progress, logro.threshold))
+                    if (logro.unlocked) Text(stringResource(R.string.perfil_logro_desbloqueado))
+                }
+            }
+        }
     }
 }
 

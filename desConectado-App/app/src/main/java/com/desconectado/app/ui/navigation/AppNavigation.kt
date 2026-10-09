@@ -1,6 +1,16 @@
 package com.desconectado.app.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.Surface
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
+import com.desconectado.app.ui.challenges.BarraDesafioActivo
+import com.desconectado.app.ui.challenges.DesafioActivoUiState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -82,75 +92,97 @@ private fun ShellConSesion(
         },
     )
     val saldo by saldoViewModel.estado.collectAsStateWithLifecycle()
+    val uid = container.auth.currentUser?.uid.orEmpty()
+    val challengeOwner = remember(uid) {
+        object : ViewModelStoreOwner { override val viewModelStore = ViewModelStore() }
+    }
+    DisposableEffect(challengeOwner) { onDispose { challengeOwner.viewModelStore.clear() } }
+    val perfilViewModel: PerfilViewModel = viewModel(
+        viewModelStoreOwner = challengeOwner,
+        factory = viewModelFactory {
+            initializer {
+                PerfilViewModel(container.authRepository, container.perfilRepository, container.challengeRepository,
+                    container.achievementRepository, container.pointsRepository, container.connectivityMonitor,
+                    userPreferences = container.userPreferencesRepository)
+            }
+        },
+    )
+    val activoViewModel: DesafioActivoViewModel = viewModel(
+        viewModelStoreOwner = challengeOwner,
+        factory = viewModelFactory {
+            initializer {
+                DesafioActivoViewModel(
+                    uid, container.challengeRepository, container.usageStatsRepository,
+                    container.activeChallengeStore, container.pointsRepository,
+                    container.achievementRepository, container.userPreferencesRepository,
+                    container.notifications, container.connectivityMonitor,
+                )
+            }
+        },
+    )
+    val activoEstado by activoViewModel.estado.collectAsStateWithLifecycle()
+    androidx.compose.runtime.LaunchedEffect(activoEstado is DesafioActivoUiState.Terminado) {
+        if (activoEstado is DesafioActivoUiState.Terminado) {
+            saldoViewModel.recargar()
+            perfilViewModel.reintentar()
+        }
+    }
     MainShell(
         conectividad = conectividad,
         saldo = saldo,
-        onDestinoCambiado = saldoViewModel::recargar,
-        desafios = { DesafiosRoute(container, cosmeticPreferences) },
-        recompensas = { RecompensasRoute(container) },
-        perfil = { PerfilRoute(container, cosmeticPreferences) },
+        onDestinoCambiado = { saldoViewModel.recargar(); perfilViewModel.reintentar() },
+        desafios = { DesafiosRoute(container, cosmeticPreferences, activoViewModel) },
+        recompensas = { RecompensasRoute(container, perfilViewModel) },
+        perfil = { PerfilRoute(container, cosmeticPreferences, perfilViewModel) },
         iconPackId = cosmeticPreferences.activeCosmetics[com.desconectado.app.domain.model.TipoRecompensa.PACK_ICONOS],
+        barraDesafio = {
+            (activoEstado as? DesafioActivoUiState.Activo)?.let { active ->
+                Surface {
+                    BarraDesafioActivo(active.desafio, active.segundosRestantes, activoViewModel::cancelar)
+                }
+            }
+        },
     )
+    if (activoEstado is DesafioActivoUiState.Terminado || activoEstado is DesafioActivoUiState.SinPermiso || activoEstado is DesafioActivoUiState.Error) {
+        Dialog(onDismissRequest = activoViewModel::volverCatalogo) {
+            Surface {
+                DesafioActivoScreen(
+                    estado = activoEstado,
+                    onAbrirAjustes = activoViewModel::abrirAjustes,
+                    onReintentarPermiso = activoViewModel::reintentarPermiso,
+                    onActualizar = activoViewModel::actualizar,
+                    onFinalizar = activoViewModel::finalizar,
+                    onCancelar = activoViewModel::cancelar,
+                    onSeleccionarCalificacion = activoViewModel::seleccionarCalificacion,
+                    onCalificar = activoViewModel::calificar,
+                    onVolverCatalogo = activoViewModel::volverCatalogo,
+                    preferenciasCosmeticas = cosmeticPreferences,
+                    modifier = Modifier.heightIn(max = 500.dp),
+                )
+            }
+        }
+    }
 }
 
 @Composable
-private fun DesafiosRoute(container: AppContainer, cosmeticPreferences: CosmeticPreferences) {
+private fun DesafiosRoute(container: AppContainer, cosmeticPreferences: CosmeticPreferences, activoViewModel: DesafioActivoViewModel) {
     val viewModel: DesafiosViewModel = viewModel(
         factory = viewModelFactory {
             initializer { DesafiosViewModel(container.catalogRepository, container.connectivityMonitor) }
         },
     )
     val estado by viewModel.estado.collectAsStateWithLifecycle()
-    var desafioSeleccionado by remember { mutableStateOf<com.desconectado.app.domain.model.Desafio?>(null) }
-    val seleccionado = desafioSeleccionado
-    if (seleccionado == null) {
         DesafiosScreen(
             estado = estado,
             onReintentar = viewModel::reintentar,
-            onIniciar = { desafioSeleccionado = it },
+            onIniciar = activoViewModel::iniciar,
             onCategoriaSeleccionada = viewModel::seleccionarCategoria,
             iconPackId = cosmeticPreferences.activeCosmetics[com.desconectado.app.domain.model.TipoRecompensa.PACK_ICONOS],
         )
-    } else {
-        val activoViewModel: DesafioActivoViewModel = viewModel(
-            key = "desafio-activo-${seleccionado.id}",
-            factory = viewModelFactory {
-                initializer {
-                    DesafioActivoViewModel(
-                        uid = container.auth.currentUser?.uid.orEmpty(),
-                        challenges = container.challengeRepository,
-                        usage = container.usageStatsRepository,
-                        store = container.activeChallengeStore,
-                        points = container.pointsRepository,
-                        achievements = container.achievementRepository,
-                        userPreferences = container.userPreferencesRepository,
-                        notifications = container.notifications,
-                        connectivity = container.connectivityMonitor,
-                    )
-                }
-            },
-        )
-        val activoEstado by activoViewModel.estado.collectAsStateWithLifecycle()
-        DesafioActivoScreen(
-            estado = activoEstado,
-            preferenciasCosmeticas = cosmeticPreferences,
-            onAbrirAjustes = activoViewModel::abrirAjustes,
-            onReintentarPermiso = activoViewModel::reintentarPermiso,
-            onActualizar = activoViewModel::actualizar,
-            onFinalizar = activoViewModel::finalizar,
-            onCancelar = activoViewModel::cancelar,
-            onSeleccionarCalificacion = activoViewModel::seleccionarCalificacion,
-            onCalificar = activoViewModel::calificar,
-            onVolverCatalogo = { desafioSeleccionado = null },
-        )
-        androidx.compose.runtime.LaunchedEffect(seleccionado) {
-            activoViewModel.iniciar(seleccionado)
-        }
-    }
 }
 
 @Composable
-private fun RecompensasRoute(container: AppContainer) {
+private fun RecompensasRoute(container: AppContainer, perfilViewModel: PerfilViewModel) {
     val viewModel: RecompensasViewModel = viewModel(
         factory = viewModelFactory {
             initializer { RecompensasViewModel(container.catalogRepository, container.connectivityMonitor) }
@@ -175,6 +207,7 @@ private fun RecompensasRoute(container: AppContainer) {
     val propiedad by canjeViewModel.propiedad.collectAsStateWithLifecycle()
     val preferenciasCosmeticas by canjeViewModel.preferencias.collectAsStateWithLifecycle()
     val canjePendiente = (canjeEstado as? RecompensasCanjeUiState.Lista)?.pendiente
+    val logros by perfilViewModel.progreso.collectAsStateWithLifecycle()
     RecompensasScreen(
         estado = estado,
         onReintentar = viewModel::reintentar,
@@ -185,26 +218,13 @@ private fun RecompensasRoute(container: AppContainer) {
         preferencias = preferenciasCosmeticas,
         onAplicarCosmetico = canjeViewModel::activarCosmetico,
         onQuitarCosmetico = canjeViewModel::quitarCosmetico,
+        logros = logros,
+        onReintentarLogros = perfilViewModel::reintentarProgreso,
     )
 }
 
 @Composable
-private fun PerfilRoute(container: AppContainer, cosmeticPreferences: CosmeticPreferences) {
-    val viewModel: PerfilViewModel = viewModel(
-        factory = viewModelFactory {
-            initializer {
-                PerfilViewModel(
-                    container.authRepository,
-                    container.perfilRepository,
-                    container.challengeRepository,
-                    container.achievementRepository,
-                    container.pointsRepository,
-                    container.connectivityMonitor,
-                    userPreferences = container.userPreferencesRepository,
-                )
-            }
-        },
-    )
+private fun PerfilRoute(container: AppContainer, cosmeticPreferences: CosmeticPreferences, viewModel: PerfilViewModel) {
     val estado by viewModel.estado.collectAsStateWithLifecycle()
     val desafiosHechos by viewModel.desafiosHechos.collectAsStateWithLifecycle()
     val canjes by viewModel.canjes.collectAsStateWithLifecycle()

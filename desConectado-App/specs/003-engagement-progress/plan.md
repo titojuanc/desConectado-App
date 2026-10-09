@@ -124,3 +124,9 @@ La validación productiva apunta exclusivamente al proyecto `des-conectado` y co
 6. Entregar `quickstart-produccion.md` para el teléfono real. La adaptación visual final espera la confirmación manual T045 y el feedback del usuario.
 
 La prueba de producción del cliente no equivale a Rules Emulator: verifica acceso desde Firebase SDK/Android. Los caminos largos que requieren permiso, 15 minutos o saldo de prueba se registran como limitación/manual y no se simulan como concesiones reales.
+
+## Feedback del telefono
+
+El feedback solicita Canjeables/Logros separados en Recompensas, medallas ganadas en Perfil y una barra de desafio persistente encima de la navegacion inferior. El ViewModel de desafio vive durante la sesion, verifica automaticamente cada segundo y serializa finalizacion/cancelacion; el contador no depende de la pestana visible. Se conserva rating obligatorio.
+
+Para repetir el recorrido sin fixtures de resultados, `seed-debug.mjs` agrega exclusivamente documentos `debug-` activos: desafios reales de diez segundos y un punto, logros inmediatos y recompensas de un punto. Se valida primero dry-run, se verifica proyecto de credencial y no se reemplaza catalogo normal ni usuarios. La entrega al telefono usa el release firmado actualizado en `dist/desConectado-entrega3.apk`, no un debug interno anterior.

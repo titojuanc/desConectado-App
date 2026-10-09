@@ -13,6 +13,14 @@ import com.desconectado.app.domain.model.Resultado
 import com.desconectado.app.domain.model.TipoRecompensa
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.flow.first
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import com.desconectado.app.ui.challenges.DesafioActivoViewModel
+import com.desconectado.app.ui.challenges.DesafioActivoUiState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -26,6 +34,60 @@ import java.util.UUID
 
 @RunWith(AndroidJUnit4::class)
 class ProductionConnectionsTest {
+    @Test
+    fun tenSecondChallengeCompletesAutomatically(): Unit = runBlocking {
+        assumeTrue(InstrumentationRegistry.getArguments().getString("productionSmoke") == "des-conectado")
+        assumeTrue(InstrumentationRegistry.getArguments().getString("quickChallenge") == "true")
+        assumeTrue(!BuildConfig.USE_FIREBASE_EMULATOR)
+        val app = ApplicationProvider.getApplicationContext<Context>() as DesConectadoApp
+        val container = app.container
+        assertEquals("des-conectado", container.auth.app.options.projectId)
+        assertNull(container.auth.currentUser)
+        val permissionCommand = InstrumentationRegistry.getInstrumentation().uiAutomation
+            .executeShellCommand("appops set com.desconectado.app GET_USAGE_STATS allow")
+        android.os.ParcelFileDescriptor.AutoCloseInputStream(permissionCommand).use { it.readBytes() }
+        assertTrue("Enable usage access on test device", container.usageStatsRepository.hasUsageAccess())
+        val owner = object : ViewModelStoreOwner { override val viewModelStore = ViewModelStore() }
+        try {
+            withTimeout(60_000) {
+                success("quick QA register", container.authRepository.registrar("Android Quick QA", "android-smoke-${UUID.randomUUID()}@example.invalid", UUID.randomUUID().toString(), 120))
+                val uid = requireNotNull(container.auth.currentUser).uid
+                Log.i("ProductionSmoke", "QUICK_QA_UID=$uid")
+                val challenge = success("quick catalog", container.catalogRepository.desafios()).first { it.id == "debug-10-segundos" }
+                lateinit var viewModel: DesafioActivoViewModel
+                InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                    viewModel = ViewModelProvider(owner, viewModelFactory {
+                        initializer {
+                            DesafioActivoViewModel(uid, container.challengeRepository, container.usageStatsRepository,
+                                container.activeChallengeStore, container.pointsRepository, container.achievementRepository,
+                                container.userPreferencesRepository, container.notifications, container.connectivityMonitor)
+                        }
+                    })[DesafioActivoViewModel::class.java]
+                    viewModel.iniciar(challenge)
+                }
+                val active = viewModel.estado.first { it is DesafioActivoUiState.Activo || it is DesafioActivoUiState.Error }
+                assertTrue("Start failed: $active", active is DesafioActivoUiState.Activo)
+                val terminal = viewModel.estado.first { it is DesafioActivoUiState.Terminado || it is DesafioActivoUiState.Error || it is DesafioActivoUiState.SinPermiso }
+                assertTrue("Automatic finish failed: $terminal", terminal is DesafioActivoUiState.Terminado)
+                assertEquals(ChallengeResult.Status.COMPLETED, (terminal as DesafioActivoUiState.Terminado).resultado.status)
+                assertEquals(10, terminal.resultado.durationSeconds)
+                assertEquals(1, success("automatic one-point credit", container.pointsRepository.saldo(uid)))
+                val results = success("automatic result persisted", container.challengeRepository.results(uid))
+                val achievements = success("quick medals", container.achievementRepository.actualizar(uid, results))
+                assertEquals(3, achievements.count { it.definition.id.startsWith("debug-") && it.unlocked })
+                InstrumentationRegistry.getInstrumentation().runOnMainSync { viewModel.seleccionarCalificacion(5); viewModel.calificar() }
+                viewModel.estado.first { it is DesafioActivoUiState.Terminado && it.ratingStars == 5 }
+                val reward = success("quick rewards", container.catalogRepository.recompensas()).first { it.id == "debug-theme-1-punto" }
+                success("one-point theme redemption", container.pointsRepository.redeem(uid, reward, UUID.randomUUID().toString()))
+                assertEquals(0, success("one-point debit", container.pointsRepository.saldo(uid)))
+                success("quick theme apply", container.cosmeticPreferencesRepository.seleccionar(uid, reward.kind, reward.id))
+            }
+        } finally {
+            InstrumentationRegistry.getInstrumentation().runOnMainSync { owner.viewModelStore.clear() }
+            container.authRepository.cerrarSesion()
+        }
+    }
+
     @Test
     fun repositoriesConnectToProductionWithIsolatedAccount() = runBlocking {
         assumeTrue(InstrumentationRegistry.getArguments().getString("productionSmoke") == "des-conectado")
@@ -61,8 +123,8 @@ class ProductionConnectionsTest {
 
                 val challenges = success("challenge catalog", container.catalogRepository.desafios())
                 val rewards = success("reward catalog", container.catalogRepository.recompensas())
-                assertEquals(28, challenges.size)
-                assertEquals(17, rewards.size)
+                assertEquals(28, challenges.count { !it.id.startsWith("debug-") })
+                assertEquals(17, rewards.count { !it.id.startsWith("debug-") })
                 assertEquals(0, success("balance and expiration query", container.pointsRepository.saldo(uid)))
                 assertNull(success("next expiration", container.pointsRepository.proximoVencimiento(uid)))
                 assertTrue(success("movement history", container.pointsRepository.ultimosDesafiosHechos(uid)).isEmpty())
@@ -73,7 +135,7 @@ class ProductionConnectionsTest {
                 val results = success("challenge results", container.challengeRepository.results(uid))
                 assertTrue(results.isEmpty())
                 assertNull(success("active challenge", container.challengeRepository.active(uid)))
-                assertEquals(10, success("achievement definitions and progress", container.achievementRepository.actualizar(uid, results)).size)
+                assertEquals(10, success("achievement definitions and progress", container.achievementRepository.actualizar(uid, results)).count { !it.definition.id.startsWith("debug-") })
                 success("cosmetic preferences", container.cosmeticPreferencesRepository.leer(uid))
                 success("remove unselected theme", container.cosmeticPreferencesRepository.seleccionar(uid, TipoRecompensa.TEMA, null))
                 assertNotNull(success("cosmetic preferences reload", container.cosmeticPreferencesRepository.leer(uid)))

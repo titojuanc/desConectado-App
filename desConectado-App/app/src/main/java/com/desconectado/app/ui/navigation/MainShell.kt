@@ -2,14 +2,19 @@ package com.desconectado.app.ui.navigation
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Eco
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Groups
@@ -19,6 +24,7 @@ import androidx.compose.material.icons.outlined.Forum
 import androidx.compose.material.icons.outlined.PersonOutline
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -34,6 +40,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.desconectado.app.R
 import com.desconectado.app.domain.model.Conectividad
@@ -68,6 +78,7 @@ fun MainShell(
     recompensas: @Composable () -> Unit = {},
     perfil: @Composable () -> Unit = {},
     iconPackId: String? = null,
+    barraDesafio: @Composable () -> Unit = {},
 ) {
     var destino by rememberSaveable { mutableStateOf(Destino.DESAFIOS) }
     LaunchedEffect(destino) { onDestinoCambiado() }
@@ -81,11 +92,15 @@ fun MainShell(
                     .windowInsetsPadding(WindowInsets.statusBars)
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
+                MarcaDesconectado()
                 IndicadorPuntos(estado = saldo, onClick = { destino = Destino.PERFIL })
             }
         },
         bottomBar = {
+            Column {
+            barraDesafio()
             NavigationBar {
                 Destino.entries.forEach { item ->
                     NavigationBarItem(
@@ -97,6 +112,7 @@ fun MainShell(
                     )
                 }
             }
+            }
         },
     ) { padding ->
         Column(modifier = Modifier.padding(padding)) {
@@ -107,6 +123,31 @@ fun MainShell(
                 Destino.PERFIL -> perfil()
             }
         }
+    }
+}
+
+/** Wordmark "(des)conectado" con la hoja, como en el diseño de referencia. */
+@Composable
+private fun MarcaDesconectado() {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.testTag("marca_app")) {
+        Text(
+            text = buildAnnotatedString {
+                withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)) {
+                    append("(des)")
+                }
+                withStyle(SpanStyle(color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold)) {
+                    append("conectado")
+                }
+            },
+            style = MaterialTheme.typography.titleLarge,
+        )
+        Spacer(Modifier.width(4.dp))
+        Icon(
+            imageVector = Icons.Filled.Eco,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(18.dp),
+        )
     }
 }
 

@@ -72,6 +72,24 @@ Cada ejecución deja una cuenta QA hasta su limpieza. Revisar el UID generado en
 
 ## 4. Límites y evidencia
 
+### Recorrido inmediato de testeo
+
+El proyecto `des-conectado` tiene datos adicionales con IDs `debug-` y nombres `[TEST]`: cuatro desafios de 10 segundos que dan 1 punto, tres logros de umbral inmediato y tres recompensas de 1 punto. El catalogo normal no se reemplaza.
+
+1. En Desafios, iniciar un `[TEST]` con permiso de uso habilitado. La barra aparece sobre la navegacion inferior, cuenta en `00:00` y sigue visible al cambiar de pestana. No hay controles manuales de actualizar/comprobar/finalizar; la cruz cancela.
+2. Esperar diez segundos sin abrir redes sociales. La comprobacion/finalizacion es automatica; valorar el resultado. El saldo debe aumentar un punto.
+3. En Recompensas, alternar Canjeables y Logros. Los logros de test aparecen desbloqueados; en Perfil se muestran como medallas, no como articulos comprables.
+4. Canjear `[TEST] Tema Atardecer` por 1 punto y Aplicar/Quitar. Otro desafio permite probar el sonido de finalizacion o cupon digital de test, sin beneficio externo.
+
+Para volver a sembrar solo estos datos, desde `firebase/` y con la credencial local configurada:
+
+```powershell
+node seed/seed-debug.mjs --dry-run
+node seed/seed-debug.mjs --project des-conectado
+```
+
+El seed general archiva IDs adicionales no incluidos en el catalogo oficial; si se ejecuta, volver a correr este seed despues para habilitar los datos de testeo. No ejecutar reset ni tocar cuentas existentes.
+
 - El smoke prueba SDK Android conectado a producción; Firebase Emulator Suite y Rules tests no sustituyen esta prueba.
 - Estadísticas de uso/notificaciones dependen de permiso y comportamiento del SO; validarlos en el teléfono real además del AVD.
 - Los flujos que necesitan duración real, saldo insuficiente/alto, caja sorpresa agotada o un proveedor OAuth configurado se registran como manuales/configuración, no como verificados si no se ejecutaron.

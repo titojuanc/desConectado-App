@@ -20,6 +20,11 @@ import com.desconectado.app.domain.model.TipoRecompensa
 import com.desconectado.app.ui.rewards.RecompensasScreen
 import com.desconectado.app.ui.rewards.RecompensasUiState
 import com.desconectado.app.ui.theme.DesConectadoTheme
+import com.desconectado.app.ui.profile.ProgresoUiState
+import com.desconectado.app.domain.ProgressMetrics
+import com.desconectado.app.domain.model.AchievementCriterion
+import com.desconectado.app.domain.model.AchievementDefinition
+import com.desconectado.app.domain.model.AchievementProgress
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -59,6 +64,30 @@ class RecompensasScreenTest {
                 onQuitarCosmetico = onQuitar,
             )
         }
+    }
+
+    @Test
+    fun separaCanjeablesDeLogrosSinBotonesDeCompraEnLogros() {
+        val achievement = AchievementProgress(
+            AchievementDefinition("quick", "Medalla inmediata", "Completa un desafio", AchievementCriterion.COMPLETED_CHALLENGES, 1, 1),
+            1,
+        )
+        compose.setContent {
+            DesConectadoTheme {
+                RecompensasScreen(
+                    estado = RecompensasUiState.Lista(recompensas),
+                    onReintentar = {},
+                    onCanjear = {},
+                    logros = ProgresoUiState.Datos(ProgressMetrics(1, 10, 1, 10, null, emptyMap()), listOf(achievement)),
+                )
+            }
+        }
+        compose.onNodeWithTag("seccion_logros").performClick()
+        compose.onNodeWithText("Medalla inmediata").assertIsDisplayed()
+        compose.onNodeWithText("Desbloqueado").assertIsDisplayed()
+        compose.onNodeWithTag("boton_canjear_r1").assertDoesNotExist()
+        compose.onNodeWithTag("seccion_canjeables").performClick()
+        compose.onNodeWithTag("boton_canjear_r1").assertIsDisplayed()
     }
 
     @Test
