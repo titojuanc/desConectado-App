@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="desafios_titulo">Desafíos</string>
+    <string name="desafios_pregunta">¿Cómo querés desconectarte hoy?</string>
+    <string name="desafios_comenzar">Comenzar</string>
     <string name="desafios_duracion">Duración: %1$s</string>
     <string name="desafios_categoria_todos">Todos</string>
     <string name="desafios_categoria_moverme">Moverme</string>

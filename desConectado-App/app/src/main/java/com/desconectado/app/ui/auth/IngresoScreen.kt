@@ -4,6 +4,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
@@ -46,23 +50,16 @@ fun IngresoScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
             .safeDrawingPadding()
             .imePadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.Center,
+            .padding(horizontal = 24.dp, vertical = 24.dp),
+        verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(
-            text = stringResource(R.string.app_name),
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.primary,
-        )
-        Text(
-            text = stringResource(R.string.ingreso_titulo),
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
-        )
+        Column(modifier = Modifier.widthIn(max = 440.dp).fillMaxWidth()) {
+        CabeceraAcceso(R.string.ingreso_titulo)
 
         if (estado.sinConexion) {
             AvisoSinConexion(modifier = Modifier.padding(bottom = 16.dp))
@@ -89,14 +86,6 @@ fun IngresoScreen(
             modifier = Modifier.padding(top = 8.dp),
         )
 
-        SelectorMetaSemanal(
-            selectedMinutes = estado.weeklyGoalMinutes,
-            error = estado.errorMetaSemanal,
-            onSelect = onMetaSemanalChange,
-            titleResource = R.string.ingreso_meta_google_titulo,
-            modifier = Modifier.padding(top = 12.dp),
-        )
-
         MensajeErrorEnvio(estado.errorEnvio, modifier = Modifier.fillMaxWidth())
 
         Button(
@@ -107,18 +96,8 @@ fun IngresoScreen(
                 .padding(top = 16.dp)
                 .testTag("boton_ingresar"),
         ) {
+            if (estado.enviando) CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
             Text(stringResource(R.string.ingreso_boton))
-        }
-
-        OutlinedButton(
-            onClick = onGoogle,
-            enabled = puedeEnviar && estado.weeklyGoalMinutes != null,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp)
-                .testTag("boton_google"),
-        ) {
-            Text(stringResource(R.string.google_continuar))
         }
 
         TextButton(
@@ -130,11 +109,21 @@ fun IngresoScreen(
             Text(stringResource(R.string.restablecer_enlace))
         }
 
+        SeparadorAcceso()
+        SelectorMetaSemanal(
+            selectedMinutes = estado.weeklyGoalMinutes,
+            error = estado.errorMetaSemanal,
+            onSelect = onMetaSemanalChange,
+            titleResource = R.string.ingreso_meta_google_titulo,
+            modifier = Modifier.padding(bottom = 8.dp),
+        )
+        BotonAccesoGoogle(puedeEnviar && estado.weeklyGoalMinutes != null, onGoogle)
         TextButton(
             onClick = onIrARegistro,
             modifier = Modifier.testTag("enlace_registro"),
         ) {
             Text(stringResource(R.string.ingreso_enlace_registro))
+        }
         }
     }
 }

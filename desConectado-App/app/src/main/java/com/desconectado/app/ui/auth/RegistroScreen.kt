@@ -4,6 +4,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
@@ -55,23 +59,16 @@ fun RegistroScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
             .safeDrawingPadding()
             .imePadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.Center,
+            .padding(horizontal = 24.dp, vertical = 24.dp),
+        verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(
-            text = stringResource(R.string.app_name),
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.primary,
-        )
-        Text(
-            text = stringResource(R.string.registro_titulo),
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
-        )
+        Column(modifier = Modifier.widthIn(max = 440.dp).fillMaxWidth()) {
+        CabeceraAcceso(R.string.registro_titulo)
 
         if (estado.sinConexion) {
             AvisoSinConexion(modifier = Modifier.padding(bottom = 16.dp))
@@ -94,12 +91,6 @@ fun RegistroScreen(
             modifier = Modifier.padding(top = 8.dp),
         )
 
-        SelectorMetaSemanal(
-            selectedMinutes = estado.weeklyGoalMinutes,
-            error = estado.errorMetaSemanal,
-            onSelect = onMetaSemanalChange,
-            modifier = Modifier.padding(top = 12.dp),
-        )
         CampoFormulario(
             valor = estado.password,
             onCambio = onPasswordChange,
@@ -113,6 +104,12 @@ fun RegistroScreen(
             modifier = Modifier.padding(top = 8.dp),
         )
 
+        SelectorMetaSemanal(
+            selectedMinutes = estado.weeklyGoalMinutes,
+            error = estado.errorMetaSemanal,
+            onSelect = onMetaSemanalChange,
+            modifier = Modifier.padding(top = 12.dp),
+        )
         if (!correoEnUso) {
             MensajeErrorEnvio(estado.errorEnvio, modifier = Modifier.fillMaxWidth())
         }
@@ -125,19 +122,12 @@ fun RegistroScreen(
                 .padding(top = 16.dp)
                 .testTag("boton_registrar"),
         ) {
+            if (estado.enviando) CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
             Text(stringResource(R.string.registro_boton))
         }
 
-        OutlinedButton(
-            onClick = onGoogle,
-            enabled = puedeEnviar,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp)
-                .testTag("boton_google"),
-        ) {
-            Text(stringResource(R.string.google_continuar))
-        }
+        SeparadorAcceso()
+        BotonAccesoGoogle(puedeEnviar, onGoogle)
 
         TextButton(
             onClick = onIrAIngreso,
@@ -146,6 +136,7 @@ fun RegistroScreen(
                 .testTag("enlace_ingreso"),
         ) {
             Text(stringResource(R.string.registro_enlace_ingreso))
+        }
         }
     }
 }

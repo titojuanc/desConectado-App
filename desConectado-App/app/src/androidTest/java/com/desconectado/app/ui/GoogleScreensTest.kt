@@ -7,6 +7,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.desconectado.app.R
@@ -64,9 +65,9 @@ class GoogleScreensTest {
     @Test
     fun ingreso_muestraElBotonDeGoogleYLoInvoca() {
         var toques = 0
-        mostrarIngreso(onGoogle = { toques++ })
+        mostrarIngreso(estado = IngresoUiState(weeklyGoalMinutes = 120), onGoogle = { toques++ })
 
-        compose.onNodeWithTag("boton_google").assertIsDisplayed().performClick()
+        compose.onNodeWithTag("boton_google").performScrollTo().assertIsDisplayed().performClick()
         compose.onNodeWithText("Continuar con Google").assertIsDisplayed()
 
         assertEquals(1, toques)
@@ -76,7 +77,7 @@ class GoogleScreensTest {
     fun registro_muestraElBotonDeGoogle() {
         mostrarRegistro()
 
-        compose.onNodeWithTag("boton_google").assertIsDisplayed()
+        compose.onNodeWithTag("boton_google").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Continuar con Google").assertIsDisplayed()
     }
 

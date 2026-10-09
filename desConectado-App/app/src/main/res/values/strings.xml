@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">(des)Conectado</string>
+    <string name="acceso_mostrar_password">Mostrar contraseña</string>
+    <string name="acceso_ocultar_password">Ocultar contraseña</string>
+    <string name="acceso_alternativa">o</string>
 </resources>

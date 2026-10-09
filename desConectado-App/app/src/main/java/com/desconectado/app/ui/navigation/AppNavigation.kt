@@ -132,7 +132,7 @@ private fun ShellConSesion(
         saldo = saldo,
         onDestinoCambiado = { saldoViewModel.recargar(); perfilViewModel.reintentar() },
         desafios = { DesafiosRoute(container, cosmeticPreferences, activoViewModel) },
-        recompensas = { RecompensasRoute(container, perfilViewModel) },
+        recompensas = { RecompensasRoute(container, perfilViewModel, saldo, saldoViewModel::recargar) },
         perfil = { PerfilRoute(container, cosmeticPreferences, perfilViewModel) },
         iconPackId = cosmeticPreferences.activeCosmetics[com.desconectado.app.domain.model.TipoRecompensa.PACK_ICONOS],
         barraDesafio = {
@@ -182,7 +182,7 @@ private fun DesafiosRoute(container: AppContainer, cosmeticPreferences: Cosmetic
 }
 
 @Composable
-private fun RecompensasRoute(container: AppContainer, perfilViewModel: PerfilViewModel) {
+private fun RecompensasRoute(container: AppContainer, perfilViewModel: PerfilViewModel, saldo: com.desconectado.app.ui.points.SaldoUiState, onSaldoCambiado: () -> Unit) {
     val viewModel: RecompensasViewModel = viewModel(
         factory = viewModelFactory {
             initializer { RecompensasViewModel(container.catalogRepository, container.connectivityMonitor) }
@@ -220,6 +220,8 @@ private fun RecompensasRoute(container: AppContainer, perfilViewModel: PerfilVie
         onQuitarCosmetico = canjeViewModel::quitarCosmetico,
         logros = logros,
         onReintentarLogros = perfilViewModel::reintentarProgreso,
+        saldo = saldo,
+        onCanjeExitoso = onSaldoCambiado,
     )
 }
 

@@ -1,6 +1,8 @@
 package com.desconectado.app.ui.navigation
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -126,10 +128,11 @@ fun MainShell(
     }
 }
 
-/** Wordmark "(des)conectado" con la hoja, como en el diseño de referencia. */
 @Composable
 private fun MarcaDesconectado() {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.testTag("marca_app")) {
+    Image(painterResource(R.drawable.app_logo), contentDescription = null, modifier = Modifier.size(28.dp).testTag("logo_cabecera"))
+    Spacer(Modifier.width(8.dp))
         Text(
             text = buildAnnotatedString {
                 withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)) {
@@ -140,13 +143,6 @@ private fun MarcaDesconectado() {
                 }
             },
             style = MaterialTheme.typography.titleLarge,
-        )
-        Spacer(Modifier.width(4.dp))
-        Icon(
-            imageVector = Icons.Filled.Eco,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(18.dp),
         )
     }
 }

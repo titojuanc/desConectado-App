@@ -11,6 +11,16 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.mutableStateOf
+import androidx.test.platform.app.InstrumentationRegistry
+import java.io.File
+import org.junit.Assert.assertTrue
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.desconectado.app.R
@@ -69,6 +79,89 @@ class AuthScreensTest {
                 onMetaSemanalChange = onMetaSemanalChange,
             )
         }
+    }
+
+    @Test
+    fun permiteMostrarYOcultarLaContrasenaSinModificarla() {
+        mostrarIngreso(IngresoUiState(password = "ClaveDePrueba123"))
+        compose.onNodeWithTag("campo_password").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Password))
+        val hidden = compose.onNodeWithTag("campo_password").fetchSemanticsNode().config[SemanticsProperties.EditableText].text
+        compose.onNodeWithTag("visibilidad_campo_password").performClick()
+        assertEquals("ClaveDePrueba123", compose.onNodeWithTag("campo_password").fetchSemanticsNode().config[SemanticsProperties.EditableText].text)
+        compose.onNodeWithTag("visibilidad_campo_password").performClick()
+        compose.onNodeWithTag("campo_password").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Password))
+        assertEquals(hidden, compose.onNodeWithTag("campo_password").fetchSemanticsNode().config[SemanticsProperties.EditableText].text)
+    }
+
+    @Test
+    fun capturaAccesoYRegistroConLogoYTeclado() {
+        val registro = mutableStateOf(false)
+        val email = mutableStateOf("")
+        compose.setContent {
+            DesConectadoTheme {
+                Surface(color = MaterialTheme.colorScheme.background) {
+                    if (registro.value) {
+                        RegistroScreen(RegistroUiState(weeklyGoalMinutes = 120), onUsernameChange = {}, onEmailChange = {}, onPasswordChange = {},
+                            onRegistrar = {}, onIrAIngreso = { registro.value = false }, onGoogle = {})
+                    } else {
+                        IngresoScreen(IngresoUiState(email = email.value, weeklyGoalMinutes = 120), onEmailChange = { email.value = it },
+                            onPasswordChange = {}, onIngresar = {}, onIrARegistro = { registro.value = true }, onOlvidePassword = {}, onGoogle = {})
+                    }
+                }
+            }
+        }
+        compose.onNodeWithTag("logo_acceso").assertIsDisplayed()
+        capturaAcceso("ingreso")
+        compose.onNodeWithTag("campo_correo").performClick().performTextInput("qa@example.invalid")
+        compose.onNodeWithTag("boton_ingresar").performScrollTo().assertIsDisplayed()
+        capturaAcceso("teclado")
+        val hide = InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand("input keyevent 4")
+        android.os.ParcelFileDescriptor.AutoCloseInputStream(hide).use { it.readBytes() }
+        compose.onNodeWithTag("enlace_registro").performScrollTo().performClick()
+        compose.onNodeWithTag("campo_username").assertIsDisplayed()
+        compose.onNodeWithTag("logo_acceso").assertIsDisplayed()
+        capturaAcceso("registro")
+        compose.onNodeWithTag("boton_registrar").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("enlace_ingreso").performScrollTo().assertIsDisplayed()
+    }
+
+    private fun capturaAcceso(name: String) {
+        compose.waitForIdle()
+        val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
+        val bitmap = compose.onRoot().captureToImage().asAndroidBitmap()
+        val destination = File(ApplicationProvider.getApplicationContext<Context>().getExternalFilesDir(null), "acceso-$name.png")
+        destination.outputStream().use { assertTrue(bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)) }
+        val copy = automation.executeShellCommand("cp ${destination.absolutePath} /data/local/tmp/acceso-$name.png")
+        android.os.ParcelFileDescriptor.AutoCloseInputStream(copy).use { it.readBytes() }
+        bitmap.recycle()
+    }
+
+    @Test
+    fun iconoAdaptableUsaElNuevoSimboloSinElPuntoAnterior() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val icon = requireNotNull(context.getDrawable(R.mipmap.ic_launcher))
+        val bitmap = android.graphics.Bitmap.createBitmap(192, 192, android.graphics.Bitmap.Config.ARGB_8888)
+        icon.setBounds(0, 0, 192, 192)
+        icon.draw(android.graphics.Canvas(bitmap))
+        val center = bitmap.getPixel(96, 96)
+        assertTrue(android.graphics.Color.green(center) < 100)
+        var leftGreen = 0
+        var rightGreen = 0
+        for (row in 0 until bitmap.height) {
+            for (column in 0 until bitmap.width) {
+                val pixel = bitmap.getPixel(column, row)
+                if (android.graphics.Color.green(pixel) > 120 && android.graphics.Color.green(pixel) > android.graphics.Color.red(pixel) + 25) {
+                    if (column < 96) leftGreen++ else rightGreen++
+                }
+            }
+        }
+        assertTrue("Left parenthesis missing", leftGreen > 200)
+        assertTrue("Right parenthesis missing", rightGreen > 200)
+        val file = File(context.getExternalFilesDir(null), "acceso-icono.png")
+        file.outputStream().use { assertTrue(bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)) }
+        val copy = InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand("cp ${file.absolutePath} /data/local/tmp/acceso-icono.png")
+        android.os.ParcelFileDescriptor.AutoCloseInputStream(copy).use { it.readBytes() }
+        bitmap.recycle()
     }
 
     @Test
