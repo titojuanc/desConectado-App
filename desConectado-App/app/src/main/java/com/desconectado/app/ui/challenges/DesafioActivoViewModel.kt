@@ -10,6 +10,7 @@ import com.desconectado.app.domain.TimeSource
 import com.desconectado.app.domain.actualizarLogrosTrasResultado
 import com.desconectado.app.domain.evaluarCumplimiento
 import com.desconectado.app.domain.model.ActiveChallenge
+import com.desconectado.app.domain.model.AchievementProgress
 import com.desconectado.app.domain.model.ChallengeResult
 import com.desconectado.app.domain.model.ChallengeRating
 import com.desconectado.app.domain.model.Conectividad
@@ -28,6 +29,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.CancellationException
+import com.desconectado.app.data.aErrorFirestore
+import java.io.IOException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.Duration
@@ -36,6 +40,8 @@ import java.time.Instant
 sealed interface DesafioActivoUiState {
     data object SinDesafio : DesafioActivoUiState
     data object Cargando : DesafioActivoUiState
+    data object Iniciando : DesafioActivoUiState
+    data object Completando : DesafioActivoUiState
     data object SinPermiso : DesafioActivoUiState
     data class Activo(
         val desafio: ActiveChallenge,
@@ -48,9 +54,10 @@ sealed interface DesafioActivoUiState {
         val ratingSeleccionado: Int = 0,
         val ratingGuardando: Boolean = false,
         val ratingError: Boolean = false,
+        val logrosDesbloqueados: List<AchievementProgress> = emptyList(),
     ) : DesafioActivoUiState
     data object SinConexion : DesafioActivoUiState
-    data class Error(val causa: ErrorApp) : DesafioActivoUiState
+    data class Error(val causa: ErrorApp, val alFinalizar: Boolean = false) : DesafioActivoUiState
 }
 
 class DesafioActivoViewModel(
@@ -71,10 +78,13 @@ class DesafioActivoViewModel(
     private var notificationsEnabled = false
     private var desafioPendiente: Desafio? = null
     private val operaciones = Mutex()
+    private var cierrePendiente: ChallengeResult? = null
 
     init {
         viewModelScope.launch {
-            userPreferences.observar(uid).collect { notificationsEnabled = it.notificationsEnabled }
+            userPreferences.observar(uid).collect {
+                notificationsEnabled = it.notificationsEnabled
+            }
         }
         viewModelScope.launch {
             connectivity.estado.collect { valor ->
@@ -97,6 +107,7 @@ class DesafioActivoViewModel(
     }
 
     fun iniciar(desafio: Desafio) {
+        if (hayOperacionEnCurso() || cierrePendiente != null) return
         desafioPendiente = desafio
         if (!conectado) {
             _estado.value = DesafioActivoUiState.SinConexion
@@ -107,9 +118,9 @@ class DesafioActivoViewModel(
             usage.openUsageAccessSettings()
             return
         }
+        _estado.value = DesafioActivoUiState.Iniciando
         viewModelScope.launch {
             operaciones.withLock {
-                _estado.value = DesafioActivoUiState.Cargando
                 when (val resultado = challenges.start(uid, desafio.id)) {
                     is Resultado.Exito -> {
                         store.write(resultado.valor)
@@ -127,6 +138,7 @@ class DesafioActivoViewModel(
     fun abrirAjustes() = usage.openUsageAccessSettings()
 
     fun volverCatalogo() {
+        if (hayOperacionEnCurso() || cierrePendiente != null) return
         val terminal = _estado.value as? DesafioActivoUiState.Terminado
         if (terminal?.resultado?.status == ChallengeResult.Status.COMPLETED && terminal.ratingStars == null) return
         _estado.value = DesafioActivoUiState.SinDesafio
@@ -171,7 +183,12 @@ class DesafioActivoViewModel(
     }
 
     fun finalizar() {
-        actualizar()
+        viewModelScope.launch {
+            operaciones.withLock {
+                val pendiente = cierrePendiente
+                if (pendiente != null) cerrar(pendiente) else comprobarActual()
+            }
+        }
     }
 
     private suspend fun finalizarActual(actual: ActiveChallenge, ahora: Instant, uso: Long) {
@@ -200,11 +217,7 @@ class DesafioActivoViewModel(
         viewModelScope.launch {
             operaciones.withLock {
                 val actual = (_estado.value as? DesafioActivoUiState.Activo)?.desafio ?: return@withLock
-                val resultado = challenges.cancel(uid, runId(actual))
-                if (resultado is Resultado.Exito) {
-                    store.clear()
-                    _estado.value = DesafioActivoUiState.Terminado(resultado.valor)
-                }
+                cerrar(resultadoInterrumpido(actual, ChallengeResult.Status.CANCELLED))
             }
         }
     }
@@ -236,36 +249,96 @@ class DesafioActivoViewModel(
     }
 
     private suspend fun invalidar(actual: ActiveChallenge, reason: String) {
-        val resultado = challenges.invalidate(uid, runId(actual), reason)
-        if (resultado is Resultado.Exito) {
-            store.clear()
-            _estado.value = DesafioActivoUiState.Terminado(resultado.valor)
+        cerrar(resultadoInterrumpido(actual, ChallengeResult.Status.INVALIDATED).copy(invalidationReason = reason))
+    }
+
+    private fun resultadoInterrumpido(actual: ActiveChallenge, status: ChallengeResult.Status) = ChallengeResult(
+        challengeRunId = runId(actual),
+        challengeId = actual.challengeId,
+        challengeTitle = actual.challengeTitle,
+        durationMinutes = actual.durationMinutes,
+        durationSeconds = actual.durationSeconds,
+        startedAt = actual.startedAt,
+        finishedAt = time.now(),
+        status = status,
+        measuredSocialSeconds = 0,
+        offlineSeconds = actual.offlineSeconds,
+        pointsAwarded = 0,
+        category = actual.category,
+    )
+
+    private suspend fun cerrar(resultado: ChallengeResult) {
+        cierrePendiente = resultado
+        try {
+            cerrarYNotificar(resultado)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: IOException) {
+            Log.e(TAG, "Fallo de almacenamiento durante el cierre del desafío", e)
+            _estado.value = DesafioActivoUiState.Error(ErrorApp.Desconocido, alFinalizar = true)
+        } catch (e: RuntimeException) {
+            Log.e(TAG, "Fallo inesperado durante el cierre del desafío", e)
+            _estado.value = DesafioActivoUiState.Error(e.aErrorFirestore(), alFinalizar = true)
+        }
+        val fallo = _estado.value as? DesafioActivoUiState.Error
+        if (fallo != null) _estado.value = fallo.copy(alFinalizar = true)
+        if (_estado.value == DesafioActivoUiState.SinConexion) {
+            _estado.value = DesafioActivoUiState.Error(ErrorApp.SinConexion, alFinalizar = true)
         }
     }
 
-    private suspend fun cerrar(resultado: ChallengeResult) {
+    private suspend fun cerrarYNotificar(resultado: ChallengeResult) {
+        _estado.value = DesafioActivoUiState.Completando
+        val historialPrevio = if (resultado.status == ChallengeResult.Status.COMPLETED) {
+            when (val historial = challenges.results(uid)) {
+                is Resultado.Exito -> historial.valor
+                is Resultado.Fallo -> {
+                    _estado.value = DesafioActivoUiState.Error(historial.error)
+                    return
+                }
+            }
+        } else {
+            null
+        }
+        val logrosPrevios = historialPrevio?.let { historial ->
+            (achievements.actualizar(uid, historial) as? Resultado.Exito)?.valor
+                ?.filter { it.unlocked }
+                ?.map { it.definition.id }
+                ?.toSet()
+        }
         when (val guardado = challenges.finish(uid, resultado.challengeRunId, resultado)) {
             is Resultado.Exito -> {
-                val finalResult = guardado.valor
-                val acreditacion = if (finalResult.status == ChallengeResult.Status.COMPLETED) {
-                    points.acreditar(uid, finalResult)
+                val acreditacion = if (guardado.valor.status == ChallengeResult.Status.COMPLETED) {
+                    points.acreditarConRacha(uid, guardado.valor, historialPrevio.orEmpty())
                 } else {
-                    Resultado.Exito(Unit)
+                    Resultado.Exito(guardado.valor)
                 }
                 if (acreditacion is Resultado.Exito) {
+                    val finalResult = acreditacion.valor
+                    var logrosNuevos = emptyList<AchievementProgress>()
                     if (finalResult.status == ChallengeResult.Status.COMPLETED) {
-                        when (actualizarLogrosTrasResultado(uid, finalResult, challenges, achievements)) {
-                            is Resultado.Exito -> Unit
+                        when (val progreso = actualizarLogrosTrasResultado(uid, finalResult, challenges, achievements)) {
+                            is Resultado.Exito -> {
+                                if (logrosPrevios != null) {
+                                    logrosNuevos = progreso.valor.filter {
+                                        it.unlocked && it.definition.id !in logrosPrevios
+                                    }
+                                }
+                            }
                             is Resultado.Fallo -> Log.w(TAG, "No se pudieron actualizar los logros tras completar el desafío")
                         }
                     }
                     store.clear()
-                    notifications.desafioTerminado(
-                        finalResult.status == ChallengeResult.Status.COMPLETED,
-                        finalResult.pointsAwarded,
-                        notificationsEnabled,
-                    )
-                    mostrarResultadoTerminal(finalResult)
+                    notifications.logrosDesbloqueados(logrosNuevos.map { it.definition.name }, notificationsEnabled)
+                    if (finalResult.status == ChallengeResult.Status.COMPLETED || finalResult.status == ChallengeResult.Status.FAILED) {
+                        notifications.desafioTerminado(
+                            finalResult.status == ChallengeResult.Status.COMPLETED,
+                            finalResult.pointsAwarded,
+                            notificationsEnabled,
+                        )
+                    }
+                    mostrarResultadoTerminal(finalResult, logrosNuevos)
+                    cierrePendiente = null
                 } else if (acreditacion is Resultado.Fallo) {
                     _estado.value = DesafioActivoUiState.Error(acreditacion.error)
                 }
@@ -274,9 +347,12 @@ class DesafioActivoViewModel(
         }
     }
 
-    private suspend fun mostrarResultadoTerminal(resultado: ChallengeResult) {
+    private suspend fun mostrarResultadoTerminal(
+        resultado: ChallengeResult,
+        logrosDesbloqueados: List<AchievementProgress> = emptyList(),
+    ) {
         if (resultado.status != ChallengeResult.Status.COMPLETED) {
-            _estado.value = DesafioActivoUiState.Terminado(resultado)
+            _estado.value = DesafioActivoUiState.Terminado(resultado, logrosDesbloqueados = logrosDesbloqueados)
             return
         }
         _estado.value = when (val rating = challenges.rating(uid, resultado.challengeRunId)) {
@@ -284,8 +360,13 @@ class DesafioActivoViewModel(
                 resultado = resultado,
                 ratingStars = rating.valor?.stars,
                 ratingSeleccionado = rating.valor?.stars ?: 0,
+                logrosDesbloqueados = logrosDesbloqueados,
             )
-            is Resultado.Fallo -> DesafioActivoUiState.Terminado(resultado, ratingError = true)
+            is Resultado.Fallo -> DesafioActivoUiState.Terminado(
+                resultado,
+                ratingError = true,
+                logrosDesbloqueados = logrosDesbloqueados,
+            )
         }
     }
 
@@ -318,6 +399,11 @@ class DesafioActivoViewModel(
     }
 
     private fun runId(active: ActiveChallenge): String = "${active.challengeId}-${active.startedAt.epochSecond}"
+
+    private fun hayOperacionEnCurso(): Boolean =
+        _estado.value is DesafioActivoUiState.Activo ||
+            _estado.value == DesafioActivoUiState.Iniciando ||
+            _estado.value == DesafioActivoUiState.Completando
 
     private fun nombreVisible(packageName: String): String = when (packageName) {
         "com.instagram.android" -> "Instagram"

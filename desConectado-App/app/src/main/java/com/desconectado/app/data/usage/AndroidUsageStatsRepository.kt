@@ -5,6 +5,8 @@ import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ApplicationInfo
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Process
 import android.provider.Settings
@@ -57,10 +59,15 @@ class AndroidUsageStatsRepository(
         val event = UsageEvents.Event()
         val openAt = mutableMapOf<String, Long>()
         val total = mutableMapOf<String, Long>().withDefault { 0L }
+        val targetPackageCache = mutableMapOf<String, Boolean>()
         while (events.hasNextEvent()) {
             events.getNextEvent(event)
             val packageName = event.packageName ?: continue
-            if (packageName !in TARGET_PACKAGES) continue
+            val isTarget = targetPackageCache.getOrPut(packageName) {
+                packageName in TARGET_PACKAGES ||
+                    isTargetPackage(packageName, applicationCategory(packageName))
+            }
+            if (!isTarget) continue
             when (event.eventType) {
                 UsageEvents.Event.MOVE_TO_FOREGROUND,
                 UsageEvents.Event.ACTIVITY_RESUMED -> openAt[packageName] = event.timeStamp
@@ -78,14 +85,35 @@ class AndroidUsageStatsRepository(
         return Resultado.Exito(total.mapValues { it.value / 1000L })
     }
 
+    private fun applicationCategory(packageName: String): Int =
+        try {
+            context.packageManager.getApplicationInfo(packageName, 0).category
+        } catch (_: PackageManager.NameNotFoundException) {
+            ApplicationInfo.CATEGORY_UNDEFINED
+        }
+
     companion object {
         val TARGET_PACKAGES = setOf(
+            "com.discord",
             "com.instagram.android",
-            "com.zhiliaoapp.musically",
-            "com.facebook.katana",
+            "com.instagram.barcelona",
             "com.twitter.android",
-            "com.snapchat.android",
             "com.google.android.youtube",
+            "com.snapchat.android",
+            "com.netflix.mediaclient",
+            "com.disney.disneyplus",
+            "com.wbd.stream",
+            "com.amazon.avod.thirdpartyclient",
+            "com.cbs.app",
+            "com.crunchyroll.crunchyroid",
+            "tv.pluto.android",
+            "com.pinterest",
+            "com.zhiliaoapp.musically",
+            "com.google.android.play.games",
+            "com.facebook.katana",
         )
+
+        internal fun isTargetPackage(packageName: String, applicationCategory: Int): Boolean =
+            packageName in TARGET_PACKAGES || applicationCategory == ApplicationInfo.CATEGORY_GAME
     }
 }

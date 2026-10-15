@@ -23,6 +23,15 @@ interface PointsRepository {
     suspend fun acreditar(uid: String, result: ChallengeResult): Resultado<Unit> =
         Resultado.Fallo(com.desconectado.app.domain.model.ErrorApp.Desconocido)
 
+    suspend fun acreditarConRacha(
+        uid: String,
+        result: ChallengeResult,
+        historial: List<ChallengeResult>,
+    ): Resultado<ChallengeResult> = when (val acreditacion = acreditar(uid, result)) {
+        is Resultado.Exito -> Resultado.Exito(result)
+        is Resultado.Fallo -> acreditacion
+    }
+
     suspend fun saldo(uid: String): Resultado<Int> =
         Resultado.Fallo(com.desconectado.app.domain.model.ErrorApp.Desconocido)
 

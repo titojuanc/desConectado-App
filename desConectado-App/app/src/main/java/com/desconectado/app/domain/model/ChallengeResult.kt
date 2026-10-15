@@ -17,6 +17,13 @@ data class ChallengeResult(
     val durationSeconds: Int = durationMinutes * 60,
     val timeZoneId: String = ZoneId.systemDefault().id,
     val category: CategoriaDesafio? = null,
+    val pointsMultiplier: Double = 1.0,
+    val streakDays: Int = 0,
+    val weeklyGoalMinutesUsed: Int = 0,
+    val streakBonusPoints: Int = 0,
+    val dailyBasePoints: Int = 0,
+    val dailyKey: String = "",
+    val invalidationReason: String? = null,
 ) {
     enum class Status { COMPLETED, FAILED, CANCELLED, INVALIDATED }
 }

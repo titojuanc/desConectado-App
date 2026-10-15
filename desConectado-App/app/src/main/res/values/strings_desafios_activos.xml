@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="desafio_iniciar">Iniciar desafío</string>
+    <string name="desafio_iniciando">Iniciando el desafío...</string>
+    <string name="desafio_iniciando_detalle">Estamos preparando tu desafío. Esperá un momento.</string>
+    <string name="desafio_completando">Completando el desafío...</string>
+    <string name="desafio_completando_detalle">Estamos guardando el resultado y acreditando tus puntos. Esto puede demorar unos segundos.</string>
     <string name="desafio_sin_activo">No hay un desafío activo.</string>
     <string name="desafio_finalizar">Comprobar desafío</string>
     <string name="desafio_actualizar">Actualizar</string>
@@ -18,11 +22,35 @@
     <string name="desafio_confirmar">Confirmar</string>
     <string name="desafio_volver">Volver</string>
     <string name="desafio_cumplido">Desafío cumplido: ganaste %1$d puntos.</string>
+    <string name="desafio_cumplido_multiplicador">Desafío cumplido: ganaste %1$d puntos con racha.</string>
+    <string name="desafio_multiplicador_aplicado">Multiplicador de racha: x%1$s</string>
+    <string name="desafio_bonus_diario">Meta diaria cumplida: +%1$d puntos de bonus sobre los %2$d puntos base acumulados hoy. El bonus se entrega una sola vez al día.</string>
+    <string name="desafio_logro_desbloqueado">¡Logro desbloqueado: %1$s!</string>
+    <string name="desafios_logros_desbloqueados">¡Logros desbloqueados: %1$s!</string>
     <string name="desafio_no_cumplido">Desafío no cumplido. No se acreditaron puntos.</string>
     <string name="desafio_invalidado">Desafío invalidado. No se acreditaron puntos.</string>
     <string name="desafio_cancelado">Desafío cancelado. No se acreditaron puntos.</string>
+    <string name="desafio_no_cumplido_titulo">Esta vez no se pudo</string>
+    <string name="desafio_invalidado_titulo">No pudimos validar el desafío</string>
+    <string name="desafio_cancelado_titulo">Desafío cancelado</string>
+    <string name="desafio_motivo_titulo">Qué pasó</string>
+    <string name="desafio_motivo_uso_apps">Se detectaron %1$d segundos de uso de aplicaciones no permitidas durante el desafío.</string>
+    <string name="desafio_motivo_sin_conexion">Tiempo sin conexión: %1$d min %2$d s. Se superó el límite de 5 minutos permitido para verificar el desafío.</string>
+    <string name="desafio_motivo_tiempo_incompleto">El desafío terminó antes de que se completara el tiempo necesario.</string>
+    <string name="desafio_motivo_cancelado">Elegiste terminar el desafío antes de completarlo.</string>
+    <string name="desafio_motivo_no_verificable">No contamos con una comprobación válida de las condiciones del desafío.</string>
+    <string name="desafio_motivo_app_detectada">Se detectó el uso de una aplicación no permitida durante el desafío.</string>
+    <string name="desafio_motivo_permiso_revocado">El permiso de acceso al uso de aplicaciones dejó de estar disponible durante el desafío y no pudimos seguir verificándolo.</string>
+    <string name="desafio_consejo_permiso">Revisá el acceso al uso de (des)Conectado en Ajustes antes de iniciar otro desafío.</string>
+    <string name="desafio_consejo_verificacion">Revisá el permiso de uso y volvé a intentarlo. No tenemos un motivo registrado para este resultado.</string>
+    <string name="desafio_consejo_apps">Volvé a intentarlo dejando las redes, los juegos y las demás apps no permitidas para después.</string>
+    <string name="desafio_consejo_conexion">Revisá tu conexión antes de empezar de nuevo. Todavía podés encontrar un momento para desconectar.</string>
+    <string name="desafio_consejo_cancelado">A tu ritmo. Podés elegir otro desafío cuando estés listo.</string>
+    <string name="desafio_consejo_reintento">Cada intento cuenta. Volvé a probar y esperá a que termine el contador.</string>
     <string name="desafio_medicion_no_disponible">No pudimos comprobar el uso de redes.</string>
     <string name="desafio_error_inicio">No pudimos iniciar el desafío. Revisá tu conexión y que el catálogo esté disponible.</string>
+    <string name="desafio_error_sonido">No pudimos reproducir el sonido. El resultado del desafío no se modificó.</string>
+    <string name="desafio_error_cierre">No pudimos terminar de confirmar el desafío. Reintentá la operación; los pasos confirmados no vuelven a acreditar puntos.</string>
     <string name="desafio_error_firestore_permiso">Firebase rechazó el acceso a los datos. Revisá la sesión y las reglas de Firestore.</string>
     <string name="desafio_error_dato">No encontramos el desafío en el catálogo de Firebase.</string>
     <string name="desafio_requiere_conexion">Necesitás conexión para sincronizar el desafío.</string>

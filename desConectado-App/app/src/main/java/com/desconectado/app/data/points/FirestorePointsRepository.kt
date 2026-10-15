@@ -16,6 +16,8 @@ import com.desconectado.app.domain.esCosmetico
 import com.desconectado.app.domain.seleccionarPremioSorpresa
 import com.desconectado.app.domain.proximoVencimiento
 import com.desconectado.app.domain.repository.PointsRepository
+import com.desconectado.app.domain.DailyStreakProgress
+import com.desconectado.app.domain.aplicarMultiplicadorRacha
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -81,24 +83,91 @@ class FirestorePointsRepository(private val firestore: FirebaseFirestore) : Poin
         Resultado.Fallo(e.aErrorFirestore())
     }
 
-    override suspend fun acreditar(uid: String, result: ChallengeResult): Resultado<Unit> = try {
+    override suspend fun acreditar(uid: String, result: ChallengeResult): Resultado<Unit> =
+        when (val acreditacion = acreditarConRacha(uid, result, emptyList())) {
+            is Resultado.Exito -> Resultado.Exito(Unit)
+            is Resultado.Fallo -> acreditacion
+        }
+
+    override suspend fun acreditarConRacha(
+        uid: String,
+        result: ChallengeResult,
+        historial: List<ChallengeResult>,
+    ): Resultado<ChallengeResult> = try {
         require(result.status == ChallengeResult.Status.COMPLETED)
         val user = firestore.collection("users").document(uid)
         val movement = user.collection("movements").document("credit-${result.challengeRunId}")
+        val resultRef = user.collection("challengeResults").document(result.challengeRunId)
+        val preferences = user.collection("preferences").document("current")
+        val dayKey = result.finishedAt.atZone(ZoneId.of(result.timeZoneId)).toLocalDate().toString()
+        val day = user.collection("dailyStreakProgress").document(dayKey)
+        val historicosDelDia = historial.filter {
+            it.challengeRunId != result.challengeRunId && it.status == ChallengeResult.Status.COMPLETED &&
+                it.dailyKey.isEmpty() &&
+                it.finishedAt.atZone(ZoneId.of(it.timeZoneId)).toLocalDate().toString() == dayKey
+        }
         val session = user.collection("pointLotSessions").document("current")
-        firestore.runTransaction { transaction ->
-            if (transaction.get(movement).exists()) return@runTransaction Unit
+        val credited = firestore.runTransaction { transaction ->
+            val existingMovement = transaction.get(movement)
+            val savedResult = transaction.get(resultRef)
+            check(savedResult.exists()) { "El resultado debe guardarse antes de acreditar puntos" }
+            if (existingMovement.exists()) return@runTransaction result.copy(
+                pointsAwarded = savedResult.getLong("pointsAwarded")!!.toInt(),
+                pointsMultiplier = savedResult.getDouble("pointsMultiplier") ?: 1.0,
+                streakDays = savedResult.getLong("streakDays")?.toInt() ?: 0,
+                weeklyGoalMinutesUsed = savedResult.getLong("weeklyGoalMinutesUsed")?.toInt() ?: 0,
+                streakBonusPoints = savedResult.getLong("streakBonusPoints")?.toInt() ?: 0,
+                dailyBasePoints = savedResult.getLong("dailyBasePoints")?.toInt() ?: 0,
+                dailyKey = savedResult.getString("dailyKey").orEmpty(),
+            )
             val userSnapshot = transaction.get(user)
+            val challengeSnapshot = transaction.get(firestore.collection("challenges").document(result.challengeId))
+            val puntosBase = Math.toIntExact(checkNotNull(challengeSnapshot.getLong("points")) {
+                "No se encontraron los puntos base del desafío en el catálogo"
+            })
+            check(puntosBase > 0) { "El desafío debe otorgar puntos base positivos" }
+            val goal = transaction.get(preferences).getLong("weeklyGoalMinutes")?.toInt()
+            val daySnapshot = transaction.get(day)
+            check(daySnapshot.exists() || historicosDelDia.none {
+                transaction.get(user.collection("movements").document("credit-${it.challengeRunId}")).exists()
+            }) { "Falta migrar el acumulado diario de los puntos históricos antes de acreditar la nueva racha" }
+            val daily = DailyStreakProgress(
+                basePoints = daySnapshot.getLong("basePoints")?.toInt() ?: 0,
+                completedSeconds = daySnapshot.getLong("completedSeconds") ?: 0,
+                bonusAwarded = daySnapshot.getBoolean("bonusAwarded") ?: false,
+            )
+            val baseResult = result.copy(
+                pointsAwarded = puntosBase,
+                pointsMultiplier = 1.0, streakDays = 0, weeklyGoalMinutesUsed = 0,
+                streakBonusPoints = 0, dailyBasePoints = 0, dailyKey = dayKey,
+            )
+            val awarded = aplicarMultiplicadorRacha(baseResult, historial, goal, daily)
             val sessionSnapshot = transaction.get(session)
             val lotId = sessionSnapshot.getString("lotId")
             val lotRef = lotId?.let { user.collection("pointLots").document(it) }
             val activeLot = lotRef?.let { transaction.get(it).toPointLot() }
                 ?.takeIf { result.finishedAt >= it.windowStartsAt && result.finishedAt < it.windowEndsAt }
-            val lot = activeLot?.agregar(result.pointsAwarded, result.finishedAt)
-                ?: PointLot.crear(result.pointsAwarded, result.finishedAt, ZoneId.of(result.timeZoneId))
+            val lot = activeLot?.agregar(awarded.pointsAwarded, result.finishedAt)
+                ?: PointLot.crear(awarded.pointsAwarded, result.finishedAt, ZoneId.of(result.timeZoneId))
             val finalLotRef = user.collection("pointLots").document(lot.lotId)
             val current = userSnapshot.getLong("pointsBalance") ?: 0L
 
+            transaction.set(day, mapOf(
+                "basePoints" to Math.addExact(daily.basePoints, baseResult.pointsAwarded),
+                "completedSeconds" to daily.completedSeconds + result.durationSeconds,
+                "bonusAwarded" to (daily.bonusAwarded || awarded.streakBonusPoints > 0),
+                "lastRunId" to result.challengeRunId,
+                "updatedAt" to FieldValue.serverTimestamp(),
+            ))
+            transaction.update(resultRef, mapOf(
+                "pointsAwarded" to awarded.pointsAwarded,
+                "pointsMultiplier" to awarded.pointsMultiplier,
+                "streakDays" to awarded.streakDays,
+                "weeklyGoalMinutesUsed" to awarded.weeklyGoalMinutesUsed,
+                "streakBonusPoints" to awarded.streakBonusPoints,
+                "dailyBasePoints" to awarded.dailyBasePoints,
+                "dailyKey" to dayKey,
+            ))
             transaction.set(finalLotRef, lot.toFirestoreMap())
             transaction.set(session, mapOf(
                 "lotId" to lot.lotId,
@@ -106,7 +175,7 @@ class FirestorePointsRepository(private val firestore: FirebaseFirestore) : Poin
             ))
             transaction.set(movement, mapOf(
                 "type" to "credit",
-                "amount" to result.pointsAwarded,
+                "amount" to awarded.pointsAwarded,
                 "challengeId" to result.challengeId,
                 "challengeTitle" to result.challengeTitle,
                 "sourceId" to result.challengeRunId,
@@ -115,15 +184,16 @@ class FirestorePointsRepository(private val firestore: FirebaseFirestore) : Poin
                 "createdAt" to FieldValue.serverTimestamp(),
             ))
             transaction.update(user, mapOf(
-                "pointsBalance" to current + result.pointsAwarded,
+                "pointsBalance" to current + awarded.pointsAwarded,
                 "lastMovementId" to movement.id,
             ))
-            Unit
+            awarded
         }.await()
-        Resultado.Exito(Unit)
+        Resultado.Exito(credited)
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
+        Log.e(TAG, "No se pudieron acreditar los puntos y el bono diario", e)
         Resultado.Fallo(e.aErrorFirestore())
     }
 

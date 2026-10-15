@@ -24,7 +24,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.EmojiEvents
-import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
@@ -32,9 +31,10 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -63,6 +63,7 @@ import com.desconectado.app.domain.formatearDuracion
 import com.desconectado.app.domain.formatearFechaDesafio
 import com.desconectado.app.domain.formatearPuntos
 import com.desconectado.app.domain.model.AchievementProgress
+import com.desconectado.app.domain.model.CosmeticOwnership
 import com.desconectado.app.domain.model.CosmeticPreferences
 import com.desconectado.app.domain.model.DesafioHecho
 import com.desconectado.app.domain.model.Perfil
@@ -72,6 +73,9 @@ import com.desconectado.app.domain.model.UserPreferences
 import com.desconectado.app.ui.components.PantallaCargando
 import com.desconectado.app.ui.components.PantallaError
 import com.desconectado.app.ui.components.PantallaSinConexion
+import com.desconectado.app.ui.auth.SelectorMetaDiaria
+import com.desconectado.app.ui.rewards.MiniaturaRecompensa
+import com.desconectado.app.ui.rewards.tituloGrupo
 
 /**
  * Perfil con el diseño de referencia: tarjeta de cabecera con avatar y edición, grilla "Tu
@@ -94,6 +98,9 @@ fun PerfilScreen(
     progreso: ProgresoUiState = ProgresoUiState.Oculto,
     onReintentarProgreso: () -> Unit = {},
     preferenciasCosmeticas: CosmeticPreferences = CosmeticPreferences(),
+    inventarioCosmeticos: List<CosmeticOwnership> = emptyList(),
+    onAplicarCosmetico: (String) -> Unit = {},
+    onQuitarCosmetico: (TipoRecompensa) -> Unit = {},
     edicionNombre: EdicionNombreUiState = EdicionNombreUiState(),
     onEditarNombre: () -> Unit = {},
     onCambiarNombre: (String) -> Unit = {},
@@ -104,6 +111,9 @@ fun PerfilScreen(
     onGuardarMetaSemanal: (Int) -> Unit = {},
     onConfigurarNotificaciones: (Boolean) -> Unit = {},
     onAbrirAjustesPrivacidad: () -> Unit = {},
+    mostrarControlDebug: Boolean = false,
+    debugHabilitado: Boolean = false,
+    onDebugHabilitadoChange: (Boolean) -> Unit = {},
 ) {
     Column(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.weight(1f)) {
@@ -122,6 +132,9 @@ fun PerfilScreen(
                     progreso,
                     onReintentarProgreso,
                     preferenciasCosmeticas,
+                    inventarioCosmeticos,
+                    onAplicarCosmetico,
+                    onQuitarCosmetico,
                     edicionNombre,
                     onEditarNombre,
                     onCambiarNombre,
@@ -133,6 +146,9 @@ fun PerfilScreen(
                     onConfigurarNotificaciones,
                     onAbrirAjustesPrivacidad,
                     onCerrarSesion,
+                    mostrarControlDebug,
+                    debugHabilitado,
+                    onDebugHabilitadoChange,
                 )
             }
         }
@@ -163,6 +179,9 @@ private fun DatosPerfil(
     progreso: ProgresoUiState,
     onReintentarProgreso: () -> Unit,
     preferenciasCosmeticas: CosmeticPreferences,
+    inventarioCosmeticos: List<CosmeticOwnership>,
+    onAplicarCosmetico: (String) -> Unit,
+    onQuitarCosmetico: (TipoRecompensa) -> Unit,
     edicionNombre: EdicionNombreUiState,
     onEditarNombre: () -> Unit,
     onCambiarNombre: (String) -> Unit,
@@ -174,6 +193,9 @@ private fun DatosPerfil(
     onConfigurarNotificaciones: (Boolean) -> Unit,
     onAbrirAjustesPrivacidad: () -> Unit,
     onCerrarSesion: () -> Unit,
+    mostrarControlDebug: Boolean,
+    debugHabilitado: Boolean,
+    onDebugHabilitadoChange: (Boolean) -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -193,6 +215,14 @@ private fun DatosPerfil(
         )
         ProximoVencimiento(proximoVencimiento, onReintentarVencimiento)
         Progreso(progreso, onReintentarProgreso, (preferenciasUsuario as? PreferenciasPerfilUiState.Datos)?.preferencias?.weeklyGoalMinutes)
+        InventarioPerfil(
+            canjes = canjes,
+            propiedad = inventarioCosmeticos,
+            preferencias = preferenciasCosmeticas,
+            onReintentar = onReintentarCanjes,
+            onAplicar = onAplicarCosmetico,
+            onQuitar = onQuitarCosmetico,
+        )
         CuentaYPreferencias(
             email = perfil.email,
             preferencias = preferenciasUsuario,
@@ -210,6 +240,27 @@ private fun DatosPerfil(
                 .testTag("boton_cerrar_sesion"),
         ) {
             Text(stringResource(R.string.perfil_cerrar_sesion))
+        }
+        if (mostrarControlDebug) {
+            Row(
+                modifier = Modifier.fillMaxWidth().testTag("fila_seccion_debug"),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                    Text(stringResource(R.string.debug_seccion_switch_titulo), style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        stringResource(R.string.debug_seccion_switch_descripcion),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = debugHabilitado,
+                    onCheckedChange = onDebugHabilitadoChange,
+                    modifier = Modifier.testTag("switch_seccion_debug"),
+                )
+            }
         }
     }
 }
@@ -474,6 +525,14 @@ private fun TarjetaSemana(metricas: ProgressMetrics, metaSemanalMinutos: Int?) {
             )
         }
         if (metaSemanalMinutos != null) {
+            Text(
+                text = stringResource(
+                    if (metricas.metaDiariaCumplida) R.string.perfil_meta_diaria_cumplida else R.string.perfil_meta_diaria_pendiente,
+                    ((metricas.segundosRestantesMetaDiaria ?: 0L) + 59) / 60,
+                ),
+                modifier = Modifier.testTag("estado_meta_diaria"),
+                style = MaterialTheme.typography.bodyMedium,
+            )
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
                     text = formatearDuracion(semanaMinutos),
@@ -673,35 +732,27 @@ private fun FilasPreferencias(
     onGuardarMeta: (Int) -> Unit,
     onConfigurarNotificaciones: (Boolean) -> Unit,
 ) {
-    var metaSeleccionada by remember(estado.preferencias.weeklyGoalMinutes) {
-        mutableStateOf(estado.preferencias.weeklyGoalMinutes)
+    var metaDiariaSeleccionada by remember(estado.preferencias.weeklyGoalMinutes) {
+        mutableStateOf(estado.preferencias.weeklyGoalMinutes?.let(UserPreferences::metaDiariaDesdeSemanal))
     }
-    var menuAbierto by remember { mutableStateOf(false) }
-    FilaCuenta(icono = Icons.Filled.Flag, titulo = stringResource(R.string.perfil_meta_semanal)) {
-        TextButton(
-            onClick = { menuAbierto = true },
-            enabled = !estado.guardando,
+    val metaSemanalSeleccionada = metaDiariaSeleccionada?.let(UserPreferences::metaSemanalDesdeDiaria)
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+        SelectorMetaDiaria(
+            selectedMinutes = metaSemanalSeleccionada,
+            error = false,
+            onSelect = { metaDiariaSeleccionada = it?.div(7) },
+            titleResource = R.string.perfil_meta_diaria_titulo,
             modifier = Modifier.testTag("meta_semanal_selector"),
-        ) {
-            Text(metaSeleccionada?.let { stringResource(R.string.perfil_meta_opcion, it) }
-                ?: stringResource(R.string.perfil_meta_elegir))
-        }
-        DropdownMenu(expanded = menuAbierto, onDismissRequest = { menuAbierto = false }) {
-            (UserPreferences.META_MINIMA..UserPreferences.META_MAXIMA step UserPreferences.INCREMENTO_META).forEach { minutes ->
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.perfil_meta_opcion, minutes)) },
-                    onClick = { metaSeleccionada = minutes; menuAbierto = false },
-                )
+        )
+        Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.End) {
+            Button(
+                onClick = { metaSemanalSeleccionada?.let(onGuardarMeta) },
+                enabled = !estado.guardando && metaSemanalSeleccionada != null &&
+                    metaSemanalSeleccionada != estado.preferencias.weeklyGoalMinutes,
+                modifier = Modifier.testTag("boton_guardar_meta"),
+            ) {
+                Text(stringResource(R.string.perfil_meta_guardar))
             }
-        }
-    }
-    Row(modifier = Modifier.fillMaxWidth().padding(end = 16.dp, bottom = 8.dp), horizontalArrangement = Arrangement.End) {
-        Button(
-            onClick = { metaSeleccionada?.let(onGuardarMeta) },
-            enabled = !estado.guardando && metaSeleccionada != null && metaSeleccionada != estado.preferencias.weeklyGoalMinutes,
-            modifier = Modifier.testTag("boton_guardar_meta"),
-        ) {
-            Text(stringResource(R.string.perfil_meta_guardar))
         }
     }
     if (estado.error) {
@@ -897,6 +948,140 @@ private fun FilaCanje(canje: RedeemedReward) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         canje.code?.let { Text(text = stringResource(R.string.perfil_canje_codigo, it)) }
+    }
+}
+
+@Composable
+private fun InventarioPerfil(
+    canjes: CanjesPerfilUiState,
+    propiedad: List<CosmeticOwnership>,
+    preferencias: CosmeticPreferences,
+    onReintentar: () -> Unit,
+    onAplicar: (String) -> Unit,
+    onQuitar: (TipoRecompensa) -> Unit,
+) {
+    var cuponSeleccionado by remember { mutableStateOf<RedeemedReward?>(null) }
+    val cupones = (canjes as? CanjesPerfilUiState.Lista)?.canjes.orEmpty()
+        .filter { it.kind == TipoRecompensa.CUPON || it.code != null }
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.testTag("inventario")) {
+        TituloSeccion(stringResource(R.string.perfil_inventario_titulo))
+        if (propiedad.isEmpty() && cupones.isEmpty()) {
+            when (canjes) {
+                CanjesPerfilUiState.Cargando -> CircularProgressIndicator()
+                CanjesPerfilUiState.Error -> ErrorPuntos(
+                    stringResource(R.string.perfil_error_canjes),
+                    onReintentar,
+                    "boton_reintentar_inventario",
+                )
+                CanjesPerfilUiState.SinConexion -> ErrorPuntos(
+                    stringResource(R.string.estado_sin_conexion),
+                    onReintentar,
+                    "boton_reintentar_inventario",
+                )
+                is CanjesPerfilUiState.Lista -> Text(
+                    stringResource(R.string.perfil_inventario_vacio),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.testTag("inventario_vacio"),
+                )
+            }
+        } else if (canjes is CanjesPerfilUiState.Error || canjes is CanjesPerfilUiState.SinConexion) {
+            ErrorPuntos(
+                stringResource(if (canjes is CanjesPerfilUiState.SinConexion) R.string.estado_sin_conexion else R.string.perfil_error_canjes),
+                onReintentar,
+                "boton_reintentar_inventario",
+            )
+        }
+
+        if (propiedad.isNotEmpty()) {
+            Text(stringResource(R.string.perfil_inventario_cosmeticos), style = MaterialTheme.typography.titleSmall)
+            propiedad.forEach { cosmetico ->
+                TarjetaCosmetico(cosmetico, preferencias, onAplicar, onQuitar)
+            }
+        }
+        if (cupones.isNotEmpty()) {
+            Text(stringResource(R.string.perfil_inventario_cupones), style = MaterialTheme.typography.titleSmall)
+            cupones.forEach { cupon ->
+                Card(
+                    modifier = Modifier.fillMaxWidth().testTag("inventario_cupon_${cupon.redemptionId}"),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(cupon.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Button(
+                            onClick = { cuponSeleccionado = cupon },
+                            enabled = cupon.code != null,
+                            modifier = Modifier.fillMaxWidth().testTag("boton_usar_cupon_${cupon.redemptionId}"),
+                        ) {
+                            Text(stringResource(R.string.perfil_inventario_usar_cupon))
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    cuponSeleccionado?.let { cupon ->
+        AlertDialog(
+            onDismissRequest = { cuponSeleccionado = null },
+            title = { Text(stringResource(R.string.perfil_inventario_codigo_titulo)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(cupon.name, style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        text = stringResource(R.string.perfil_canje_codigo, cupon.code.orEmpty()),
+                        modifier = Modifier.testTag("codigo_cupon_inventario"),
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { cuponSeleccionado = null },
+                    modifier = Modifier.testTag("boton_cerrar_cupon"),
+                ) {
+                    Text(stringResource(R.string.perfil_inventario_cerrar))
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun TarjetaCosmetico(
+    cosmetico: CosmeticOwnership,
+    preferencias: CosmeticPreferences,
+    onAplicar: (String) -> Unit,
+    onQuitar: (TipoRecompensa) -> Unit,
+) {
+    val activo = preferencias.activeCosmetics[cosmetico.kind] == cosmetico.rewardId
+    Card(
+        modifier = Modifier.fillMaxWidth().testTag("cosmetico_${cosmetico.rewardId}"),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        MiniaturaRecompensa(cosmetico.rewardId, cosmetico.kind, cosmetico.config)
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = cosmetico.name,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = stringResource(if (activo) R.string.recompensas_en_uso else tituloGrupo(cosmetico.kind)),
+                style = MaterialTheme.typography.bodySmall,
+                color = if (activo) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Button(
+                onClick = { if (activo) onQuitar(cosmetico.kind) else onAplicar(cosmetico.rewardId) },
+                modifier = Modifier.fillMaxWidth().testTag("boton_${if (activo) "quitar" else "aplicar"}_${cosmetico.rewardId}"),
+            ) {
+                Text(stringResource(if (activo) R.string.recompensas_quitar else R.string.recompensas_aplicar))
+            }
+        }
     }
 }
 

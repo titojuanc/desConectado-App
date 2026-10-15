@@ -18,15 +18,24 @@ class UserPreferencesTest {
     @Test
     fun aceptaExtremosDelRangoEnIncrementosDeTreinta() {
         assertEquals(30, UserPreferences(weeklyGoalMinutes = 30).weeklyGoalMinutes)
-        assertEquals(840, UserPreferences(weeklyGoalMinutes = 840).weeklyGoalMinutes)
+        assertEquals(2520, UserPreferences(weeklyGoalMinutes = 2520).weeklyGoalMinutes)
     }
 
     @Test
     fun rechazaMetasFueraDeRangoONoMultiploDeTreinta() {
-        for (minutes in listOf(0, 15, 45, 870)) {
+        for (minutes in listOf(0, 15, 45, 2550)) {
             assertThrows(IllegalArgumentException::class.java) {
                 UserPreferences(weeklyGoalMinutes = minutes)
             }
         }
+    }
+
+    @Test
+    fun convierteMetaDiariaEnSemanalYNormalizaMetasSemanalesLegacy() {
+        assertEquals(210, UserPreferences.metaSemanalDesdeDiaria(30))
+        assertEquals(2520, UserPreferences.metaSemanalDesdeDiaria(360))
+        assertEquals(30, UserPreferences.metaDiariaDesdeSemanal(30))
+        assertEquals(120, UserPreferences.metaDiariaDesdeSemanal(840))
+        assertEquals(360, UserPreferences.metaDiariaDesdeSemanal(2520))
     }
 }

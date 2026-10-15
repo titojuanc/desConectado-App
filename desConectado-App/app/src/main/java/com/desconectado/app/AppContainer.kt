@@ -11,6 +11,8 @@ import com.desconectado.app.data.profile.FirestoreAchievementRepository
 import com.desconectado.app.data.profile.FirestoreCosmeticPreferencesRepository
 import com.desconectado.app.data.profile.FirestoreUserPreferencesRepository
 import com.desconectado.app.data.usage.AndroidUsageStatsRepository
+import com.desconectado.app.data.usage.DebugSectionPreferenceStore
+import com.desconectado.app.data.usage.UsagePermissionTutorialStore
 import com.desconectado.app.data.notifications.DesconectadoNotifications
 import com.desconectado.app.data.challenges.ActiveChallengeStore
 import com.desconectado.app.data.challenges.FirestoreChallengeRepository
@@ -61,6 +63,8 @@ class AppContainer(context: Context) {
     val catalogRepository: CatalogRepository = FirestoreCatalogRepository(firestore)
     val pointsRepository: PointsRepository = FirestorePointsRepository(firestore)
     val usageStatsRepository: UsageStatsRepository = AndroidUsageStatsRepository(context)
+    val debugSectionPreferenceStore = DebugSectionPreferenceStore(context)
+    val usagePermissionTutorialStore = UsagePermissionTutorialStore(context)
     val activeChallengeStore = ActiveChallengeStore(context)
     val challengeRepository: ChallengeRepository = FirestoreChallengeRepository(firestore, activeChallengeStore)
     val notifications = DesconectadoNotifications(context)

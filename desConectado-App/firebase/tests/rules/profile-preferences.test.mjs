@@ -40,7 +40,8 @@ describe('reglas de perfil y preferencias', () => {
     }));
     await assertSucceeds(updateDoc(preferences, { weeklyGoalMinutes: 30 }));
     await assertSucceeds(updateDoc(preferences, { weeklyGoalMinutes: 840 }));
-    for (const weeklyGoalMinutes of [0, 45, 870]) {
+    await assertSucceeds(updateDoc(preferences, { weeklyGoalMinutes: 2520 }));
+    for (const weeklyGoalMinutes of [0, 45, 2550]) {
       await assertFails(updateDoc(preferences, { weeklyGoalMinutes }));
     }
     await assertFails(updateDoc(preferences, { notificationsEnabled: 'sí' }));

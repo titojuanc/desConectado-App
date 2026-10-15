@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Park
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.outlined.CheckCircleOutline
 import androidx.compose.material.icons.outlined.Forum
 import androidx.compose.material.icons.outlined.PersonOutline
@@ -61,11 +62,12 @@ private enum class Destino(
     DESAFIOS(R.string.tab_desafios, Icons.Filled.Check, "tab_desafios"),
     RECOMPENSAS(R.string.tab_recompensas, Icons.Filled.Star, "tab_recompensas"),
     PERFIL(R.string.tab_perfil, Icons.Filled.Person, "tab_perfil"),
+    DEBUG(R.string.tab_debug, Icons.Filled.BugReport, "tab_debug"),
 }
 
 /**
- * Estructura principal con sesión iniciada: barra inferior con Desafíos, Recompensas y Perfil, el
- * indicador de puntos arriba a la izquierda en todas (FR-028) y el aviso de conexión mientras no
+ * Estructura principal con sesión iniciada: barra inferior con Desafíos, Recompensas y Perfil, y
+ * Debug opcional para builds QA. El indicador de puntos aparece en todas (FR-028) y el aviso de conexión mientras no
  * haya red (FR-011). Tocar el indicador lleva al Perfil; desde el Perfil no hace nada. El contenido
  * de cada destino y el saldo llegan como parámetros para poder probar la estructura sin Firebase;
  * [onDestinoCambiado] avisa cada vez que se muestra una pestaña, para recargar el saldo.
@@ -81,9 +83,18 @@ fun MainShell(
     perfil: @Composable () -> Unit = {},
     iconPackId: String? = null,
     barraDesafio: @Composable () -> Unit = {},
+    mostrarDebug: Boolean = false,
+    debug: @Composable (
+        onAbrirDesafios: () -> Unit,
+        onAbrirRecompensas: () -> Unit,
+        onAbrirPerfil: () -> Unit,
+    ) -> Unit = { _, _, _ -> },
 ) {
     var destino by rememberSaveable { mutableStateOf(Destino.DESAFIOS) }
     LaunchedEffect(destino) { onDestinoCambiado() }
+    LaunchedEffect(mostrarDebug) {
+        if (!mostrarDebug && destino == Destino.DEBUG) destino = Destino.DESAFIOS
+    }
 
     Scaffold(
         modifier = modifier,
@@ -104,7 +115,8 @@ fun MainShell(
             Column {
             barraDesafio()
             NavigationBar {
-                Destino.entries.forEach { item ->
+                val destinos = if (mostrarDebug) Destino.entries else Destino.entries.filterNot { it == Destino.DEBUG }
+                destinos.forEach { item ->
                     NavigationBarItem(
                         selected = destino == item,
                         onClick = { destino = item },
@@ -123,6 +135,11 @@ fun MainShell(
                 Destino.DESAFIOS -> desafios()
                 Destino.RECOMPENSAS -> recompensas()
                 Destino.PERFIL -> perfil()
+                Destino.DEBUG -> debug(
+                    { destino = Destino.DESAFIOS },
+                    { destino = Destino.RECOMPENSAS },
+                    { destino = Destino.PERFIL },
+                )
             }
         }
     }
@@ -152,11 +169,13 @@ private fun Destino.icono(iconPackId: String?): ImageVector = when (iconPackId) 
         Destino.DESAFIOS -> Icons.Outlined.CheckCircleOutline
         Destino.RECOMPENSAS -> Icons.Outlined.StarBorder
         Destino.PERFIL -> Icons.Outlined.PersonOutline
+        Destino.DEBUG -> Icons.Filled.BugReport
     }
     "icon-pack-naturaleza" -> when (this) {
         Destino.DESAFIOS -> Icons.AutoMirrored.Filled.DirectionsWalk
         Destino.RECOMPENSAS -> Icons.Filled.Park
         Destino.PERFIL -> Icons.Filled.Person
+        Destino.DEBUG -> Icons.Filled.BugReport
     }
     else -> icono
 }

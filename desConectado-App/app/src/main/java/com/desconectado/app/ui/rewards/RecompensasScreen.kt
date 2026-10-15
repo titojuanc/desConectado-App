@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
@@ -56,6 +58,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.Button
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.Surface
+import androidx.compose.ui.window.Dialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -103,14 +108,15 @@ fun RecompensasScreen(
     canjePendiente: PendingRedemption? = null,
     propiedad: List<CosmeticOwnership> = emptyList(),
     preferencias: CosmeticPreferences = CosmeticPreferences(),
-    onAplicarCosmetico: ((String) -> Unit)? = null,
-    onQuitarCosmetico: ((TipoRecompensa) -> Unit)? = null,
     logros: ProgresoUiState = ProgresoUiState.Oculto,
     onReintentarLogros: () -> Unit = {},
     saldo: SaldoUiState = SaldoUiState.Cargando,
     onCanjeExitoso: () -> Unit = {},
+    onReintentarCanje: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    var seleccionada by remember { mutableStateOf<Recompensa?>(null) }
+    val abrirDetalle: (Recompensa) -> Unit = { seleccionada = it }
     val snackbar = remember { SnackbarHostState() }
     val mensajeInsuficiente = stringResource(R.string.canje_saldo_insuficiente)
     val mensajeSinPremios = stringResource(R.string.canje_caja_sin_premios)
@@ -168,19 +174,44 @@ fun RecompensasScreen(
                     RecompensasUiState.SinConexion -> PantallaSinConexion(onReintentar, Modifier.fillMaxSize())
                     is RecompensasUiState.Lista -> ListaRecompensas(
                         estado.recompensas,
-                        onCanjear,
+                        abrirDetalle,
                         canjePendiente,
                         propiedad,
                         preferencias,
-                        onAplicarCosmetico,
-                        onQuitarCosmetico,
                         saldo,
+                        onReintentarCanje,
                         Modifier.fillMaxSize(),
                     )
                 }
             }
         }
         SnackbarHost(hostState = snackbar, modifier = Modifier.align(Alignment.BottomCenter))
+    }
+    seleccionada?.let { recompensa ->
+        val poseida = propiedad.any { it.rewardId == recompensa.id }
+        val hayPremios = (estado as? RecompensasUiState.Lista)?.recompensas.orEmpty()
+            .any { it.kind.esCosmetico() && propiedad.none { owned -> owned.rewardId == it.id } }
+        Dialog(onDismissRequest = { seleccionada = null }) {
+            Surface(shape = RoundedCornerShape(16.dp)) {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState()).padding(16.dp)) {
+                    TarjetaRecompensa(
+                        recompensa = recompensa,
+                        onCanjear = onCanjear?.let { canjear ->
+                            { elegida -> seleccionada = null; canjear(elegida) }
+                        },
+                        canjePendiente = canjePendiente != null,
+                        poseida = poseida,
+                        hayPremiosParaCaja = hayPremios,
+                        activa = preferencias.activeCosmetics[recompensa.kind] == recompensa.id,
+                        saldo = saldo,
+                        mostrarDescripcion = true,
+                    )
+                    TextButton(onClick = { seleccionada = null }, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.desafios_cancelar_inicio))
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -272,9 +303,8 @@ private fun ListaRecompensas(
     canjePendiente: PendingRedemption?,
     propiedad: List<CosmeticOwnership>,
     preferencias: CosmeticPreferences,
-    onAplicarCosmetico: ((String) -> Unit)?,
-    onQuitarCosmetico: ((TipoRecompensa) -> Unit)?,
     saldo: SaldoUiState,
+    onReintentarCanje: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val ownedIds = propiedad.mapTo(mutableSetOf()) { it.rewardId }
@@ -296,7 +326,7 @@ private fun ListaRecompensas(
             )
         }
         if (canjePendiente != null) {
-            item(span = { GridItemSpan(maxLineSpan) }) { CanjePendiente(canjePendiente) }
+            item(span = { GridItemSpan(maxLineSpan) }) { CanjePendiente(canjePendiente, onReintentarCanje) }
         }
         val orden = listOf(TipoRecompensa.TEMA, TipoRecompensa.FONDO_ENFOQUE) + TipoRecompensa.entries.filter { it != TipoRecompensa.TEMA && it != TipoRecompensa.FONDO_ENFOQUE }
         orden.forEach { kind ->
@@ -314,20 +344,11 @@ private fun ListaRecompensas(
                 }
             }
         }
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            Text(text = stringResource(R.string.recompensas_mis_cosmeticos), style = MaterialTheme.typography.titleMedium)
-            if (propiedad.isEmpty()) {
-                Text(text = stringResource(R.string.recompensas_sin_cosmeticos), modifier = Modifier.testTag("cosmeticos_vacios"))
-            }
-        }
-        items(propiedad, key = { it.rewardId }) { cosmetico ->
-            TarjetaCosmetico(cosmetico, preferencias, onAplicarCosmetico, onQuitarCosmetico)
-        }
     }
 }
 
 @Composable
-private fun CanjePendiente(pendiente: PendingRedemption) {
+private fun CanjePendiente(pendiente: PendingRedemption, onReintentar: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth().testTag("canje_pendiente")) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(text = stringResource(R.string.canje_pendiente_titulo), style = MaterialTheme.typography.titleMedium)
@@ -340,6 +361,9 @@ private fun CanjePendiente(pendiente: PendingRedemption) {
                 ),
                 style = MaterialTheme.typography.bodyMedium,
             )
+            Button(onClick = onReintentar, modifier = Modifier.testTag("boton_reintentar_canje")) {
+                Text(stringResource(R.string.accion_reintentar))
+            }
         }
     }
 }
@@ -353,6 +377,7 @@ private fun TarjetaRecompensa(
     hayPremiosParaCaja: Boolean,
     activa: Boolean,
     saldo: SaldoUiState,
+    mostrarDescripcion: Boolean = false,
 ) {
     val available = (saldo as? SaldoUiState.Disponible)?.puntos
     Card(modifier = Modifier.fillMaxWidth().testTag("recompensa_${recompensa.id}"), shape = RoundedCornerShape(16.dp),
@@ -369,7 +394,16 @@ private fun TarjetaRecompensa(
         }
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(text = recompensa.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-            Text(text = recompensa.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (mostrarDescripcion) {
+                Text(text = recompensa.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                TextButton(
+                    onClick = { onCanjear?.invoke(recompensa) },
+                    modifier = Modifier.testTag("boton_ver_mas_recompensa_${recompensa.id}"),
+                ) {
+                    Text(stringResource(R.string.desafios_ver_mas))
+                }
+            }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 Icon(Icons.Filled.Star, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                 Text(text = recompensa.costPoints.toString(), style = MaterialTheme.typography.titleSmall,
@@ -377,7 +411,7 @@ private fun TarjetaRecompensa(
             }
             if (poseida) {
                 Text(text = stringResource(if (activa) R.string.recompensas_en_uso else R.string.recompensas_ya_poseida), color = MaterialTheme.colorScheme.primary)
-            } else if (onCanjear != null) {
+            } else if (onCanjear != null && mostrarDescripcion) {
                 if (available == null) Text(stringResource(R.string.recompensas_saldo_pendiente), style = MaterialTheme.typography.labelSmall)
                 if (available != null && available < recompensa.costPoints) {
                     LinearProgressIndicator(progress = { (available.toFloat() / recompensa.costPoints.coerceAtLeast(1)).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
@@ -411,7 +445,7 @@ private fun ilustracionRecompensa(id: String, kind: TipoRecompensa, config: Map<
 }
 
 @Composable
-private fun MiniaturaRecompensa(id: String, kind: TipoRecompensa, config: Map<String, String>, modifier: Modifier = Modifier) {
+internal fun MiniaturaRecompensa(id: String, kind: TipoRecompensa, config: Map<String, String>, modifier: Modifier = Modifier) {
     val frame = modifier.fillMaxWidth().aspectRatio(1.85f)
     if (kind == TipoRecompensa.TEMA || kind == TipoRecompensa.FONDO_ENFOQUE) {
         Image(painterResource(ilustracionRecompensa(id, kind, config)), contentDescription = null,
@@ -432,7 +466,7 @@ private fun MiniaturaRecompensa(id: String, kind: TipoRecompensa, config: Map<St
     }
 }
 
-private fun tituloGrupo(kind: TipoRecompensa): Int = when (kind) {
+internal fun tituloGrupo(kind: TipoRecompensa): Int = when (kind) {
     TipoRecompensa.TEMA -> R.string.recompensas_grupo_temas
     TipoRecompensa.FONDO_ENFOQUE -> R.string.recompensas_grupo_fondos
     TipoRecompensa.PACK_ICONOS -> R.string.recompensas_grupo_iconos
@@ -443,31 +477,4 @@ private fun tituloGrupo(kind: TipoRecompensa): Int = when (kind) {
     TipoRecompensa.CAJA_SORPRESA -> R.string.recompensas_grupo_cajas
     TipoRecompensa.CUPON -> R.string.recompensas_grupo_cupones
     TipoRecompensa.INSIGNIA -> R.string.perfil_logros_titulo
-}
-
-@Composable
-private fun TarjetaCosmetico(
-    cosmetico: CosmeticOwnership,
-    preferencias: CosmeticPreferences,
-    onAplicar: ((String) -> Unit)?,
-    onQuitar: ((TipoRecompensa) -> Unit)?,
-) {
-    val activo = preferencias.activeCosmetics[cosmetico.kind] == cosmetico.rewardId
-    Card(modifier = Modifier.fillMaxWidth().testTag("cosmetico_${cosmetico.rewardId}"), shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
-        MiniaturaRecompensa(cosmetico.rewardId, cosmetico.kind, cosmetico.config)
-        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(text = cosmetico.name, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-            Text(text = stringResource(if (activo) R.string.recompensas_en_uso else tituloGrupo(cosmetico.kind)), style = MaterialTheme.typography.bodySmall,
-                color = if (activo) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-            if (onAplicar != null && onQuitar != null) {
-                Button(
-                    onClick = { if (activo) onQuitar(cosmetico.kind) else onAplicar(cosmetico.rewardId) },
-                    modifier = Modifier.fillMaxWidth().testTag("boton_${if (activo) "quitar" else "aplicar"}_${cosmetico.rewardId}"),
-                ) {
-                    Text(stringResource(if (activo) R.string.recompensas_quitar else R.string.recompensas_aplicar))
-                }
-            }
-        }
-    }
 }

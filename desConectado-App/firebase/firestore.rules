@@ -28,6 +28,73 @@ service cloud.firestore {
       return rewardId == null || cosmeticoPoseido(uid, rewardId, kind);
     }
 
+    function creditoDesafioValido(uid, sourceId, challengeId, amount) {
+      let resultPath = /databases/$(database)/documents/users/$(uid)/challengeResults/$(sourceId);
+      let challengePath = /databases/$(database)/documents/challenges/$(challengeId);
+      let result = getAfter(resultPath).data;
+      let challenge = get(challengePath).data;
+      return result.challengeRunId == sourceId
+        && result.challengeId == challengeId
+        && result.status == 'COMPLETED'
+        && result.pointsAwarded == amount
+        && challenge.points is int
+        && result.get('streakBonusPoints', 0) is int
+        && result.get('streakBonusPoints', 0) >= 0
+        && amount == challenge.points + result.get('streakBonusPoints', 0)
+        && (
+          (result.get('dailyKey', '') == ''
+            && amount == challenge.points
+            && result.get('pointsMultiplier', 1) == 1)
+          || (result.get('dailyKey', '') != ''
+            && getAfter(/databases/$(database)/documents/users/$(uid)/dailyStreakProgress/$(result.dailyKey)).data.lastRunId == sourceId)
+        );
+    }
+
+    function creditoDiarioValido(uid, result, base, before, after) {
+      let bonus = result.streakBonusPoints;
+      let preferencesPath = /databases/$(database)/documents/users/$(uid)/preferences/current;
+      let goal = exists(preferencesPath) ? get(preferencesPath).data.get('weeklyGoalMinutes', 0) : 0;
+      let extra = after.basePoints * result.get('streakDays', 0) * goal / 21000.0;
+      return after.lastRunId == result.challengeRunId
+        && after.basePoints == before.basePoints + base
+        && after.completedSeconds == before.completedSeconds + result.durationSeconds
+        && after.bonusAwarded == (before.bonusAwarded || bonus > 0)
+        && (
+          (bonus == 0 && result.pointsMultiplier == 1 && result.streakDays == 0 && result.weeklyGoalMinutesUsed == 0)
+          || (bonus > 0
+            && !before.bonusAwarded
+            && goal is int && goal >= 30 && goal <= 2520 && goal % 30 == 0
+            && result.weeklyGoalMinutesUsed == goal
+            && after.completedSeconds * 7 >= goal * 60
+            && result.streakDays is int && result.streakDays >= 1
+            && result.pointsMultiplier == 1 + result.streakDays * goal / 21000.0
+            && result.dailyBasePoints == after.basePoints
+            && bonus >= extra && bonus - 1 < extra)
+        );
+    }
+
+    match /users/{uid}/dailyStreakProgress/{dayKey} {
+      allow read: if esDueno(uid);
+      allow create, update: if esDueno(uid)
+        && request.resource.data.keys().hasOnly(['basePoints', 'completedSeconds', 'bonusAwarded', 'lastRunId', 'updatedAt'])
+        && request.resource.data.basePoints is int && request.resource.data.basePoints >= 0
+        && request.resource.data.completedSeconds is int && request.resource.data.completedSeconds >= 0
+        && request.resource.data.bonusAwarded is bool
+        && request.resource.data.updatedAt == request.time
+        && !exists(/databases/$(database)/documents/users/$(uid)/movements/$('credit-' + request.resource.data.lastRunId))
+        && getAfter(/databases/$(database)/documents/users/$(uid)/movements/$('credit-' + request.resource.data.lastRunId)).data.sourceId == request.resource.data.lastRunId
+        && getAfter(/databases/$(database)/documents/users/$(uid)/challengeResults/$(request.resource.data.lastRunId)).data.dailyKey == dayKey
+        && creditoDiarioValido(
+          uid,
+          getAfter(/databases/$(database)/documents/users/$(uid)/challengeResults/$(request.resource.data.lastRunId)).data,
+          get(/databases/$(database)/documents/challenges/$(getAfter(/databases/$(database)/documents/users/$(uid)/challengeResults/$(request.resource.data.lastRunId)).data.challengeId)).data.points,
+          request.method == 'create' ? {'basePoints': 0, 'completedSeconds': 0, 'bonusAwarded': false} : resource.data,
+          request.resource.data
+        );
+      allow delete: if esDueno(uid)
+        && resource.data.lastRunId.matches('debug-streak-.*');
+    }
+
     function esTipoCosmetico(kind) {
       return kind in ['theme', 'focus-background', 'icon-pack', 'profile-frame', 'point-icon', 'completion-animation', 'completion-sound'];
     }
@@ -67,7 +134,6 @@ service cloud.firestore {
         && request.resource.data.pointsBalance >= 0
         && request.resource.data.lastMovementId is string
         && !exists(/databases/$(database)/documents/users/$(uid)/movements/$(request.resource.data.lastMovementId))
-        && existsAfter(/databases/$(database)/documents/users/$(uid)/movements/$(request.resource.data.lastMovementId))
         && getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(request.resource.data.lastMovementId)).data.amount is int
         && getAfter(/databases/$(database)/documents/users/$(uid)/movements/$(request.resource.data.lastMovementId)).data.createdAt == request.time
         && (
@@ -113,7 +179,15 @@ service cloud.firestore {
         && request.resource.data.pointsAwarded >= 0
         && request.resource.data.measuredSocialSeconds >= 0
         && request.resource.data.offlineSeconds >= 0;
-      allow update, delete: if false;
+      allow update: if esDueno(uid)
+        && resource.data.status == 'COMPLETED'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'pointsAwarded', 'pointsMultiplier', 'streakDays', 'weeklyGoalMinutesUsed',
+          'streakBonusPoints', 'dailyBasePoints', 'dailyKey'
+        ])
+        && !exists(/databases/$(database)/documents/users/$(uid)/movements/$('credit-' + runId))
+        && getAfter(/databases/$(database)/documents/users/$(uid)/movements/$('credit-' + runId)).data.sourceId == runId;
+      allow delete: if esDueno(uid) && runId.matches('debug-streak-.*');
     }
 
     match /users/{uid}/challengeRatings/{runId} {
@@ -193,7 +267,7 @@ service cloud.firestore {
         && (request.resource.data.get('weeklyGoalMinutes', null) == null
           || (request.resource.data.weeklyGoalMinutes is int
             && request.resource.data.weeklyGoalMinutes >= 30
-            && request.resource.data.weeklyGoalMinutes <= 840
+            && request.resource.data.weeklyGoalMinutes <= 2520
             && request.resource.data.weeklyGoalMinutes % 30 == 0))
         && seleccionValida(uid, request.resource.data.activeCosmetics, 'theme', 'theme')
         && seleccionValida(uid, request.resource.data.activeCosmetics, 'focus-background', 'focus-background')
@@ -344,13 +418,12 @@ service cloud.firestore {
             && movementId == 'credit-' + request.resource.data.sourceId
             && request.resource.data.challengeId is string
             && request.resource.data.lotId is string
-            && existsAfter(/databases/$(database)/documents/users/$(uid)/pointLots/$(request.resource.data.lotId))
             && getAfter(/databases/$(database)/documents/users/$(uid)/pointLots/$(request.resource.data.lotId)).data.remainingPoints >= request.resource.data.amount
             && getAfter(/databases/$(database)/documents/users/$(uid)/pointLotSessions/current).data.lotId == request.resource.data.lotId
             && getAfter(/databases/$(database)/documents/users/$(uid)/challengeResults/$(request.resource.data.sourceId)).data.status == 'COMPLETED'
             && request.time >= getAfter(/databases/$(database)/documents/users/$(uid)/challengeResults/$(request.resource.data.sourceId)).data.startedAt
               + duration.value(getAfter(/databases/$(database)/documents/users/$(uid)/challengeResults/$(request.resource.data.sourceId)).data.durationSeconds, 's')
-            && get(/databases/$(database)/documents/challenges/$(request.resource.data.challengeId)).data.points == request.resource.data.amount)
+            && creditoDesafioValido(uid, request.resource.data.sourceId, request.resource.data.challengeId, request.resource.data.amount))
           ||
           (request.resource.data.type == 'redeem'
             && request.resource.data.rewardId is string

@@ -16,6 +16,8 @@ import com.desconectado.app.testutil.MainDispatcherRule
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.async
+import kotlinx.coroutines.CompletableDeferred
+import com.desconectado.app.domain.repository.PointsRepository
 import kotlinx.coroutines.flow.first
 import java.time.Instant
 import org.junit.Assert.assertEquals
@@ -23,6 +25,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class RecompensasCanjeViewModelTest {
     @get:Rule val mainDispatcherRule = MainDispatcherRule()
 
@@ -31,6 +34,58 @@ class RecompensasCanjeViewModelTest {
     private val preferences = FakeCosmeticPreferencesRepository()
     private val connectivity = FakeConnectivityMonitor()
     private val reward = Recompensa("coupon", "Cupón", "Digital", 50, TipoRecompensa.CUPON, 1)
+
+    @Test fun muestraProcesamientoDesdeLaConsultaDeSaldoHastaElFinYEvitaDuplicados() = runTest {
+        catalog.resultadoRecompensas = Resultado.Exito(listOf(reward))
+        val saldo = CompletableDeferred<Resultado<Int>>()
+        val canje = CompletableDeferred<Resultado<RedeemedReward>>()
+        var solicitudes = 0
+        val repo = object : PointsRepository by points {
+            override suspend fun saldo(uid: String) = saldo.await()
+            override suspend fun redeem(uid: String, reward: Recompensa, redemptionId: String): Resultado<RedeemedReward> {
+                solicitudes++
+                return canje.await()
+            }
+        }
+        val vm = RecompensasCanjeViewModel("ana", catalog, repo, preferences, connectivity)
+        vm.canjear(reward, "r1")
+        assertEquals(true, vm.procesando.value)
+        vm.canjear(reward, "duplicado")
+        saldo.complete(Resultado.Exito(100))
+        assertEquals(1, solicitudes)
+        assertEquals(true, vm.procesando.value)
+        canje.complete(Resultado.Fallo(ErrorApp.SinConexion))
+        assertEquals(false, vm.procesando.value)
+    }
+
+    @Test fun reanudarPendienteMuestraProcesamientoYLoRetiraAlTerminar() = runTest {
+        catalog.resultadoRecompensas = Resultado.Exito(listOf(reward))
+        points.pendienteResultado = Resultado.Exito(PendingRedemption(
+            "r1", reward.id, reward.name, 50, null, 10, mapOf("lot-1" to 10), Instant.now(),
+        ))
+        var reanudado = CompletableDeferred<Resultado<RedeemedReward?>>()
+        var intentos = 0
+        val repo = object : PointsRepository by points {
+            override suspend fun resumePendingRedemption(uid: String): Resultado<RedeemedReward?> {
+                intentos++
+                return reanudado.await()
+            }
+        }
+        val vm = RecompensasCanjeViewModel("ana", catalog, repo, preferences, connectivity)
+        assertEquals(true, vm.procesando.value)
+        reanudado.complete(Resultado.Fallo(ErrorApp.SinConexion))
+        assertEquals(false, vm.procesando.value)
+        assertTrue(vm.estado.value is RecompensasCanjeUiState.Lista)
+        reanudado = CompletableDeferred()
+        vm.recargar()
+        assertEquals(true, vm.procesando.value)
+        vm.recargar()
+        assertEquals(2, intentos)
+        val premio = RedeemedReward("r1", reward.id, reward.name, 50, "redeem-r1", null, Instant.now())
+        reanudado.complete(Resultado.Exito(premio))
+        assertEquals(false, vm.procesando.value)
+        assertEquals(RecompensasCanjeUiState.CanjeExitoso(premio), vm.estado.value)
+    }
 
     @Test fun cargaCatalogoYCanjeadas() = runTest {
         catalog.resultadoRecompensas = Resultado.Exito(listOf(reward))

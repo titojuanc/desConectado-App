@@ -104,7 +104,7 @@ fun RegistroScreen(
             modifier = Modifier.padding(top = 8.dp),
         )
 
-        SelectorMetaSemanal(
+        SelectorMetaDiaria(
             selectedMinutes = estado.weeklyGoalMinutes,
             error = estado.errorMetaSemanal,
             onSelect = onMetaSemanalChange,

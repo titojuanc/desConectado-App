@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="perfil_meta_diaria_cumplida">Meta diaria cumplida. La racha de hoy está mantenida.</string>
+    <string name="perfil_meta_diaria_pendiente">La racha de hoy sigue pendiente: faltan %1$d minutos para la meta diaria (meta semanal ÷ 7).</string>
     <string name="perfil_titulo">Tu perfil</string>
     <string name="perfil_etiqueta_username">Nombre de usuario</string>
     <string name="perfil_etiqueta_email">Correo</string>

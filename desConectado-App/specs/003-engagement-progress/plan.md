@@ -37,7 +37,7 @@ visual únicamente cuando todas las funciones estén disponibles.
 
 **Performance Goals**: Historiales paginados o consultados sin bloquear la pantalla; actualización de saldo/progreso coherente tras cada operación; catálogo y perfil utilizables en una conexión móvil normal.
 
-**Constraints**: conservar reglas de propiedad/inmutabilidad y saldo no negativo; no cámara, fotos, IA, bloqueo ni beneficios externos. Los logros no se compran. Los puntos se agrupan por día y vencen 30 días después, con consumo FIFO; el corte diario y procesamiento con la app cerrada requieren decisión. La meta semanal se configura al registrarse y es editable, sin valor por defecto asumido. Solo productos Firebase gratuitos. Adaptación visual completa fuera de alcance.
+**Constraints**: conservar reglas de propiedad/inmutabilidad y saldo no negativo; no cámara, fotos, IA, bloqueo ni beneficios externos. Los logros no se compran. Los puntos se agrupan por día y vencen 30 días después, con consumo FIFO; el corte diario y procesamiento con la app cerrada requieren decisión. La meta diaria se configura al registrarse y es editable entre 30 minutos y 6 horas, en pasos de 30 minutos; la meta semanal se genera multiplicándola por siete y no tiene valor predeterminado. Solo productos Firebase gratuitos. Adaptación visual completa fuera de alcance.
 
 **Scale/Scope**: 28 desafíos en 4 categorías, 10 logros, el conjunto de cosméticos aprobado desde los documentos y las funciones de rating, vencimiento, historiales y preferencias. Una cuenta puede tener historiales extensos; preservar IDs y snapshots ya existentes.
 

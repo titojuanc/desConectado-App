@@ -1,6 +1,7 @@
 package com.desconectado.app.ui
 
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
@@ -11,6 +12,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.desconectado.app.domain.model.DesafioHecho
@@ -18,12 +20,15 @@ import com.desconectado.app.domain.model.AchievementCriterion
 import com.desconectado.app.domain.model.AchievementDefinition
 import com.desconectado.app.domain.model.AchievementProgress
 import com.desconectado.app.domain.model.CosmeticPreferences
+import com.desconectado.app.domain.model.CosmeticOwnership
 import com.desconectado.app.domain.model.Perfil
+import com.desconectado.app.domain.model.RedeemedReward
 import com.desconectado.app.domain.model.UpcomingPointExpiry
 import com.desconectado.app.domain.model.TipoRecompensa
 import com.desconectado.app.domain.model.UserPreferences
 import com.desconectado.app.domain.ProgressMetrics
 import com.desconectado.app.ui.profile.DesafiosHechosUiState
+import com.desconectado.app.ui.profile.CanjesPerfilUiState
 import com.desconectado.app.ui.profile.PerfilScreen
 import com.desconectado.app.ui.profile.PerfilUiState
 import com.desconectado.app.ui.profile.ProximoVencimientoUiState
@@ -59,12 +64,19 @@ class PerfilScreenTest {
         proximo: ProximoVencimientoUiState = ProximoVencimientoUiState.SinVencimientos,
         progreso: ProgresoUiState = ProgresoUiState.Oculto,
         preferenciasCosmeticas: CosmeticPreferences = CosmeticPreferences(),
+        inventarioCosmeticos: List<CosmeticOwnership> = emptyList(),
+        canjes: CanjesPerfilUiState = CanjesPerfilUiState.Lista(emptyList()),
+        onAplicarCosmetico: (String) -> Unit = {},
+        onQuitarCosmetico: (TipoRecompensa) -> Unit = {},
         edicionNombre: EdicionNombreUiState = EdicionNombreUiState(),
         onEditarNombre: () -> Unit = {},
         onCambiarNombre: (String) -> Unit = {},
         onGuardarNombre: () -> Unit = {},
         onCancelarEdicionNombre: () -> Unit = {},
         preferenciasUsuario: PreferenciasPerfilUiState = PreferenciasPerfilUiState.Oculto,
+        mostrarControlDebug: Boolean = false,
+        debugHabilitado: Boolean = false,
+        onDebugHabilitadoChange: (Boolean) -> Unit = {},
         onGuardarMetaSemanal: (Int) -> Unit = {},
         onConfigurarNotificaciones: (Boolean) -> Unit = {},
         onAbrirAjustesPrivacidad: () -> Unit = {},
@@ -79,12 +91,19 @@ class PerfilScreenTest {
                 proximoVencimiento = proximo,
                 progreso = progreso,
                 preferenciasCosmeticas = preferenciasCosmeticas,
+                inventarioCosmeticos = inventarioCosmeticos,
+                canjes = canjes,
+                onAplicarCosmetico = onAplicarCosmetico,
+                onQuitarCosmetico = onQuitarCosmetico,
                 edicionNombre = edicionNombre,
                 onEditarNombre = onEditarNombre,
                 onCambiarNombre = onCambiarNombre,
                 onGuardarNombre = onGuardarNombre,
                 onCancelarEdicionNombre = onCancelarEdicionNombre,
                 preferenciasUsuario = preferenciasUsuario,
+                mostrarControlDebug = mostrarControlDebug,
+                debugHabilitado = debugHabilitado,
+                onDebugHabilitadoChange = onDebugHabilitadoChange,
                 onGuardarMetaSemanal = onGuardarMetaSemanal,
                 onConfigurarNotificaciones = onConfigurarNotificaciones,
                 onAbrirAjustesPrivacidad = onAbrirAjustesPrivacidad,
@@ -214,23 +233,77 @@ class PerfilScreenTest {
             onConfigurarNotificaciones = { notificaciones = it },
         )
 
-        compose.onNodeWithText("Elegir meta semanal").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("¿Cuánto querés desconectarte por día?").performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("boton_guardar_meta").performScrollTo().assertIsNotEnabled()
-        compose.onNodeWithTag("meta_semanal_selector").performScrollTo().performClick()
-        compose.onNodeWithText("120 min/semana").performClick()
+        compose.onNodeWithTag("selector_meta_diaria").performScrollTo().performSemanticsAction(SemanticsActions.SetProgress) {
+            it(60f)
+        }
         compose.onNodeWithTag("boton_guardar_meta").performClick()
         compose.onNodeWithTag("toggle_notificaciones").performScrollTo().performClick()
 
-        assertEquals(120, metaGuardada)
+        assertEquals(420, metaGuardada)
         assertEquals(true, notificaciones)
+    }
+
+    @Test
+    fun elInventarioPermiteUsarCuponesYActivarCosmeticosPoseidos() {
+        val tema = CosmeticOwnership(
+            rewardId = "theme-bosque",
+            name = "Tema Bosque",
+            kind = TipoRecompensa.TEMA,
+            config = mapOf("palette" to "forest"),
+            acquiredAt = Instant.EPOCH,
+            redemptionId = "purchase-theme",
+        )
+        val cupon = RedeemedReward(
+            redemptionId = "purchase-coupon",
+            rewardId = "coupon",
+            name = "Cupón digital",
+            costPoints = 50,
+            movementId = "movement",
+            code = "DC-123",
+            createdAt = Instant.EPOCH,
+            kind = TipoRecompensa.CUPON,
+        )
+        var temaActivado: String? = null
+        mostrar(
+            inventarioCosmeticos = listOf(tema),
+            canjes = CanjesPerfilUiState.Lista(listOf(cupon)),
+            onAplicarCosmetico = { temaActivado = it },
+        )
+
+        compose.onNodeWithTag("boton_aplicar_theme-bosque").performScrollTo().performClick()
+        assertEquals("theme-bosque", temaActivado)
+        compose.onNodeWithTag("boton_usar_cupon_purchase-coupon").performScrollTo().performClick()
+        compose.onNodeWithTag("codigo_cupon_inventario").assertIsDisplayed().assertTextEquals("Código: DC-123")
     }
 
     @Test
     fun explicaUsoDeEstadisticasYOfreceAbrirAjustesDeAndroid() {
         mostrar()
 
-        compose.onNodeWithText("Usamos las estadísticas de uso del dispositivo para medir tus desafíos.", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Configura o revisa el permiso de datos de uso", substring = true).assertIsDisplayed()
         compose.onNodeWithTag("boton_ajustes_privacidad").assertIsDisplayed()
+    }
+
+    @Test
+    fun tocarPermisosYPrivacidadInvocaLaGuia() {
+        var abrioGuia = false
+        mostrar(onAbrirAjustesPrivacidad = { abrioGuia = true })
+
+        compose.onNodeWithTag("boton_ajustes_privacidad").performScrollTo().performClick()
+
+        assertEquals(true, abrioGuia)
+    }
+
+    @Test
+    fun switchAlFinalDePerfilActivaLaSeccionDebug() {
+        var activada: Boolean? = null
+        mostrar(mostrarControlDebug = true, onDebugHabilitadoChange = { activada = it })
+
+        compose.onNodeWithTag("switch_seccion_debug").performScrollTo().assertIsDisplayed().performClick()
+
+        assertEquals(true, activada)
     }
 
     @Test

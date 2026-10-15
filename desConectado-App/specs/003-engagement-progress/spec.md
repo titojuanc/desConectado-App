@@ -128,7 +128,7 @@ La persona edita los datos de perfil permitidos, consulta privacidad y configura
 - **FR-012**: Un canje MUST descontar exactamente el costo, una sola vez. Si abarca varios lotes, puede procesarse mediante débitos FIFO idempotentes por etapa; mientras queda pendiente se bloquean otros débitos y vencimientos, se reanuda automáticamente al volver a la tienda y se informa allí sin mostrarlo como canje completado. La propiedad de un elemento no se pierde al desaparecer del catálogo y la caja sorpresa no puede otorgar un elemento ya poseído.
 - **FR-013**: La persona MUST poder activar únicamente personalizaciones que posee; la selección activa debe persistir y la insignia de logro MUST ser independiente de las compras.
 - **FR-014**: La app MUST mostrar en el perfil tiempo desconectado total, desafíos completados, racha, meta semanal y resumen de logros.
-- **FR-015**: La app MUST solicitar que la persona configure su meta semanal al registrarse y permitir ajustarla después; MUST permitir editar el nombre visible y preferencias de notificaciones/apariencia, sin modificar la identidad de autenticación desde el perfil.
+- **FR-015**: La app MUST solicitar que la persona configure su meta diaria al registrarse, generar automáticamente la meta semanal equivalente y permitir ajustar la elección diaria después; MUST permitir editar el nombre visible y preferencias de notificaciones/apariencia, sin modificar la identidad de autenticación desde el perfil.
 - **FR-016**: La app MUST explicar la medición de uso y enlazar a los ajustes del sistema para administrar su permiso; MUST NOT pedir cámara, capturar fotos, bloquear aplicaciones ni publicar el uso individual de otras aplicaciones.
 - **FR-017**: La app MUST conservar y seguir permitiendo consultar las recompensas digitales y los movimientos de canje que ya existen en la entrega 2; no se introducen beneficios externos a la app.
 
@@ -140,7 +140,7 @@ La persona edita los datos de perfil permitidos, consulta privacidad y configura
 - **Desafío de catálogo**: propuesta con categoría y contenido editorial además de duración, dificultad y puntos.
 - **Logro**: criterio, progreso, estado de desbloqueo y fecha de concesión.
 - **Cosmético**: artículo de tienda, tipo, costo y configuración visual/funcional; propiedad separada de selección activa.
-- **Preferencias de perfil**: nombre visible, selección estética, meta semanal y preferencias de notificación.
+- **Preferencias de perfil**: nombre visible, selección estética, meta diaria (con meta semanal automática) y preferencias de notificación.
 
 ## Success Criteria
 
@@ -162,7 +162,7 @@ La persona edita los datos de perfil permitidos, consulta privacidad y configura
 - **Confirmado**: se procesa el vencimiento al volver a usar la app (al abrir/consultar/canjear); no se requiere expiración en segundo plano. No usar Firestore TTL ni Cloud Functions.
 - **Confirmado**: el perfil muestra siempre el próximo vencimiento debajo del saldo, como “X puntos están por vencer en Y días”; agrupar lotes que vencen en el mismo instante y calcular Y con días calendario de la zona original del lote.
 - **Confirmado**: en el reinicio de lanzamiento se conserva cuentas/perfiles, pero se borran saldos acumulados, movimientos, canjes e historiales de desafíos de todas las cuentas productivas; las sesiones activas se cancelan y eliminan sin dejar resultado. El reinicio se prepara con dry-run y no se ejecuta durante el desarrollo.
-- **Confirmado**: la meta semanal se configura durante el registro y puede ajustarse desde la app. No definir un valor predeterminado ni un rango hasta preguntarlo.
+- **Confirmado**: la meta diaria se configura durante el registro y puede ajustarse desde la app; se elige de 30 minutos a 6 horas en pasos de 30 minutos, sin valor predeterminado. La meta semanal se calcula automáticamente multiplicando la elección diaria por siete.
 - **Confirmado**: la racha se pierde cuando no se cumple; no se acumulan ni compensan días incumplidos. El criterio exacto de día cumplido y el huso horario se preguntarán antes de implementar esa función.
 - **Confirmado**: no se usarán productos Firebase que requieran pasar a un plan pago; no planificar Cloud Functions pagas. La estrategia de ejecución del vencimiento debe verificarse dentro del nivel gratuito y no puede confiar el cálculo del saldo al cliente.
 - **Confirmado**: el rating usa solo estrellas de 1 a 5, es obligatorio al completar, no ofrece etiquetas y no puede editarse.
@@ -170,9 +170,9 @@ La persona edita los datos de perfil permitidos, consulta privacidad y configura
 - **Confirmado**: el catálogo final tiene las 28 propuestas; preservar los tres IDs actuales de caminar 30 min, bici 1 h y juntarse con amigos 4 h. Los desafíos retirados se archivan y no aparecen en el catálogo activo.
 - **Confirmado**: al abrir el catálogo se muestra Todos; seleccionar una categoría solo filtra durante la sesión actual.
 - **Confirmado**: un día de racha cuenta con al menos un desafío completado válido, cualquiera sea su duración. La racha de ayer se conserva durante el día local actual y se rompe al terminar un día sin completar desafíos.
-- **Confirmado**: cada resultado se asigna al día local usando la zona del dispositivo al completarlo; la semana empieza el lunes. La meta semanal se elige obligatoriamente durante el registro, sin valor predeterminado, entre 30 y 840 minutos en incrementos de 30; luego se puede ajustar dentro del mismo rango.
+- **Confirmado**: cada resultado se asigna al día local usando la zona del dispositivo al completarlo; la semana empieza el lunes. La meta diaria se elige obligatoriamente durante el registro, sin valor predeterminado, entre 30 minutos y 6 horas en incrementos de 30; la meta semanal se calcula como siete veces la diaria y puede ajustarse luego desde el mismo control.
 - **Confirmado**: la app calcula progreso/logros desde resultados completados; Firestore protege propiedad, monotonicidad e idempotencia, pero no puede verificar conteos arbitrarios del historial. Se acepta que un cliente modificado pueda falsificar logros, que no tienen valor económico ni otorgan puntos.
-- **Confirmado**: preferencias usan un único toggle general de notificaciones, apagado por defecto. La meta semanal debe elegirse durante Registro; el flujo Google desde Registro también pasa la selección. Perfiles legacy mantienen meta sin configurar hasta que su dueña la elija.
+- **Confirmado**: preferencias usan un único toggle general de notificaciones, apagado por defecto. La meta diaria debe elegirse durante Registro; el flujo Google desde Registro también pasa la selección. Perfiles legacy mantienen meta sin configurar hasta que su dueña la elija.
 - **Confirmado para cosméticos**: usar el catálogo/costos de `Recompensas_desconectado.docx`: Tema Bosque 100, Tema Atardecer 150, Tema Océano 150, Tema Noche 200; Pack de íconos Minimal 80 y Naturaleza 100; Fondo Montañas 60, Noche estrellada 80 y Amanecer 80; Marco de perfil 100 y Marco Naturaleza 150; Estrella especial 200; Animación de logro 120; Sonido de finalización 60; Caja sorpresa 120. Los IDs serán slugs estables de los nombres. La caja entrega un cosmético elegible aún no poseído; si no quedan elegibles, no se cobra ni se registra. Mantener cupones existentes; insignias pasan a logros automáticos y se archivan del catálogo de compra sin borrar su historial.
 - Para el avatar se usarán opciones integradas o iniciales, no captura ni selección de fotos, mientras siga vigente la restricción de cámara/fotografías.
 - La apariencia puede aplicar paletas, fondos, íconos y marcos. No se infiere que temas cambien la lógica de desafíos o concedan puntos.

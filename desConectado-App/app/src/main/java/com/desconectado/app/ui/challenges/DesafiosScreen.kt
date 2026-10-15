@@ -1,6 +1,7 @@
 package com.desconectado.app.ui.challenges
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Spacer
@@ -22,7 +23,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Icon
 import androidx.compose.material.icons.Icons
@@ -42,7 +45,19 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,7 +66,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
@@ -67,6 +81,8 @@ import com.desconectado.app.domain.model.Dificultad
 import com.desconectado.app.ui.components.PantallaCargando
 import com.desconectado.app.ui.components.PantallaError
 import com.desconectado.app.ui.components.PantallaSinConexion
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun DesafiosScreen(
@@ -75,13 +91,88 @@ fun DesafiosScreen(
     onIniciar: ((Desafio) -> Unit)? = null,
     onCategoriaSeleccionada: (CategoriaDesafio?) -> Unit = {},
     iconPackId: String? = null,
+    hayDesafioActivo: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
-    when (estado) {
-        DesafiosUiState.Cargando -> PantallaCargando(modifier)
-        DesafiosUiState.Error -> PantallaError(onReintentar, modifier)
-        DesafiosUiState.SinConexion -> PantallaSinConexion(onReintentar, modifier)
-        is DesafiosUiState.Lista -> ListaDesafios(estado, onIniciar, onCategoriaSeleccionada, iconPackId, modifier)
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val mensajeDesafioActivo = stringResource(R.string.desafios_ya_activo)
+    var desafioSeleccionado by remember { mutableStateOf<Desafio?>(null) }
+    val onSeleccionarDesafio: ((Desafio) -> Unit)? = onIniciar?.let { iniciar ->
+        { desafio ->
+            if (hayDesafioActivo) {
+                scope.launch {
+                    snackbarHostState.showSnackbar(
+                        message = mensajeDesafioActivo,
+                        duration = SnackbarDuration.Short,
+                    )
+                }
+            } else {
+                desafioSeleccionado = desafio
+            }
+        }
+    }
+    Box(modifier = modifier.fillMaxSize()) {
+        when (estado) {
+            DesafiosUiState.Cargando -> PantallaCargando()
+            DesafiosUiState.Error -> PantallaError(onReintentar)
+            DesafiosUiState.SinConexion -> PantallaSinConexion(onReintentar)
+            is DesafiosUiState.Lista -> ListaDesafios(estado, onSeleccionarDesafio, onCategoriaSeleccionada, iconPackId)
+        }
+        SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
+    }
+    desafioSeleccionado?.let { desafio ->
+        Dialog(onDismissRequest = { desafioSeleccionado = null }) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surface,
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    TarjetaDesafio(desafio, onIniciar = null, tagPrefix = "confirmacion_", mostrarDescripcion = true)
+                    MantenerParaIniciar(onIniciar = {
+                        desafioSeleccionado = null
+                        onIniciar?.invoke(desafio)
+                    })
+                    TextButton(onClick = { desafioSeleccionado = null }, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.desafios_cancelar_inicio))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MantenerParaIniciar(onIniciar: () -> Unit) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val presionado by interactionSource.collectIsPressedAsState()
+    var progreso by remember { mutableFloatStateOf(0f) }
+
+    LaunchedEffect(presionado) {
+        if (!presionado) {
+            progreso = 0f
+            return@LaunchedEffect
+        }
+        repeat(60) { paso ->
+            delay(50)
+            progreso = (paso + 1) / 60f
+        }
+        onIniciar()
+    }
+
+    Button(
+        onClick = {},
+        interactionSource = interactionSource,
+        modifier = Modifier.fillMaxWidth().testTag("boton_mantener_iniciar"),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(stringResource(R.string.desafios_mantener_para_iniciar), fontWeight = FontWeight.Bold)
+            LinearProgressIndicator(progress = { progreso }, modifier = Modifier.fillMaxWidth())
+        }
     }
 }
 
@@ -174,9 +265,14 @@ private fun iconoCategoria(categoria: CategoriaDesafio, iconPackId: String?): Im
 }
 
 @Composable
-private fun TarjetaDesafio(desafio: Desafio, onIniciar: ((Desafio) -> Unit)?) {
+private fun TarjetaDesafio(
+    desafio: Desafio,
+    onIniciar: ((Desafio) -> Unit)?,
+    tagPrefix: String = "",
+    mostrarDescripcion: Boolean = false,
+) {
     Card(
-        modifier = Modifier.fillMaxWidth().testTag("tarjeta_desafio_${desafio.id}"),
+        modifier = Modifier.fillMaxWidth().testTag("${tagPrefix}tarjeta_desafio_${desafio.id}"),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
@@ -186,7 +282,7 @@ private fun TarjetaDesafio(desafio: Desafio, onIniciar: ((Desafio) -> Unit)?) {
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxWidth().aspectRatio(1.53f).clip(RoundedCornerShape(10.dp))
-                    .testTag("ilustracion_desafio_${desafio.id}"),
+                    .testTag("${tagPrefix}ilustracion_desafio_${desafio.id}"),
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -212,7 +308,17 @@ private fun TarjetaDesafio(desafio: Desafio, onIniciar: ((Desafio) -> Unit)?) {
             }
             Text(text = desafio.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface)
-            Text(text = desafio.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (mostrarDescripcion) {
+                Text(text = desafio.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else if (onIniciar != null) {
+                TextButton(
+                    onClick = { onIniciar(desafio) },
+                    modifier = Modifier.testTag("boton_ver_mas_desafio_${desafio.id}"),
+                ) {
+                    Text(stringResource(R.string.desafios_ver_mas))
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, modifier = Modifier.size(18.dp))
+                }
+            }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Icon(Icons.Filled.Schedule, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
                 val segundos = desafio.durationSeconds
@@ -223,19 +329,6 @@ private fun TarjetaDesafio(desafio: Desafio, onIniciar: ((Desafio) -> Unit)?) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.testTag("duracion_desafio_${desafio.id}"),
                 )
-            }
-            if (onIniciar != null) {
-                Button(
-                    onClick = { onIniciar(desafio) },
-                    modifier = Modifier.fillMaxWidth().testTag("boton_iniciar_desafio_${desafio.id}"),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = MaterialTheme.colorScheme.onPrimary),
-                ) {
-                    Spacer(Modifier.size(18.dp))
-                    Text(stringResource(R.string.desafios_comenzar), modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center)
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, modifier = Modifier.size(18.dp))
-                }
             }
         }
     }

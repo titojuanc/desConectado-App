@@ -154,7 +154,8 @@ class FirestoreChallengeRepository(
 
     override suspend fun cancel(uid: String, runId: String): Resultado<ChallengeResult> = close(uid, terminalResult(uid, runId, ChallengeResult.Status.CANCELLED))
 
-    override suspend fun invalidate(uid: String, runId: String, reason: String): Resultado<ChallengeResult> = close(uid, terminalResult(uid, runId, ChallengeResult.Status.INVALIDATED))
+    override suspend fun invalidate(uid: String, runId: String, reason: String): Resultado<ChallengeResult> =
+        close(uid, terminalResult(uid, runId, ChallengeResult.Status.INVALIDATED).copy(invalidationReason = reason))
 
     private suspend fun close(uid: String, result: ChallengeResult): Resultado<ChallengeResult> = try {
         val resultRef = firestore.collection("users").document(uid).collection("challengeResults").document(result.challengeRunId)
@@ -266,6 +267,13 @@ class FirestoreChallengeRepository(
             timeZoneId = getString("timeZoneId") ?: java.time.ZoneId.systemDefault().id,
             category = getString("category")
                 ?.let(com.desconectado.app.domain.model.CategoriaDesafio::desdeAlmacen),
+            pointsMultiplier = getDouble("pointsMultiplier") ?: 1.0,
+            streakDays = getLong("streakDays")?.toInt() ?: 0,
+            weeklyGoalMinutesUsed = getLong("weeklyGoalMinutesUsed")?.toInt() ?: 0,
+            streakBonusPoints = getLong("streakBonusPoints")?.toInt() ?: 0,
+            dailyBasePoints = getLong("dailyBasePoints")?.toInt() ?: 0,
+            dailyKey = getString("dailyKey").orEmpty(),
+            invalidationReason = getString("invalidationReason"),
         )
     } catch (_: IllegalArgumentException) {
         null
@@ -283,7 +291,14 @@ class FirestoreChallengeRepository(
         put("measuredSocialSeconds", measuredSocialSeconds)
         put("offlineSeconds", offlineSeconds)
         put("pointsAwarded", pointsAwarded)
+        put("pointsMultiplier", pointsMultiplier)
+        put("streakDays", streakDays)
+        put("weeklyGoalMinutesUsed", weeklyGoalMinutesUsed)
+        put("streakBonusPoints", streakBonusPoints)
+        put("dailyBasePoints", dailyBasePoints)
+        put("dailyKey", dailyKey)
         put("timeZoneId", timeZoneId)
+        invalidationReason?.let { put("invalidationReason", it) }
         category?.let { put("category", it.valorAlmacen) }
     }
 

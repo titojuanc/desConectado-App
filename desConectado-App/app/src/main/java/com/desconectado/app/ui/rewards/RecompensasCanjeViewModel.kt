@@ -55,6 +55,8 @@ class RecompensasCanjeViewModel(
     val propiedad: StateFlow<List<CosmeticOwnership>> = _propiedad.asStateFlow()
     private val _preferencias = MutableStateFlow(CosmeticPreferences())
     val preferencias: StateFlow<CosmeticPreferences> = _preferencias.asStateFlow()
+    private val _procesando = MutableStateFlow(false)
+    val procesando: StateFlow<Boolean> = _procesando.asStateFlow()
     private var cargando = false
 
     init { cargar() }
@@ -63,8 +65,9 @@ class RecompensasCanjeViewModel(
 
     fun canjear(recompensa: Recompensa, redemptionId: String) {
         if (cargando) return
+        cargando = true
+        _procesando.value = true
         viewModelScope.launch {
-            cargando = true
             try {
                 when (val saldo = points.saldo(uid)) {
                     is Resultado.Exito -> if (saldo.valor < recompensa.costPoints) {
@@ -114,6 +117,7 @@ class RecompensasCanjeViewModel(
                 }
             } finally {
                 cargando = false
+                _procesando.value = false
             }
         }
     }
@@ -143,54 +147,62 @@ class RecompensasCanjeViewModel(
     }
 
     private fun cargar() {
+        if (cargando) return
+        cargando = true
         viewModelScope.launch {
-            if (connectivity.estadoValue() == com.desconectado.app.domain.model.Conectividad.SIN_CONEXION) {
-                _estado.value = RecompensasCanjeUiState.SinConexion
-                return@launch
-            }
-            _estado.value = RecompensasCanjeUiState.Cargando
-            val catalogo = catalog.recompensas()
-            val canjeadas = points.recompensasCanjeadas(uid)
-            val pendiente = points.pendingRedemption(uid)
-            val preferencias = cosmeticPreferences.leer(uid)
-            if (preferencias is Resultado.Exito) _preferencias.value = preferencias.valor
-            _estado.value = when {
-                catalogo is Resultado.Exito && canjeadas is Resultado.Exito && pendiente is Resultado.Exito -> {
-                    _propiedad.value = cosmeticosPoseidos(canjeadas.valor)
-                    val lista = RecompensasCanjeUiState.Lista(
-                        catalogo.valor.sortedBy { it.order },
-                        canjeadas.valor,
-                        pendiente.valor,
-                    )
-                    _estado.value = lista
-                    if (pendiente.valor != null) {
-                        when (val reanudado = points.resumePendingRedemption(uid)) {
-                            is Resultado.Exito -> reanudado.valor?.let {
-                                _propiedad.value = (_propiedad.value + cosmeticosPoseidos(listOf(it)))
-                                    .distinctBy { cosmetico -> cosmetico.rewardId }
-                                feedbackChannel.trySend(CanjeFeedback.Exitoso)
-                                RecompensasCanjeUiState.CanjeExitoso(it)
-                            } ?: lista.copy(pendiente = null)
-                            is Resultado.Fallo -> {
-                                feedbackChannel.trySend(if (reanudado.error == ErrorApp.SinConexion) {
-                                    CanjeFeedback.SinConexion
-                                } else {
-                                    CanjeFeedback.Error
-                                })
-                                when (val refreshed = points.pendingRedemption(uid)) {
-                                    is Resultado.Exito -> lista.copy(pendiente = refreshed.valor)
-                                    is Resultado.Fallo -> lista
+            try {
+                if (connectivity.estadoValue() == com.desconectado.app.domain.model.Conectividad.SIN_CONEXION) {
+                    _estado.value = RecompensasCanjeUiState.SinConexion
+                    return@launch
+                }
+                _estado.value = RecompensasCanjeUiState.Cargando
+                val catalogo = catalog.recompensas()
+                val canjeadas = points.recompensasCanjeadas(uid)
+                val pendiente = points.pendingRedemption(uid)
+                val preferencias = cosmeticPreferences.leer(uid)
+                if (preferencias is Resultado.Exito) _preferencias.value = preferencias.valor
+                _estado.value = when {
+                    catalogo is Resultado.Exito && canjeadas is Resultado.Exito && pendiente is Resultado.Exito -> {
+                        _propiedad.value = cosmeticosPoseidos(canjeadas.valor)
+                        val lista = RecompensasCanjeUiState.Lista(
+                            catalogo.valor.sortedBy { it.order },
+                            canjeadas.valor,
+                            pendiente.valor,
+                        )
+                        _estado.value = lista
+                        if (pendiente.valor != null) {
+                            _procesando.value = true
+                            when (val reanudado = points.resumePendingRedemption(uid)) {
+                                is Resultado.Exito -> reanudado.valor?.let {
+                                    _propiedad.value = (_propiedad.value + cosmeticosPoseidos(listOf(it)))
+                                        .distinctBy { cosmetico -> cosmetico.rewardId }
+                                    feedbackChannel.trySend(CanjeFeedback.Exitoso)
+                                    RecompensasCanjeUiState.CanjeExitoso(it)
+                                } ?: lista.copy(pendiente = null)
+                                is Resultado.Fallo -> {
+                                    feedbackChannel.trySend(if (reanudado.error == ErrorApp.SinConexion) {
+                                        CanjeFeedback.SinConexion
+                                    } else {
+                                        CanjeFeedback.Error
+                                    })
+                                    when (val refreshed = points.pendingRedemption(uid)) {
+                                        is Resultado.Exito -> lista.copy(pendiente = refreshed.valor)
+                                        is Resultado.Fallo -> lista
+                                    }
                                 }
                             }
+                        } else {
+                            lista
                         }
-                    } else {
-                        lista
                     }
+                    catalogo is Resultado.Fallo && catalogo.error == ErrorApp.SinConexion -> RecompensasCanjeUiState.SinConexion
+                    canjeadas is Resultado.Fallo && canjeadas.error == ErrorApp.SinConexion -> RecompensasCanjeUiState.SinConexion
+                    pendiente is Resultado.Fallo && pendiente.error == ErrorApp.SinConexion -> RecompensasCanjeUiState.SinConexion
+                    else -> RecompensasCanjeUiState.Error
                 }
-                catalogo is Resultado.Fallo && catalogo.error == ErrorApp.SinConexion -> RecompensasCanjeUiState.SinConexion
-                canjeadas is Resultado.Fallo && canjeadas.error == ErrorApp.SinConexion -> RecompensasCanjeUiState.SinConexion
-                pendiente is Resultado.Fallo && pendiente.error == ErrorApp.SinConexion -> RecompensasCanjeUiState.SinConexion
-                else -> RecompensasCanjeUiState.Error
+            } finally {
+                cargando = false
+                _procesando.value = false
             }
         }
     }

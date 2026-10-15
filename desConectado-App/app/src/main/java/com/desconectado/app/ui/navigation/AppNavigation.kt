@@ -1,12 +1,19 @@
 package com.desconectado.app.ui.navigation
 
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
 import com.desconectado.app.ui.challenges.BarraDesafioActivo
@@ -28,6 +35,7 @@ import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.launch
 import java.util.UUID
 import com.desconectado.app.AppContainer
+import com.desconectado.app.BuildConfig
 import com.desconectado.app.domain.model.Conectividad
 import com.desconectado.app.domain.model.EstadoSesion
 import com.desconectado.app.domain.model.CosmeticPreferences
@@ -44,12 +52,17 @@ import com.desconectado.app.ui.challenges.DesafiosScreen
 import com.desconectado.app.ui.challenges.DesafiosViewModel
 import com.desconectado.app.ui.challenges.DesafioActivoScreen
 import com.desconectado.app.ui.challenges.DesafioActivoViewModel
+import com.desconectado.app.ui.challenges.DialogoDesafioEnProceso
 import com.desconectado.app.ui.profile.PerfilScreen
+import com.desconectado.app.ui.profile.TutorialPermisoUsoDialog
 import com.desconectado.app.ui.points.SaldoViewModel
 import com.desconectado.app.ui.profile.PerfilViewModel
 import com.desconectado.app.ui.rewards.RecompensasScreen
 import com.desconectado.app.ui.rewards.RecompensasViewModel
 import com.desconectado.app.ui.rewards.RecompensasCanjeUiState
+import com.desconectado.app.ui.rewards.RecompensasCanjeViewModel
+import com.desconectado.app.ui.components.DialogoProcesando
+import com.desconectado.app.R
 
 private object Rutas {
     const val INGRESO = "ingreso"
@@ -93,6 +106,22 @@ private fun ShellConSesion(
     )
     val saldo by saldoViewModel.estado.collectAsStateWithLifecycle()
     val uid = container.auth.currentUser?.uid.orEmpty()
+    val contexto = LocalContext.current
+    val alcanceTutorial = rememberCoroutineScope()
+    var mostrarTutorialPermisos by remember(uid) { mutableStateOf(false) }
+    var debugHabilitado by remember(uid) { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(uid) {
+        debugHabilitado = BuildConfig.DEBUG && container.debugSectionPreferenceStore.estaHabilitada()
+        if (!container.usageStatsRepository.hasUsageAccess() &&
+            !container.usagePermissionTutorialStore.fueMostrado()
+        ) {
+            mostrarTutorialPermisos = true
+        }
+    }
+    val cerrarTutorialPermisos: () -> Unit = {
+        mostrarTutorialPermisos = false
+        alcanceTutorial.launch { container.usagePermissionTutorialStore.marcarMostrado() }
+    }
     val challengeOwner = remember(uid) {
         object : ViewModelStoreOwner { override val viewModelStore = ViewModelStore() }
     }
@@ -121,6 +150,25 @@ private fun ShellConSesion(
         },
     )
     val activoEstado by activoViewModel.estado.collectAsStateWithLifecycle()
+    val canjeViewModel: RecompensasCanjeViewModel = viewModel(
+        viewModelStoreOwner = challengeOwner,
+        factory = viewModelFactory {
+            initializer {
+                RecompensasCanjeViewModel(
+                    uid, container.catalogRepository, container.pointsRepository,
+                    container.cosmeticPreferencesRepository, container.connectivityMonitor,
+                )
+            }
+        },
+    )
+    val canjeProcesando by canjeViewModel.procesando.collectAsStateWithLifecycle()
+    val canjeEstado by canjeViewModel.estado.collectAsStateWithLifecycle()
+    androidx.compose.runtime.LaunchedEffect(canjeEstado) {
+        if (canjeEstado is RecompensasCanjeUiState.CanjeExitoso) {
+            saldoViewModel.recargar()
+            perfilViewModel.reintentar()
+        }
+    }
     androidx.compose.runtime.LaunchedEffect(activoEstado is DesafioActivoUiState.Terminado) {
         if (activoEstado is DesafioActivoUiState.Terminado) {
             saldoViewModel.recargar()
@@ -131,9 +179,23 @@ private fun ShellConSesion(
         conectividad = conectividad,
         saldo = saldo,
         onDestinoCambiado = { saldoViewModel.recargar(); perfilViewModel.reintentar() },
-        desafios = { DesafiosRoute(container, cosmeticPreferences, activoViewModel) },
-        recompensas = { RecompensasRoute(container, perfilViewModel, saldo, saldoViewModel::recargar) },
-        perfil = { PerfilRoute(container, cosmeticPreferences, perfilViewModel) },
+        desafios = { DesafiosRoute(container, cosmeticPreferences, activoViewModel, activoEstado is DesafioActivoUiState.Activo) },
+        recompensas = { RecompensasRoute(container, perfilViewModel, saldo, canjeViewModel) },
+        perfil = {
+            PerfilRoute(
+                container,
+                cosmeticPreferences,
+                perfilViewModel,
+                canjeViewModel,
+                onAbrirTutorialPermisos = { mostrarTutorialPermisos = true },
+                mostrarControlDebug = BuildConfig.DEBUG,
+                debugHabilitado = debugHabilitado,
+                onDebugHabilitadoChange = { habilitado ->
+                    debugHabilitado = habilitado
+                    alcanceTutorial.launch { container.debugSectionPreferenceStore.guardar(habilitado) }
+                },
+            )
+        },
         iconPackId = cosmeticPreferences.activeCosmetics[com.desconectado.app.domain.model.TipoRecompensa.PACK_ICONOS],
         barraDesafio = {
             (activoEstado as? DesafioActivoUiState.Activo)?.let { active ->
@@ -142,10 +204,43 @@ private fun ShellConSesion(
                 }
             }
         },
+        mostrarDebug = BuildConfig.DEBUG && debugHabilitado,
+        debug = { irADesafios, irARecompensas, irAPerfil ->
+            DebugRoute(
+                container = container,
+                uid = uid,
+                email = container.auth.currentUser?.email,
+                conectividad = conectividad,
+                permisoUsoConcedido = container.usageStatsRepository.hasUsageAccess(),
+                onAbrirTutorialPermisos = { mostrarTutorialPermisos = true },
+                onAbrirDesafios = irADesafios,
+                onAbrirRecompensas = irARecompensas,
+                onAbrirPerfil = irAPerfil,
+                onPuntosCambiados = { saldoViewModel.recargar(); perfilViewModel.reintentar() },
+            )
+        },
     )
+    if (activoEstado == DesafioActivoUiState.Iniciando || activoEstado == DesafioActivoUiState.Completando) {
+        DialogoDesafioEnProceso(completando = activoEstado == DesafioActivoUiState.Completando)
+    }
+    if (canjeProcesando) {
+        DialogoProcesando(
+            mensaje = stringResource(R.string.canje_procesando),
+            detalle = stringResource(R.string.canje_procesando_detalle),
+        )
+    }
     if (activoEstado is DesafioActivoUiState.Terminado || activoEstado is DesafioActivoUiState.SinPermiso || activoEstado is DesafioActivoUiState.Error) {
-        Dialog(onDismissRequest = activoViewModel::volverCatalogo) {
-            Surface {
+        val resultadoNoCompletado = (activoEstado as? DesafioActivoUiState.Terminado)?.resultado?.status?.let {
+            it != com.desconectado.app.domain.model.ChallengeResult.Status.COMPLETED
+        } ?: false
+        Dialog(
+            onDismissRequest = activoViewModel::volverCatalogo,
+            properties = DialogProperties(usePlatformDefaultWidth = !resultadoNoCompletado),
+        ) {
+            Surface(
+                modifier = if (resultadoNoCompletado) Modifier.widthIn(max = 480.dp).fillMaxWidth(0.94f) else Modifier,
+                shape = RoundedCornerShape(28.dp),
+            ) {
                 DesafioActivoScreen(
                     estado = activoEstado,
                     onAbrirAjustes = activoViewModel::abrirAjustes,
@@ -157,15 +252,35 @@ private fun ShellConSesion(
                     onCalificar = activoViewModel::calificar,
                     onVolverCatalogo = activoViewModel::volverCatalogo,
                     preferenciasCosmeticas = cosmeticPreferences,
-                    modifier = Modifier.heightIn(max = 500.dp),
+                    modifier = Modifier.heightIn(max = if (resultadoNoCompletado) 640.dp else 500.dp),
                 )
             }
         }
     }
+    if (mostrarTutorialPermisos) {
+        TutorialPermisoUsoDialog(
+            onDismiss = cerrarTutorialPermisos,
+            onAbrirPermisosUso = container.usageStatsRepository::openUsageAccessSettings,
+            onAbrirInformacionApp = {
+                contexto.startActivity(
+                    Intent(
+                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.fromParts("package", contexto.packageName, null),
+                    ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+            },
+            tienePermisoUso = container.usageStatsRepository::hasUsageAccess,
+        )
+    }
 }
 
 @Composable
-private fun DesafiosRoute(container: AppContainer, cosmeticPreferences: CosmeticPreferences, activoViewModel: DesafioActivoViewModel) {
+private fun DesafiosRoute(
+    container: AppContainer,
+    cosmeticPreferences: CosmeticPreferences,
+    activoViewModel: DesafioActivoViewModel,
+    hayDesafioActivo: Boolean,
+) {
     val viewModel: DesafiosViewModel = viewModel(
         factory = viewModelFactory {
             initializer { DesafiosViewModel(container.catalogRepository, container.connectivityMonitor) }
@@ -178,31 +293,23 @@ private fun DesafiosRoute(container: AppContainer, cosmeticPreferences: Cosmetic
             onIniciar = activoViewModel::iniciar,
             onCategoriaSeleccionada = viewModel::seleccionarCategoria,
             iconPackId = cosmeticPreferences.activeCosmetics[com.desconectado.app.domain.model.TipoRecompensa.PACK_ICONOS],
+            hayDesafioActivo = hayDesafioActivo,
         )
 }
 
 @Composable
-private fun RecompensasRoute(container: AppContainer, perfilViewModel: PerfilViewModel, saldo: com.desconectado.app.ui.points.SaldoUiState, onSaldoCambiado: () -> Unit) {
+private fun RecompensasRoute(
+    container: AppContainer,
+    perfilViewModel: PerfilViewModel,
+    saldo: com.desconectado.app.ui.points.SaldoUiState,
+    canjeViewModel: RecompensasCanjeViewModel,
+) {
     val viewModel: RecompensasViewModel = viewModel(
         factory = viewModelFactory {
             initializer { RecompensasViewModel(container.catalogRepository, container.connectivityMonitor) }
         },
     )
     val estado by viewModel.estado.collectAsStateWithLifecycle()
-    val canjeViewModel: com.desconectado.app.ui.rewards.RecompensasCanjeViewModel = viewModel(
-        key = "recompensas-canje",
-        factory = viewModelFactory {
-            initializer {
-                com.desconectado.app.ui.rewards.RecompensasCanjeViewModel(
-                    uid = container.auth.currentUser?.uid.orEmpty(),
-                    catalog = container.catalogRepository,
-                    points = container.pointsRepository,
-                    cosmeticPreferences = container.cosmeticPreferencesRepository,
-                    connectivity = container.connectivityMonitor,
-                )
-            }
-        },
-    )
     val canjeEstado by canjeViewModel.estado.collectAsStateWithLifecycle()
     val propiedad by canjeViewModel.propiedad.collectAsStateWithLifecycle()
     val preferenciasCosmeticas by canjeViewModel.preferencias.collectAsStateWithLifecycle()
@@ -216,17 +323,24 @@ private fun RecompensasRoute(container: AppContainer, perfilViewModel: PerfilVie
         canjePendiente = canjePendiente,
         propiedad = propiedad,
         preferencias = preferenciasCosmeticas,
-        onAplicarCosmetico = canjeViewModel::activarCosmetico,
-        onQuitarCosmetico = canjeViewModel::quitarCosmetico,
         logros = logros,
         onReintentarLogros = perfilViewModel::reintentarProgreso,
         saldo = saldo,
-        onCanjeExitoso = onSaldoCambiado,
+        onReintentarCanje = canjeViewModel::recargar,
     )
 }
 
 @Composable
-private fun PerfilRoute(container: AppContainer, cosmeticPreferences: CosmeticPreferences, viewModel: PerfilViewModel) {
+private fun PerfilRoute(
+    container: AppContainer,
+    cosmeticPreferences: CosmeticPreferences,
+    viewModel: PerfilViewModel,
+    canjeViewModel: RecompensasCanjeViewModel,
+    onAbrirTutorialPermisos: () -> Unit,
+    mostrarControlDebug: Boolean,
+    debugHabilitado: Boolean,
+    onDebugHabilitadoChange: (Boolean) -> Unit,
+) {
     val estado by viewModel.estado.collectAsStateWithLifecycle()
     val desafiosHechos by viewModel.desafiosHechos.collectAsStateWithLifecycle()
     val canjes by viewModel.canjes.collectAsStateWithLifecycle()
@@ -234,9 +348,13 @@ private fun PerfilRoute(container: AppContainer, cosmeticPreferences: CosmeticPr
     val progreso by viewModel.progreso.collectAsStateWithLifecycle()
     val edicionNombre by viewModel.edicionNombre.collectAsStateWithLifecycle()
     val preferenciasUsuario by viewModel.preferencias.collectAsStateWithLifecycle()
+    val inventarioCosmeticos by canjeViewModel.propiedad.collectAsStateWithLifecycle()
     PerfilScreen(
         estado = estado,
         preferenciasCosmeticas = cosmeticPreferences,
+        inventarioCosmeticos = inventarioCosmeticos,
+        onAplicarCosmetico = canjeViewModel::activarCosmetico,
+        onQuitarCosmetico = canjeViewModel::quitarCosmetico,
         desafiosHechos = desafiosHechos,
         canjes = canjes,
         proximoVencimiento = proximoVencimiento,
@@ -255,9 +373,119 @@ private fun PerfilRoute(container: AppContainer, cosmeticPreferences: CosmeticPr
         onReintentarPreferencias = viewModel::reintentarPreferencias,
         onGuardarMetaSemanal = viewModel::guardarMetaSemanal,
         onConfigurarNotificaciones = viewModel::configurarNotificaciones,
-        onAbrirAjustesPrivacidad = container.usageStatsRepository::openUsageAccessSettings,
+        onAbrirAjustesPrivacidad = onAbrirTutorialPermisos,
+        mostrarControlDebug = mostrarControlDebug,
+        debugHabilitado = debugHabilitado,
+        onDebugHabilitadoChange = onDebugHabilitadoChange,
         onCerrarSesion = viewModel::cerrarSesion,
     )
+}
+
+@Composable
+private fun DebugRoute(
+    container: AppContainer,
+    uid: String,
+    email: String?,
+    conectividad: Conectividad,
+    permisoUsoConcedido: Boolean,
+    onAbrirTutorialPermisos: () -> Unit,
+    onAbrirDesafios: () -> Unit,
+    onAbrirRecompensas: () -> Unit,
+    onAbrirPerfil: () -> Unit,
+    onPuntosCambiados: () -> Unit,
+) {
+    var diagnostico by remember(uid) { mutableStateOf<EstadoDiagnosticoDebug>(EstadoDiagnosticoDebug.SinEjecutar) }
+    var resultadoRacha by remember(uid) { mutableStateOf<String?>(null) }
+    var procesandoRacha by remember(uid) { mutableStateOf(false) }
+    val alcance = rememberCoroutineScope()
+    val ejecutarDiagnostico: () -> Unit = {
+        alcance.launch {
+            diagnostico = EstadoDiagnosticoDebug.Cargando
+            val comprobaciones = mutableListOf<ComprobacionDebug>()
+            comprobaciones += ComprobacionDebug("Sesión Firebase", "UID ${uid.takeLast(8)}", uid.isNotBlank())
+            comprobaciones += ComprobacionDebug(
+                "Catálogo de desafíos",
+                conectividad.name,
+                conectividad == Conectividad.CONECTADO,
+            )
+            comprobaciones += comprobacionDebug("Perfil", container.perfilRepository.perfil(uid)) { "Perfil disponible" }
+            comprobaciones += comprobacionDebug("Preferencias", container.userPreferencesRepository.leer(uid)) {
+                val meta = it.weeklyGoalMinutes?.let { minutos -> "$minutos min/semana" } ?: "Meta no configurada"
+                "$meta · notificaciones ${if (it.notificationsEnabled) "activadas" else "desactivadas"}"
+            }
+            comprobaciones += comprobacionDebug("Desafíos", container.catalogRepository.desafios()) { lista ->
+                val activos = lista.filter { it.active }
+                val pruebas = activos.count { it.id.startsWith("debug-") }
+                "${activos.size} activos · $pruebas fixtures [TEST]"
+            }
+            comprobaciones += comprobacionDebug("Recompensas", container.catalogRepository.recompensas()) { lista ->
+                val pruebas = lista.count { it.id.startsWith("debug-") }
+                "${lista.size} disponibles · $pruebas fixtures [TEST]"
+            }
+            comprobaciones += comprobacionDebug("Desafío activo", container.challengeRepository.active(uid)) {
+                it?.let { activo -> activo.challengeTitle } ?: "Sin desafío activo"
+            }
+            comprobaciones += comprobacionDebug("Historial de desafíos", container.challengeRepository.results(uid)) {
+                "${it.size} resultados"
+            }
+            comprobaciones += comprobacionDebug("Movimientos recientes", container.pointsRepository.ultimosDesafiosHechos(uid)) {
+                "${it.size} créditos recientes"
+            }
+            comprobaciones += comprobacionDebug("Historial de canjes", container.pointsRepository.recompensasCanjeadas(uid)) {
+                "${it.size} canjes"
+            }
+            diagnostico = EstadoDiagnosticoDebug.Listo(comprobaciones)
+        }
+    }
+
+    DebugScreen(
+        uid = uid,
+        email = email,
+        projectId = container.firestore.app.options.projectId.orEmpty(),
+        usaEmulador = BuildConfig.USE_FIREBASE_EMULATOR,
+        conectividad = conectividad,
+        permisoUsoConcedido = permisoUsoConcedido,
+        diagnostico = diagnostico,
+        onEjecutarDiagnostico = ejecutarDiagnostico,
+        onAbrirTutorialPermisos = onAbrirTutorialPermisos,
+        onAbrirDesafios = onAbrirDesafios,
+        onAbrirRecompensas = onAbrirRecompensas,
+        onAbrirPerfil = onAbrirPerfil,
+        resultadoRacha = resultadoRacha,
+        onRachaDebug = { accion ->
+            if (BuildConfig.DEBUG && !procesandoRacha) {
+                procesandoRacha = true
+                alcance.launch {
+                    try {
+                        resultadoRacha = ejecutarPruebaRacha(container, uid, accion)
+                        onPuntosCambiados()
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        android.util.Log.e("DebugRacha", "No se pudo ejecutar la prueba", e)
+                        resultadoRacha = e.message ?: "No se pudo ejecutar la prueba."
+                    } finally {
+                        procesandoRacha = false
+                    }
+                }
+            }
+        },
+    )
+    if (procesandoRacha) {
+        DialogoProcesando(
+            mensaje = stringResource(R.string.debug_racha_procesando),
+            detalle = stringResource(R.string.debug_racha_aviso),
+        )
+    }
+}
+
+private fun <T> comprobacionDebug(
+    titulo: String,
+    resultado: com.desconectado.app.domain.model.Resultado<T>,
+    detalle: (T) -> String,
+): ComprobacionDebug = when (resultado) {
+    is com.desconectado.app.domain.model.Resultado.Exito -> ComprobacionDebug(titulo, detalle(resultado.valor), true)
+    is com.desconectado.app.domain.model.Resultado.Fallo -> ComprobacionDebug(titulo, "Error: ${resultado.error}", false)
 }
 
 /**

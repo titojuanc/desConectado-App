@@ -1,6 +1,7 @@
 package com.desconectado.app.ui
 
 import android.content.Context
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
@@ -10,6 +11,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.onRoot
@@ -180,25 +182,26 @@ class AuthScreensTest {
     }
 
     @Test
-    fun registro_exigeElegirUnaMetaYOfreceOpcionesEnIntervalosDeTreinta() {
+    fun registro_exigeElegirMetaDiariaConBarraDeslizable() {
         var metaElegida: Int? = null
         mostrarRegistro(onMetaSemanalChange = { metaElegida = it })
 
-        compose.onNodeWithText("Elegí una meta semanal").assertIsDisplayed()
-        compose.onNodeWithText("Elegir meta semanal").assertIsDisplayed()
+        compose.onNodeWithText("Elegí cuánto querés desconectarte por día").assertIsDisplayed()
+        compose.onNodeWithText("Deslizá para elegir una meta diaria").assertIsDisplayed()
         compose.onNodeWithTag("boton_registrar").assertIsNotEnabled()
-        compose.onNodeWithTag("selector_meta_semanal").performClick()
-        compose.onNodeWithText("180 min/semana").performClick()
+        compose.onNodeWithTag("selector_meta_diaria").performSemanticsAction(SemanticsActions.SetProgress) {
+            it(180f)
+        }
 
-        assertEquals(180, metaElegida)
+        assertEquals(1260, metaElegida)
     }
 
     @Test
     fun GoogleDesdeIngreso_exigeMetaParaPosibleCuentaNueva() {
         mostrarIngreso()
 
-        compose.onNodeWithText("Meta semanal para una cuenta nueva de Google").assertIsDisplayed()
-        compose.onNodeWithTag("selector_meta_semanal").assertIsDisplayed()
+        compose.onNodeWithText("Meta diaria para una cuenta nueva de Google").assertIsDisplayed()
+        compose.onNodeWithTag("selector_meta_diaria").assertIsDisplayed()
         compose.onNodeWithTag("boton_google").assertIsNotEnabled()
         compose.onNodeWithTag("boton_ingresar").assertIsDisplayed()
     }

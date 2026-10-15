@@ -21,7 +21,7 @@ US1 Rating (preguntar T002 al comenzar)
 US3 Vencimiento (preguntar T001 al comenzar)
 US4 Catálogo (fórmula de puntos aprobada) -> US5 Logros/métricas (preguntar T003)
 US6 Cosméticos (preguntar catálogo/costos T004)
-US7 Perfil/meta semanal (preguntar valor/rango T003)
+US7 Perfil/meta diaria y semanal automática (valor/rango confirmado en T003)
 Historias implementadas -> Integración funcional
 Después de esta feature: adaptación visual de las referencias
 ```
@@ -30,7 +30,7 @@ Después de esta feature: adaptación visual de las referencias
 
 - [X] T001 Confirmar y registrar en `specs/003-engagement-progress/research.md` lote por sesión local, cierre a medianoche de la zona capturada al finalizar el primer desafío, vencimiento al inicio del día 30, finalización online como fecha de ganancia y procesamiento diferido; Rules valida con `request.time`, sin TTL ni Functions. Registrar el reset productivo autorizado, preparado pero no ejecutado.
 - [X] T002 Confirmar que rating usa solo 1-5 estrellas, es obligatorio antes de volver al catálogo, no incluye etiquetas y es inmutable; registrar en `specs/003-engagement-progress/spec.md`.
-- [X] T003 Confirmar y registrar el día válido (un desafío completado), zona al completar, semana lunes-domingo y meta sin default de 30..840 minutos en pasos de 30; conservar la racha durante el día actual si ayer se cumplió.
+- [X] T003 Confirmar y registrar el día válido (un desafío completado), zona al completar, semana lunes-domingo y meta diaria sin default de 30 minutos a 6 horas en pasos de 30; calcular la meta semanal como diaria × 7 y conservar la racha durante el día actual si ayer se cumplió.
 - [X] T004 Confirmar catálogo/costos de `Recompensas_desconectado.docx`; IDs slug aprobados, cupones existentes preservados, insignias retiradas de compra y caja sorpresa sin duplicados ni cobro si no hay elegibles.
 
 ## Phase 2: Foundational (bloquea las historias)

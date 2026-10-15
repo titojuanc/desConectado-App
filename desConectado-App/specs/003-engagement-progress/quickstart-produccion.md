@@ -38,13 +38,60 @@ Start-Process -FilePath $emulator -ArgumentList '-avd desconectado'
 
 El dispositivo debe aparecer como `device`, no `offline`. Crear una cuenta nueva desde la app con un mailbox de QA controlado y contraseña única. Registrar el correo de QA localmente para poder repetir ingreso y restablecimiento; no incluir credenciales en el repo, logs o evidencia.
 
+### Panel Debug QA
+
+La variante `debug` agrega una cuarta pestaña **Debug** junto a Desafíos, Recompensas y Perfil. Está desactivada al instalar; al final del Perfil, encender el switch **Sección Debug** para mostrarla, y apagarlo para ocultarla. La preferencia queda guardada en el dispositivo. El panel muestra el proyecto Firebase, estado de conectividad y permiso de uso; **Ejecutar diagnóstico Firebase** consulta sesión, perfil, preferencias, catálogos, desafío activo, historiales y movimientos sin escribir datos. Los botones de escenario abren las pantallas reales para probar sus flujos. Release nunca incluye el switch ni la pestaña Debug.
+
+El build debug apunta a Firebase de producción por defecto, igual que la configuración actual de `google-services.json`; el panel lo advierte. Para pruebas aisladas, iniciar Auth/Firestore Emulator, compilar/instalar con `-PuseEmulator=true` y sembrar solo fixtures `debug-` con `seed/seed-debug.mjs --emulator`. El diagnóstico no altera datos, pero las pruebas de racha sí generan créditos reales para la cuenta autorizada.
+
+### Preparación de la nueva racha y pruebas Debug
+
+No ejecutar estos pasos sin aprobación del proyecto y UID correspondientes. Antes de distribuir APKs
+nuevos, detener créditos de versiones anteriores, migrar cada cuenta con puntos ganados hoy,
+desplegar las reglas actuales y recién entonces habilitar el cliente nuevo. Las cuentas nuevas no
+necesitan migración. No mezclar clientes viejos/nuevos durante la preparación.
+
+Desde `firebase`, con `GOOGLE_APPLICATION_CREDENTIALS` apuntando a credenciales Admin del proyecto:
+
+```powershell
+node maintenance/migrate-daily-streak.mjs --project des-conectado --uid <UID> --dry-run
+node maintenance/migrate-daily-streak.mjs --project des-conectado --uid <UID> --apply
+npx firebase deploy --only firestore:rules --project des-conectado
+```
+
+La migración reconstruye solo el día actual y no cambia saldos; un bonus antiguo ya pagado consume
+el bonus de ese día. El script exige coincidencia entre proyecto y credencial y una cuenta
+explícita. No guardar la credencial en Git. Los botones necesitan también el desafío activo
+`debug-10-segundos` de un punto; usar el seed debug documentado sin reemplazar el catálogo normal.
+Por ahora cualquier cuenta con Sección Debug activada puede usar los botones en el APK debug;
+no requiere claims ni autorización por UID. La app comprueba el switch local antes de escribir y
+release no incluye la implementación. Las reglas solo permiten borrar los resultados de prueba
+propios y los acumulados marcados con su prefijo; no pueden comprobar la variante instalada ni un
+switch local. Restringir a una cuenta concreta queda para una actualización posterior.
+
+Guion en una cuenta QA sin desafíos reales recientes:
+
+1. Configurar meta diaria de 30 minutos (meta semanal automática de 210 minutos) y habilitar Sección Debug en Perfil.
+2. **Reiniciar días de prueba**: conserva el saldo, elimina solo resultados/acumulados de prueba de
+   hoy y los dos días anteriores. No borra resultados reales.
+3. **Sumar 1 punto** varias veces: saldo sube por puntos base, hoy sigue pendiente y no hay bonus.
+4. **Activar racha**: completa los dos días anteriores. Hoy sigue pendiente; no adelanta su bonus.
+5. **Completar meta diaria**: agrega el tiempo restante hasta 30 minutos y acredita de golpe el
+   bonus sobre todos los puntos base de hoy. Hoy pasa a cumplido, racha de tres días.
+6. **Sumar 1 punto** otra vez: solo un punto, sin otro bonus. Reiniciar la app confirma persistencia.
+7. Reiniciar días y completar la meta sin activar los días previos: racha de un día. Para probar
+   el corte por día incumplido, las pruebas JVM cubren ayer pendiente y el cambio de fecha.
+
+Los botones usan resultado y crédito normales, no editan `pointsBalance` directamente. La pantalla
+de procesamiento bloquea toques duplicados y muestra errores de Firebase.
+
 ## 3. Smoke de conexiones
 
 Registrar resultado y errores por flujo. Después de cada escritura, salir de la pantalla o reiniciar la app y comprobar persistencia, no solo el estado en memoria.
 
 | Servicio / flujo | Acción desde Android | Resultado esperado |
 | --- | --- | --- |
-| Firebase Auth | Crear cuenta de QA con meta semanal; cerrar sesión, volver a entrar y reiniciar | Cuenta creada, sesión recuperada y perfil inicial sincronizado |
+| Firebase Auth | Crear cuenta de QA con meta diaria de 30 minutos; cerrar sesión, volver a entrar y reiniciar | Cuenta creada, sesión recuperada y perfil inicial sincronizado con 210 minutos semanales |
 | Perfil y preferencias | Cambiar username, meta y notificaciones; recargar Perfil | Los campos permitidos persisten; el email no se modifica; notificaciones parten apagadas |
 | Catálogo | Abrir desafíos y recompensas; cambiar filtros/categorías | Lee los 28 desafíos, recompensas y sus configuraciones actuales desde Firestore |
 | Desafío y resultado | Iniciar un desafío elegible, completarlo o cancelarlo, volver al catálogo | Estado activo y resultado quedan asociados a la cuenta de QA; historial refleja tipo y puntos |

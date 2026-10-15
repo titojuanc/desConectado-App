@@ -110,7 +110,7 @@ fun IngresoScreen(
         }
 
         SeparadorAcceso()
-        SelectorMetaSemanal(
+        SelectorMetaDiaria(
             selectedMinutes = estado.weeklyGoalMinutes,
             error = estado.errorMetaSemanal,
             onSelect = onMetaSemanalChange,

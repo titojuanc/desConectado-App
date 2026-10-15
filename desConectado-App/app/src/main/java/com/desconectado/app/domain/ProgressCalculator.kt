@@ -15,6 +15,9 @@ data class ProgressMetrics(
     val tiempoSemanalSegundos: Long,
     val minutosRestantesMetaSemanal: Int?,
     val desafiosPorCategoria: Map<CategoriaDesafio, Int>,
+    val tiempoDiarioSegundos: Long = 0,
+    val metaDiariaCumplida: Boolean = false,
+    val segundosRestantesMetaDiaria: Long? = null,
 )
 
 object ProgressCalculator {
@@ -32,10 +35,14 @@ object ProgressCalculator {
         val completados = resultados.filter {
             it.status == ChallengeResult.Status.COMPLETED && !it.finishedAt.isAfter(ahora)
         }
-        val diasCompletados = completados.map { resultado ->
+        val segundosPorDia = completados.groupBy { resultado ->
             resultado.finishedAt.atZone(ZoneId.of(resultado.timeZoneId)).toLocalDate()
-        }.toSet()
+        }.mapValues { (_, resultadosDelDia) -> resultadosDelDia.sumOf { it.durationSeconds.toLong() } }
+        val diasCompletados = segundosPorDia.filterValues { segundos ->
+            metaSemanalMinutos != null && segundos * 7 >= metaSemanalMinutos * SEGUNDOS_POR_MINUTO
+        }.keys
         val hoy = ahora.atZone(zonaActual).toLocalDate()
+        val segundosHoy = segundosPorDia[hoy] ?: 0L
         val diaInicialRacha = when {
             hoy in diasCompletados -> hoy
             hoy.minusDays(1) in diasCompletados -> hoy.minusDays(1)
@@ -64,6 +71,11 @@ object ProgressCalculator {
             tiempoSemanalSegundos = segundosSemanales,
             minutosRestantesMetaSemanal = minutosRestantes,
             desafiosPorCategoria = completados.mapNotNull { it.category }.groupingBy { it }.eachCount(),
+            tiempoDiarioSegundos = segundosHoy,
+            metaDiariaCumplida = hoy in diasCompletados,
+            segundosRestantesMetaDiaria = metaSemanalMinutos?.let {
+                ((it * SEGUNDOS_POR_MINUTO + 6) / 7 - segundosHoy).coerceAtLeast(0)
+            },
         )
     }
 
@@ -80,5 +92,5 @@ object ProgressCalculator {
     private const val SEGUNDOS_POR_MINUTO = 60L
     private const val INCREMENTO_META_MINUTOS = 30
     const val META_MINIMA_MINUTOS = 30
-    const val META_MAXIMA_MINUTOS = 840
+    const val META_MAXIMA_MINUTOS = 2520
 }

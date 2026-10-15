@@ -200,7 +200,7 @@ class PerfilViewModelTest {
         val estado = vm.progreso.value as ProgresoUiState.Datos
         assertEquals(1, estado.metricas.desafiosCompletados)
         assertEquals(1_800L, estado.metricas.tiempoCompletadoSegundos)
-        assertEquals(1, estado.metricas.rachaDias)
+        assertEquals(0, estado.metricas.rachaDias)
         assertEquals(null, estado.metricas.minutosRestantesMetaSemanal)
         assertEquals(listOf(primerPaso), estado.logros)
         assertEquals(listOf("uid-1" to listOf(resultado)), logros.llamadas)

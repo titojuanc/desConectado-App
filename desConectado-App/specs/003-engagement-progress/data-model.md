@@ -36,7 +36,7 @@ El resultado existente conserva `challengeRunId`, `challengeId`, título, inicio
 
 ## Preferencias
 
-`UserPreferences`: `weeklyGoalMinutes` opcional hasta configurar, `notificationsEnabled` (default false) y `activeCosmetics` por tipo. La meta se configura obligatoriamente durante registro y puede editarse luego; rango 30..840 minutos en múltiplos de 30, sin default. Cada ID activo pertenece a la persona. El avatar usa recurso integrado o iniciales; no fotografía.
+`UserPreferences`: `weeklyGoalMinutes` opcional hasta configurar, `notificationsEnabled` (default false) y `activeCosmetics` por tipo. Durante el registro y al editar la meta, la persona elige una meta diaria de 30 minutos a 6 horas, en pasos de 30 minutos; el sistema genera la meta semanal multiplicando por siete (210..2520 minutos). No hay default. Se aceptan metas semanales históricas de 30..2520 minutos en múltiplos de 30 para mantener compatibilidad. Cada ID activo pertenece a la persona. El avatar usa recurso integrado o iniciales; no fotografía.
 
 `Profile`: extiende el username editable y los datos calculados/mostrados sin convertir métricas en fuente independiente de verdad. Correo e identidad siguen vinculados a Firebase Auth.
 

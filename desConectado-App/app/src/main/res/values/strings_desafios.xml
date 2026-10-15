@@ -3,6 +3,10 @@
     <string name="desafios_titulo">Desafíos</string>
     <string name="desafios_pregunta">¿Cómo querés desconectarte hoy?</string>
     <string name="desafios_comenzar">Comenzar</string>
+    <string name="desafios_ver_mas">Ver más</string>
+    <string name="desafios_mantener_para_iniciar">Mantén para iniciar</string>
+    <string name="desafios_cancelar_inicio">Cancelar</string>
+    <string name="desafios_ya_activo">Ya estás en un desafío.</string>
     <string name="desafios_duracion">Duración: %1$s</string>
     <string name="desafios_categoria_todos">Todos</string>
     <string name="desafios_categoria_moverme">Moverme</string>

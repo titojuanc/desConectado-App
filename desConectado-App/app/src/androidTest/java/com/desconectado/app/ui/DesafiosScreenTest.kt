@@ -10,6 +10,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
@@ -55,12 +56,12 @@ class DesafiosScreenTest {
     }
 
     @Test
-    fun cadaTarjeta_muestraTituloDescripcionDuracionPuntosYDificultad() {
+    fun cadaTarjeta_muestraTituloDuracionPuntosYDificultadSinDescripcion() {
         mostrar(DesafiosUiState.Lista(desafios))
 
         compose.onNodeWithTag("lista_desafios").assertIsDisplayed()
         compose.onNodeWithText("Salir a caminar").assertIsDisplayed()
-        compose.onNodeWithText("Tomá aire y mirá a tu alrededor.").assertIsDisplayed()
+        compose.onNodeWithText("Tomá aire y mirá a tu alrededor.").assertDoesNotExist()
         compose.onNodeWithTag("duracion_desafio_d1").assertTextEquals("30 minutos")
         compose.onNodeWithTag("puntos_desafio_d1", useUnmergedTree = true).assertTextEquals("10")
         compose.onNodeWithTag("ilustracion_desafio_d1").assertIsDisplayed()
@@ -86,9 +87,9 @@ class DesafiosScreenTest {
     fun sinAccionDeInicio_noAparecenBotonesEnLasTarjetas() {
         mostrar(DesafiosUiState.Lista(desafios))
 
-        compose.onNodeWithTag("boton_iniciar_desafio_d1").assertDoesNotExist()
-        compose.onNodeWithTag("boton_iniciar_desafio_d2").assertDoesNotExist()
-        compose.onNodeWithTag("boton_iniciar_desafio_d3").assertDoesNotExist()
+        compose.onNodeWithTag("boton_ver_mas_desafio_d1").assertDoesNotExist()
+        compose.onNodeWithTag("boton_ver_mas_desafio_d2").assertDoesNotExist()
+        compose.onNodeWithTag("boton_ver_mas_desafio_d3").assertDoesNotExist()
     }
 
     @Test
@@ -106,7 +107,7 @@ class DesafiosScreenTest {
         }
         compose.onNodeWithTag("marca_app").assertIsDisplayed()
         compose.onNodeWithTag("ilustracion_desafio_d1").assertIsDisplayed()
-        compose.onNodeWithTag("boton_iniciar_desafio_d1").assertExists()
+        compose.onNodeWithTag("boton_ver_mas_desafio_d1").assertTextEquals("Ver más")
         compose.onNodeWithTag("tab_desafios").assertIsDisplayed()
         compose.waitForIdle()
         val screenshot = requireNotNull(InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot())
@@ -122,7 +123,7 @@ class DesafiosScreenTest {
     }
 
     @Test
-    fun comenzarEnviaElDesafioDeLaTarjetaYConservaIlustracion() {
+    fun tocarDesafioAbreConfirmacionYExigeMantenerTresSegundos() {
         var iniciado: Desafio? = null
         compose.setContent {
             DesConectadoTheme {
@@ -131,8 +132,47 @@ class DesafiosScreenTest {
         }
         compose.onNodeWithText("¿Cómo querés desconectarte hoy?").assertIsDisplayed()
         compose.onNodeWithTag("ilustracion_desafio_d1").assertIsDisplayed()
-        compose.onNodeWithTag("boton_iniciar_desafio_d1").performScrollTo().performClick()
+        compose.onNodeWithText("Tomá aire y mirá a tu alrededor.").assertDoesNotExist()
+        compose.onNodeWithTag("boton_ver_mas_desafio_d1").assertTextEquals("Ver más").performScrollTo().performClick()
+        compose.onNodeWithTag("confirmacion_ilustracion_desafio_d1").assertIsDisplayed()
+        compose.onNodeWithText("Tomá aire y mirá a tu alrededor.").assertIsDisplayed()
+        compose.onNodeWithText("Mantén para iniciar").assertIsDisplayed()
+        assertEquals(null, iniciado)
+
+        val botonMantener = compose.onNodeWithText("Mantén para iniciar")
+        compose.mainClock.autoAdvance = false
+        botonMantener.performTouchInput { down(center) }
+        compose.mainClock.advanceTimeBy(3100)
+        compose.mainClock.autoAdvance = true
         assertEquals(desafios.first(), iniciado)
+    }
+
+    @Test
+    fun intentoConDesafioActivo_muestraAvisoYConservaBarraInferior() {
+        var inicios = 0
+        compose.setContent {
+            DesConectadoTheme {
+                MainShell(
+                    conectividad = Conectividad.CONECTADO,
+                    barraDesafio = { androidx.compose.material3.Text("desafio-activo-barra") },
+                    desafios = {
+                        DesafiosScreen(
+                            estado = DesafiosUiState.Lista(desafios),
+                            onReintentar = {},
+                            onIniciar = { inicios++ },
+                            hayDesafioActivo = true,
+                        )
+                    },
+                )
+            }
+        }
+
+        compose.onNodeWithTag("boton_ver_mas_desafio_d1").performScrollTo().performClick()
+
+        compose.onNodeWithText("Ya estás en un desafío.").assertIsDisplayed()
+        compose.onNodeWithText("desafio-activo-barra").assertIsDisplayed()
+        assertEquals(0, inicios)
+        compose.onNodeWithTag("boton_mantener_iniciar").assertDoesNotExist()
     }
 
     @Test

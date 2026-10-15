@@ -17,8 +17,10 @@ import com.desconectado.app.ui.points.SaldoUiState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.ui.platform.testTag
 import androidx.test.platform.app.InstrumentationRegistry
 import com.desconectado.app.ui.navigation.MainShell
+import com.desconectado.app.ui.components.DialogoProcesando
 import com.desconectado.app.domain.model.Conectividad
 import com.desconectado.app.domain.model.CategoriaDesafio
 import com.desconectado.app.ui.rewards.CanjeFeedback
@@ -52,6 +54,29 @@ class RecompensasScreenTest {
     @get:Rule
     val compose = createComposeRule()
 
+    @Test
+    fun canjeMuestraPantallaAnimadaQueNoSeCierraConAtras() {
+        val procesando = mutableStateOf(true)
+        compose.setContent {
+            DesConectadoTheme {
+                MainShell(conectividad = Conectividad.CONECTADO)
+                if (procesando.value) DialogoProcesando(
+                    mensaje = texto(R.string.canje_procesando),
+                    detalle = texto(R.string.canje_procesando_detalle),
+                    modifier = androidx.compose.ui.Modifier.testTag("pantalla_canje_en_proceso"),
+                )
+            }
+        }
+        compose.onNodeWithTag("pantalla_canje_en_proceso").assertIsDisplayed()
+        compose.onNodeWithTag("indicador_cargando").assertIsDisplayed()
+        InstrumentationRegistry.getInstrumentation().uiAutomation
+            .performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK)
+        compose.waitForIdle()
+        compose.onNodeWithText(texto(R.string.canje_procesando)).assertIsDisplayed()
+        compose.runOnIdle { procesando.value = false }
+        compose.onNodeWithTag("pantalla_canje_en_proceso").assertDoesNotExist()
+    }
+
     private val recompensas = listOf(
         Recompensa("r1", "Cupón digital", "Cupón digital dentro de la app.", 50, TipoRecompensa.CUPON, 1),
         Recompensa("r2", "Tema de color para la app", "Cambia los colores de la app.", 100, TipoRecompensa.TEMA, 2),
@@ -65,8 +90,6 @@ class RecompensasScreenTest {
         pendiente: PendingRedemption? = null,
         propiedad: List<CosmeticOwnership> = emptyList(),
         preferencias: CosmeticPreferences = CosmeticPreferences(),
-        onAplicar: ((String) -> Unit)? = null,
-        onQuitar: ((TipoRecompensa) -> Unit)? = null,
         saldo: SaldoUiState = SaldoUiState.Disponible(150),
         onCanjear: ((Recompensa) -> Unit)? = {},
     ) = compose.setContent {
@@ -79,8 +102,6 @@ class RecompensasScreenTest {
                 canjePendiente = pendiente,
                 propiedad = propiedad,
                 preferencias = preferencias,
-                onAplicarCosmetico = onAplicar,
-                onQuitarCosmetico = onQuitar,
             )
         }
     }
@@ -108,12 +129,12 @@ class RecompensasScreenTest {
         compose.onNodeWithText("1 de 1 desbloqueados").assertIsDisplayed()
         compose.onNodeWithTag("boton_canjear_r1").assertDoesNotExist()
         compose.onNodeWithTag("seccion_canjeables").performClick()
-        compose.onNodeWithTag("lista_recompensas").performScrollToNode(hasTestTag("boton_canjear_r1"))
-        compose.onNodeWithTag("boton_canjear_r1").assertIsDisplayed()
+        compose.onNodeWithTag("lista_recompensas").performScrollToNode(hasTestTag("boton_ver_mas_recompensa_r1"))
+        compose.onNodeWithTag("boton_ver_mas_recompensa_r1").assertIsDisplayed()
     }
 
     @Test
-    fun cadaTarjeta_muestraNombreDescripcionYCostoEnPuntos() {
+    fun cadaTarjeta_muestraVerMasEnLugarDeDescripcionYAbreElDetalle() {
         mostrar(RecompensasUiState.Lista(recompensas))
 
         compose.onNodeWithTag("lista_recompensas").assertIsDisplayed()
@@ -122,8 +143,11 @@ class RecompensasScreenTest {
         compose.onNodeWithTag("imagen_recompensa_r2").assertIsDisplayed()
         compose.onNodeWithTag("lista_recompensas").performScrollToNode(hasTestTag("recompensa_r1"))
         compose.onNodeWithText("Cupón digital").assertIsDisplayed()
-        compose.onNodeWithText("Cupón digital dentro de la app.").assertIsDisplayed()
+        compose.onNodeWithText("Cupón digital dentro de la app.").assertDoesNotExist()
         compose.onNodeWithTag("costo_recompensa_r1").assertTextEquals("50")
+        compose.onNodeWithTag("boton_ver_mas_recompensa_r1").performScrollTo().performClick()
+        compose.onNodeWithText("Cupón digital dentro de la app.").assertIsDisplayed()
+        compose.onNodeWithTag("boton_canjear_r1").assertIsDisplayed()
     }
 
     @Test
@@ -173,40 +197,31 @@ class RecompensasScreenTest {
         mostrar(RecompensasUiState.Lista(recompensas), pendiente)
 
         compose.onNodeWithTag("canje_pendiente").assertIsDisplayed()
-        compose.onNodeWithText("20 de 50 puntos descontados; se va a reanudar cuando vuelvas a la tienda.").assertIsDisplayed()
-        compose.onNodeWithTag("lista_recompensas").performScrollToNode(hasTestTag("boton_canjear_r1"))
+        compose.onNodeWithText("20 de 50 puntos descontados. Reintentá para completar el canje sin volver a descontar los puntos ya procesados.").assertIsDisplayed()
+        compose.onNodeWithTag("boton_reintentar_canje").assertIsDisplayed()
+        compose.onNodeWithTag("lista_recompensas").performScrollToNode(hasTestTag("boton_ver_mas_recompensa_r1"))
+        compose.onNodeWithTag("boton_ver_mas_recompensa_r1").performScrollTo().performClick()
         compose.onNodeWithTag("boton_canjear_r1").assertIsNotEnabled()
     }
 
     @Test
-    fun muestraInventarioYPermiteAplicarOCambiarUnCosmeticoPoseido() {
-        val bosque = CosmeticOwnership(
-            rewardId = "theme-bosque",
+    fun muestraLosCosmeticosPoseidosComoCompradosPeroNoEnElInventarioDeLaTienda() {
+        val tema = CosmeticOwnership(
+            rewardId = "r2",
             name = "Tema Bosque",
             kind = TipoRecompensa.TEMA,
             config = mapOf("palette" to "forest"),
             acquiredAt = java.time.Instant.parse("2026-10-08T10:00:00Z"),
             redemptionId = "purchase-1",
         )
-        var aplicados = 0
-        var retirados = 0
-        val seleccion = mutableStateOf(CosmeticPreferences())
-        compose.setContent {
-            DesConectadoTheme {
-                RecompensasScreen(RecompensasUiState.Lista(recompensas), onReintentar = {},
-                    propiedad = listOf(bosque), preferencias = seleccion.value,
-                    onAplicarCosmetico = { id -> if (id == bosque.rewardId) aplicados++; seleccion.value = CosmeticPreferences(mapOf(TipoRecompensa.TEMA to id)) },
-                    onQuitarCosmetico = { if (it == TipoRecompensa.TEMA) retirados++ })
-            }
-        }
-        compose.onNodeWithTag("lista_recompensas").performScrollToNode(hasTestTag("cosmetico_theme-bosque"))
-        compose.onNodeWithTag("cosmetico_theme-bosque").assertIsDisplayed()
-        compose.onNodeWithTag("boton_aplicar_theme-bosque").performClick()
-        compose.onNodeWithTag("boton_canjear_theme-bosque").assertDoesNotExist()
-        assertEquals(1, aplicados)
-
-        compose.onNodeWithTag("boton_quitar_theme-bosque").performClick()
-        assertEquals(1, retirados)
+        mostrar(
+            estado = RecompensasUiState.Lista(recompensas),
+            propiedad = listOf(tema),
+            preferencias = CosmeticPreferences(mapOf(TipoRecompensa.TEMA to tema.rewardId)),
+        )
+        compose.onNodeWithTag("lista_recompensas").performScrollToNode(hasTestTag("recompensa_r2"))
+        compose.onNodeWithTag("recompensa_r2").assertIsDisplayed()
+        compose.onNodeWithTag("cosmetico_r2").assertDoesNotExist()
     }
 
     @Test
@@ -230,7 +245,6 @@ class RecompensasScreenTest {
                     MainShell(conectividad = Conectividad.CONECTADO, saldo = SaldoUiState.Disponible(140), recompensas = {
                         RecompensasScreen(RecompensasUiState.Lista(rewards), onReintentar = {}, onCanjear = {}, saldo = SaldoUiState.Disponible(140),
                             propiedad = listOf(owned), preferencias = CosmeticPreferences(mapOf(TipoRecompensa.TEMA to "theme-bosque")),
-                            onAplicarCosmetico = {}, onQuitarCosmetico = {},
                             logros = ProgresoUiState.Datos(ProgressMetrics(3, 1800, 1, 1800, null, emptyMap()), medals))
                     })
                 }
@@ -274,6 +288,7 @@ class RecompensasScreenTest {
     @Test
     fun saldoInsuficienteODesconocidoNoPermiteCanjear() {
         mostrar(RecompensasUiState.Lista(recompensas), saldo = SaldoUiState.Disponible(40))
+        compose.onNodeWithTag("boton_ver_mas_recompensa_r2").performScrollTo().performClick()
         compose.onNodeWithTag("saldo_insuficiente_r2").assertTextEquals("Te faltan 60 puntos")
         compose.onNodeWithTag("boton_canjear_r2").assertIsNotEnabled()
     }
@@ -281,6 +296,7 @@ class RecompensasScreenTest {
     @Test
     fun saldoDesconocidoNoSePresentaComoCero() {
         mostrar(RecompensasUiState.Lista(recompensas), saldo = SaldoUiState.NoDisponible)
+        compose.onNodeWithTag("boton_ver_mas_recompensa_r2").performScrollTo().performClick()
         compose.onNodeWithTag("boton_canjear_r2").assertIsNotEnabled()
         compose.onNodeWithTag("saldo_insuficiente_r2").assertDoesNotExist()
     }
@@ -289,6 +305,8 @@ class RecompensasScreenTest {
     fun canjearEnviaLaRecompensaSeleccionada() {
         var enviada: Recompensa? = null
         mostrar(RecompensasUiState.Lista(recompensas), onCanjear = { enviada = it })
+        compose.onNodeWithTag("boton_ver_mas_recompensa_r2").performScrollTo().performClick()
+        assertEquals(null, enviada)
         compose.onNodeWithTag("boton_canjear_r2").performClick()
         assertEquals(recompensas[1], enviada)
     }

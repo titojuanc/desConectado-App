@@ -24,7 +24,7 @@ La documentación de precios de Firestore indica que TTL no tiene cuota gratuita
 
 ### Logros y métricas
 
-**Confirmado por el usuario**: un día de racha cuenta con al menos un desafío completado válido, sin duración mínima. La racha se conserva durante el día actual si se cumplió ayer y se rompe al cerrar un día local incumplido; no se compensa. Cada resultado se asigna a su fecha con la zona capturada al completarlo. La semana va de lunes a domingo. La meta se elige durante el registro sin valor predeterminado, entre 30 y 840 minutos en incrementos de 30; se puede ajustar después en el mismo rango.
+**Confirmado por el usuario**: un día de racha cuenta con al menos un desafío completado válido, sin duración mínima. La racha se conserva durante el día actual si se cumplió ayer y se rompe al cerrar un día local incumplido; no se compensa. Cada resultado se asigna a su fecha con la zona capturada al completarlo. La semana va de lunes a domingo. La persona elige su meta diaria durante el registro, de 30 minutos a 6 horas en pasos de 30 minutos, y la meta semanal se calcula automáticamente como siete veces esa elección. No hay valor predeterminado y se puede ajustar después.
 
 Los conteos y horas se derivan solo de resultados completados válidos. La categoría se guarda como snapshot del resultado para que cambios futuros del catálogo no alteren logros. Firestore puede imponer acceso propietario, progreso monotónico e idempotencia, pero Rules no puede contar una colección arbitraria de resultados; se acepta cálculo cliente porque los logros no tienen valor económico ni otorgan puntos. Un cliente modificado podría falsificarlos.
 
